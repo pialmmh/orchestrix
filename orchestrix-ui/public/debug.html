@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug API</title>
+</head>
+<body>
+    <h1>API Debug Test</h1>
+    <button onclick="testAll()">Run All Tests</button>
+    <pre id="result"></pre>
+    
+    <script>
+        const log = (msg) => {
+            document.getElementById('result').textContent += msg + '\n';
+        };
+
+        async function testAll() {
+            document.getElementById('result').textContent = '';
+            
+            // Test 1: Direct backend
+            try {
+                log('Test 1: Direct backend at :8090/api/api/auth/login');
+                const r1 = await fetch('http://localhost:8090/api/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'admin', password: 'admin' })
+                });
+                log(`  Status: ${r1.status} ${r1.statusText}`);
+                if (r1.ok) {
+                    const data = await r1.json();
+                    log(`  Success: User = ${data.user.username}`);
+                }
+            } catch (e) {
+                log(`  Error: ${e.message}`);
+            }
+
+            // Test 2: Through proxy
+            try {
+                log('\nTest 2: Through proxy at /api/api/auth/login');
+                const r2 = await fetch('/api/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'admin', password: 'admin' })
+                });
+                log(`  Status: ${r2.status} ${r2.statusText}`);
+                if (r2.ok) {
+                    const data = await r2.json();
+                    log(`  Success: User = ${data.user.username}`);
+                }
+            } catch (e) {
+                log(`  Error: ${e.message}`);
+            }
+
+            // Test 3: Users endpoint
+            try {
+                log('\nTest 3: Users endpoint at /api/api/users');
+                const r3 = await fetch('/api/api/users');
+                log(`  Status: ${r3.status} ${r3.statusText}`);
+                if (r3.ok) {
+                    const data = await r3.json();
+                    log(`  Success: Total users = ${data.totalUsers}`);
+                }
+            } catch (e) {
+                log(`  Error: ${e.message}`);
+            }
+
+            // Test 4: Wrong path (should 404)
+            try {
+                log('\nTest 4: Wrong path at /api/wrong');
+                const r4 = await fetch('/api/wrong');
+                log(`  Status: ${r4.status} ${r4.statusText}`);
+            } catch (e) {
+                log(`  Error: ${e.message}`);
+            }
+        }
+
+        testAll();
+    </script>
+</body>
+</html>

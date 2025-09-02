@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Axios Login</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>Test Axios Login Flow</h1>
+    <button onclick="testLogin()">Test Login with Axios</button>
+    <pre id="result"></pre>
+    
+    <script>
+        const log = (msg) => {
+            const el = document.getElementById('result');
+            el.textContent += msg + '\n';
+            console.log(msg);
+        };
+
+        async function testLogin() {
+            document.getElementById('result').textContent = '';
+            
+            try {
+                log('1. Testing login with axios...');
+                const loginResponse = await axios.post('/api/api/auth/login', {
+                    username: 'admin',
+                    password: 'admin'
+                });
+                
+                log('2. Login successful!');
+                log('   User: ' + loginResponse.data.user.username);
+                log('   Token: ' + loginResponse.data.token.substring(0, 20) + '...');
+                
+                // Set the auth header like the React app does
+                axios.defaults.headers.common['Authorization'] = `Bearer ${loginResponse.data.token}`;
+                log('3. Set Authorization header');
+                
+                // Now try to fetch users like the React app would
+                log('4. Fetching users with auth header...');
+                const usersResponse = await axios.get('/api/api/users');
+                log('5. Users fetched successfully!');
+                log('   Total users: ' + usersResponse.data.totalUsers);
+                
+            } catch (error) {
+                log('ERROR: ' + error.message);
+                if (error.response) {
+                    log('  Status: ' + error.response.status);
+                    log('  Status Text: ' + error.response.statusText);
+                    log('  URL: ' + error.config.url);
+                    log('  Response: ' + JSON.stringify(error.response.data));
+                }
+                console.error('Full error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

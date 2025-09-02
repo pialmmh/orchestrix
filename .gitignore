@@ -1,0 +1,80 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Java
+*.class
+*.log
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+
+# Images (too large for git)
+images/lxc/*.tar.gz
+images/lxc/*.tar.xz
+images/lxc/*.tar
+images/docker/*.tar
+images/docker/*.tar.gz
+images/vms/*.qcow2
+images/vms/*.vmdk
+images/vms/*.vdi
+images/vms/*.iso
+
+# Deployment data directories (runtime data)
+deployments/*/data/
+deployments/*/logs/
+deployments/*/tmp/
+
+# Sensitive configuration
+deployments/*/configs/*.secret
+deployments/*/configs/*.key
+deployments/*/configs/*.pem
+deployments/*/configs/*.p12
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Application
+application-local.properties
+application-local.yml
+*.pid
+
+# Backup files
+*.backup
+*.bak
+*.old
+
+# Test output
+test-output/
+test-results/
+
+# Build directories
+build/
+dist/
+out/

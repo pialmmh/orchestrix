@@ -1,0 +1,414 @@
+# Example: SMS Gateway Java Application Deployment Configuration
+# This demonstrates how to deploy a Java JAR/WAR artifact
+
+artifact:
+  id: smsgateway
+  name: "SMS Gateway Service"
+  type: jar
+  version: 3.2.1
+  repository:
+    type: google-drive
+    folder_id: "1A2B3C4D5E6F7G8H9I0J"
+    path: "artifacts/smsgateway/smsgateway-3.2.1.jar"
+  dependencies:
+    - artifact_id: java-runtime
+      version: "11.0.12"
+      type: system
+
+client:
+  id: telco-client-001
+  name: "Telecom Client 001"
+
+deployment_profile: prod
+
+configuration:
+  # Java Application Configuration
+  application:
+    name: smsgateway-prod
+    main_class: com.telcobright.smsgateway.Application
+    jvm_options:
+      heap:
+        min: 1G
+        max: 4G
+      gc: G1GC
+      additional:
+        - "-XX:+UseStringDeduplication"
+        - "-XX:MaxGCPauseMillis=200"
+        - "-Djava.awt.headless=true"
+        - "-Dfile.encoding=UTF-8"
+        - "-Djava.security.egd=file:/dev/./urandom"
+    
+  # Application directories (bound from host)
+  directories:
+    - name: config
+      host_path: /opt/clarity/clients/telco-client-001/smsgateway/config
+      app_path: /opt/smsgateway/config
+      mode: ro
+      
+    - name: logs
+      host_path: /var/log/clients/telco-client-001/smsgateway
+      app_path: /opt/smsgateway/logs
+      mode: rw
+      
+    - name: data
+      host_path: /data/clients/telco-client-001/smsgateway
+      app_path: /opt/smsgateway/data
+      mode: rw
+      
+    - name: temp
+      host_path: /tmp/clients/telco-client-001/smsgateway
+      app_path: /opt/smsgateway/temp
+      mode: rw
+
+  # Environment Variables
+  environment:
+    # Application settings
+    APP_NAME: "smsgateway"
+    APP_ENV: "production"
+    APP_PORT: "8080"
+    APP_MANAGEMENT_PORT: "8081"
+    
+    # Database configuration
+    DB_TYPE: "postgresql"
+    DB_HOST: "${VAULT:db_host}"
+    DB_PORT: "5432"
+    DB_NAME: "smsgateway_prod"
+    DB_USER: "${VAULT:db_user}"
+    DB_PASSWORD: "${VAULT:db_password}"
+    DB_POOL_SIZE: "20"
+    DB_POOL_MAX: "50"
+    
+    # SMPP Configuration
+    SMPP_BIND_TYPE: "TRANSCEIVER"
+    SMPP_HOST: "0.0.0.0"
+    SMPP_PORT: "2775"
+    SMPP_SYSTEM_ID: "${VAULT:smpp_system_id}"
+    SMPP_PASSWORD: "${VAULT:smpp_password}"
+    SMPP_SYSTEM_TYPE: "SMPP"
+    SMPP_INTERFACE_VERSION: "34"
+    SMPP_ENQUIRE_LINK_TIMER: "30000"
+    SMPP_TRANSACTION_TIMER: "10000"
+    SMPP_MAX_CONNECTIONS: "10"
+    
+    # Redis Cache
+    REDIS_HOST: "10.0.3.50"
+    REDIS_PORT: "6379"
+    REDIS_PASSWORD: "${VAULT:redis_password}"
+    REDIS_DB: "0"
+    REDIS_POOL_SIZE: "10"
+    
+    # Message Queue
+    MQ_TYPE: "rabbitmq"
+    MQ_HOST: "10.0.3.51"
+    MQ_PORT: "5672"
+    MQ_VHOST: "/smsgateway"
+    MQ_USER: "${VAULT:mq_user}"
+    MQ_PASSWORD: "${VAULT:mq_password}"
+    MQ_EXCHANGE: "sms.exchange"
+    MQ_QUEUE_INBOUND: "sms.inbound"
+    MQ_QUEUE_OUTBOUND: "sms.outbound"
+    
+    # Monitoring
+    METRICS_ENABLED: "true"
+    METRICS_PORT: "9090"
+    METRICS_PATH: "/metrics"
+    
+    # Logging
+    LOG_LEVEL: "INFO"
+    LOG_FORMAT: "JSON"
+    LOG_FILE: "/opt/smsgateway/logs/application.log"
+    LOG_MAX_SIZE: "100MB"
+    LOG_MAX_BACKUPS: "10"
+    LOG_MAX_AGE: "30"
+
+  # Configuration Files
+  config_files:
+    - path: /opt/smsgateway/config/application.yml
+      content: |
+        spring:
+          application:
+            name: smsgateway
+          profiles:
+            active: production
+          
+          datasource:
+            url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+            username: ${DB_USER}
+            password: ${DB_PASSWORD}
+            driver-class-name: org.postgresql.Driver
+            hikari:
+              maximum-pool-size: ${DB_POOL_MAX}
+              minimum-idle: ${DB_POOL_SIZE}
+              connection-timeout: 30000
+              idle-timeout: 600000
+              max-lifetime: 1800000
+          
+          jpa:
+            hibernate:
+              ddl-auto: validate
+            properties:
+              hibernate:
+                dialect: org.hibernate.dialect.PostgreSQLDialect
+                jdbc:
+                  batch_size: 20
+                order_inserts: true
+                order_updates: true
+          
+          redis:
+            host: ${REDIS_HOST}
+            port: ${REDIS_PORT}
+            password: ${REDIS_PASSWORD}
+            database: ${REDIS_DB}
+            lettuce:
+              pool:
+                max-active: ${REDIS_POOL_SIZE}
+                max-idle: 8
+                min-idle: 0
+          
+          rabbitmq:
+            host: ${MQ_HOST}
+            port: ${MQ_PORT}
+            username: ${MQ_USER}
+            password: ${MQ_PASSWORD}
+            virtual-host: ${MQ_VHOST}
+        
+        server:
+          port: ${APP_PORT}
+          servlet:
+            context-path: /
+          compression:
+            enabled: true
+        
+        management:
+          server:
+            port: ${APP_MANAGEMENT_PORT}
+          endpoints:
+            web:
+              exposure:
+                include: health,info,metrics,prometheus
+          metrics:
+            export:
+              prometheus:
+                enabled: true
+        
+        smsgateway:
+          smpp:
+            bind-type: ${SMPP_BIND_TYPE}
+            host: ${SMPP_HOST}
+            port: ${SMPP_PORT}
+            system-id: ${SMPP_SYSTEM_ID}
+            password: ${SMPP_PASSWORD}
+            system-type: ${SMPP_SYSTEM_TYPE}
+            interface-version: ${SMPP_INTERFACE_VERSION}
+            enquire-link-timer: ${SMPP_ENQUIRE_LINK_TIMER}
+            transaction-timer: ${SMPP_TRANSACTION_TIMER}
+            max-connections: ${SMPP_MAX_CONNECTIONS}
+          
+          routing:
+            default-route: primary-smsc
+            routes:
+              - pattern: "^\\+1.*"
+                provider: us-provider
+              - pattern: "^\\+44.*"
+                provider: uk-provider
+              - pattern: "^\\+880.*"
+                provider: bd-provider
+          
+          rate-limiting:
+            enabled: true
+            default-rate: 100
+            burst-size: 200
+            
+          message:
+            max-length: 1600
+            encoding: UTF-8
+            validity-period: 86400
+            
+          retry:
+            max-attempts: 3
+            backoff-multiplier: 2
+            initial-interval: 1000
+            max-interval: 10000
+
+    - path: /opt/smsgateway/config/logback-spring.xml
+      content: |
+        <?xml version="1.0" encoding="UTF-8"?>
+        <configuration>
+            <property name="LOG_FILE" value="${LOG_FILE:-/opt/smsgateway/logs/application.log}"/>
+            <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+            
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>${LOG_PATTERN}</pattern>
+                </encoder>
+            </appender>
+            
+            <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                <file>${LOG_FILE}</file>
+                <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                    <fileNamePattern>${LOG_FILE}.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
+                    <maxFileSize>100MB</maxFileSize>
+                    <maxHistory>30</maxHistory>
+                    <totalSizeCap>3GB</totalSizeCap>
+                </rollingPolicy>
+                <encoder>
+                    <pattern>${LOG_PATTERN}</pattern>
+                </encoder>
+            </appender>
+            
+            <logger name="com.telcobright.smsgateway" level="INFO"/>
+            <logger name="org.springframework" level="WARN"/>
+            <logger name="org.hibernate" level="WARN"/>
+            
+            <root level="INFO">
+                <appender-ref ref="CONSOLE"/>
+                <appender-ref ref="FILE"/>
+            </root>
+        </configuration>
+
+  # Systemd Service Configuration
+  systemd:
+    - name: smsgateway
+      content: |
+        [Unit]
+        Description=SMS Gateway Service
+        After=network.target postgresql.service redis.service rabbitmq-server.service
+        Wants=postgresql.service redis.service rabbitmq-server.service
+        
+        [Service]
+        Type=simple
+        User=smsgateway
+        Group=smsgateway
+        WorkingDirectory=/opt/smsgateway
+        
+        # Environment
+        Environment="JAVA_HOME=/usr/lib/jvm/java-11-openjdk"
+        EnvironmentFile=/opt/smsgateway/config/environment
+        
+        # JVM Options
+        Environment="JAVA_OPTS=-Xms1G -Xmx4G -XX:+UseG1GC -XX:+UseStringDeduplication"
+        
+        # Start command
+        ExecStart=/usr/lib/jvm/java-11-openjdk/bin/java \
+          $JAVA_OPTS \
+          -jar /opt/smsgateway/smsgateway-3.2.1.jar \
+          --spring.config.location=file:/opt/smsgateway/config/application.yml
+        
+        # Restart configuration
+        Restart=always
+        RestartSec=10
+        SuccessExitStatus=143
+        
+        # Resource limits
+        LimitNOFILE=65536
+        LimitNPROC=32768
+        
+        # Logging
+        StandardOutput=append:/opt/smsgateway/logs/service.log
+        StandardError=append:/opt/smsgateway/logs/service-error.log
+        
+        [Install]
+        WantedBy=multi-user.target
+
+  # Pre-deployment checks
+  pre_deploy:
+    - name: "Check Java version"
+      command: "java -version"
+      expected_output: "11.0"
+      
+    - name: "Check database connectivity"
+      command: "pg_isready -h ${DB_HOST} -p ${DB_PORT}"
+      
+    - name: "Check Redis connectivity"
+      command: "redis-cli -h ${REDIS_HOST} ping"
+      expected_output: "PONG"
+      
+    - name: "Create application user"
+      command: |
+        useradd -r -s /bin/false -d /opt/smsgateway smsgateway || true
+        chown -R smsgateway:smsgateway /opt/smsgateway
+        chown -R smsgateway:smsgateway /var/log/clients/telco-client-001/smsgateway
+        chown -R smsgateway:smsgateway /data/clients/telco-client-001/smsgateway
+
+  # Post-deployment actions
+  post_deploy:
+    - name: "Wait for application startup"
+      command: "sleep 15"
+      
+    - name: "Check application health"
+      command: "curl -f http://localhost:8081/actuator/health"
+      retries: 5
+      retry_delay: 10
+      
+    - name: "Register with load balancer"
+      command: |
+        curl -X POST http://loadbalancer:8080/api/register \
+          -H "Content-Type: application/json" \
+          -d '{"service":"smsgateway","host":"${HOSTNAME}","port":8080,"health_check":"/actuator/health"}'
+      
+    - name: "Send test SMS"
+      command: |
+        curl -X POST http://localhost:8080/api/sms/send \
+          -H "Content-Type: application/json" \
+          -H "X-API-Key: ${VAULT:api_key}" \
+          -d '{"to":"+8801234567890","message":"SMS Gateway deployed successfully","test":true}'
+
+# Deployment targets
+targets:
+  - server_id: prod-app-01
+    datacenter: dc-primary
+    priority: 1
+    
+  - server_id: prod-app-02
+    datacenter: dc-primary
+    priority: 2
+    
+  - server_id: prod-app-03
+    datacenter: dc-backup
+    priority: 3
+
+# Deployment strategy
+deployment_strategy:
+  type: rolling  # rolling, blue-green, canary
+  batch_size: 1
+  batch_pause: 60s
+  failure_threshold: 1
+  
+# Health checks
+health_checks:
+  - name: application_health
+    type: http
+    url: http://localhost:8081/actuator/health
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    success_codes: [200]
+    
+  - name: smpp_connection
+    type: tcp
+    host: localhost
+    port: 2775
+    interval: 60s
+    timeout: 5s
+    
+  - name: database_connection
+    type: http
+    url: http://localhost:8081/actuator/health/db
+    interval: 60s
+    timeout: 5s
+    success_codes: [200]
+    
+  - name: message_queue
+    type: http
+    url: http://localhost:8081/actuator/health/rabbit
+    interval: 60s
+    timeout: 5s
+    success_codes: [200]
+
+# Rollback configuration
+rollback:
+  enabled: true
+  trigger: health_check_failure
+  keep_versions: 3
+  data_backup: true
+  backup_location: /backup/clients/telco-client-001/smsgateway

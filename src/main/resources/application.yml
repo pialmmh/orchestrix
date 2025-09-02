@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: orchestrix
+  
+  profiles:
+    active: ${ORCHESTRIX_PROFILE:debug-local}
+  
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/orchestrix?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: 123456
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    database-platform: org.hibernate.dialect.MySQL5InnoDBDialect
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8080
+
+# Orchestrix specific configuration
+orchestrix:
+  images:
+    base-path: ${ORCHESTRIX_IMAGES_PATH:./images}
+  
+  deployments:
+    base-path: ${ORCHESTRIX_DEPLOYMENTS_PATH:./deployments}
+  
+  repository:
+    default-type: google-drive
+    
+logging:
+  level:
+    com.telcobright.orchestrix.clarity: DEBUG
+    org.springframework: INFO

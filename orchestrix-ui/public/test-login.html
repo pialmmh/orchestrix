@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Test</title>
+</head>
+<body>
+    <h1>Login Test</h1>
+    <button onclick="testLogin()">Test Login</button>
+    <pre id="result"></pre>
+    
+    <script>
+        async function testLogin() {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'Testing login...\n';
+            
+            try {
+                // Test what the React app uses
+                const response = await fetch('/api/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin'
+                    })
+                });
+                
+                resultEl.textContent += `Status: ${response.status}\n`;
+                resultEl.textContent += `URL: ${response.url}\n`;
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultEl.textContent += 'Success!\n' + JSON.stringify(data, null, 2);
+                } else {
+                    resultEl.textContent += `Error: ${response.status} ${response.statusText}\n`;
+                    const text = await response.text();
+                    resultEl.textContent += text;
+                }
+            } catch (error) {
+                resultEl.textContent += 'Error: ' + error.message;
+            }
+        }
+        
+        // Test on load
+        testLogin();
+    </script>
+</body>
+</html>

@@ -1,0 +1,318 @@
+# Example: Complete Monitoring Stack Deployment Configuration
+# This demonstrates how to deploy Prometheus + Grafana LXC container
+
+artifact:
+  id: monitoring-stack
+  name: "Prometheus + Grafana Monitoring Stack"
+  type: lxc
+  version: 2.45.0-10.0.1
+  repository:
+    type: google-drive
+    folder_id: "1A2B3C4D5E6F7G8H9I0J"
+    path: "artifacts/monitoring/monitoring-stack-v2.45.0.tar.gz"
+
+client:
+  id: telco-client-001
+  name: "Telecom Client 001"
+
+deployment_profile: prod
+
+configuration:
+  # LXC Container Configuration
+  container:
+    name: monitoring-prod-01
+    memory_limit: 4GB
+    cpu_limit: 2
+    autostart: true
+    autostart_delay: 10
+    autostart_order: 100
+    
+  # Volume Mounts - Config and Data directories on host
+  volumes:
+    # Prometheus volumes
+    - name: prometheus-config
+      host_path: /opt/clarity/clients/telco-client-001/prometheus/config
+      container_path: /etc/prometheus
+      mode: ro
+      
+    - name: prometheus-data
+      host_path: /data/clients/telco-client-001/prometheus/data
+      container_path: /prometheus
+      mode: rw
+      
+    # Grafana volumes  
+    - name: grafana-config
+      host_path: /opt/clarity/clients/telco-client-001/grafana/config
+      container_path: /etc/grafana
+      mode: ro
+      
+    - name: grafana-data
+      host_path: /data/clients/telco-client-001/grafana/data
+      container_path: /var/lib/grafana
+      mode: rw
+      
+    - name: grafana-dashboards
+      host_path: /opt/clarity/clients/telco-client-001/grafana/dashboards
+      container_path: /var/lib/grafana/dashboards
+      mode: ro
+
+  # Network Configuration
+  network:
+    mode: bridge
+    bridge: lxcbr0
+    ipv4_address: 10.0.3.100/24
+    ipv4_gateway: 10.0.3.1
+    ports:
+      - protocol: tcp
+        host_port: 9090
+        container_port: 9090
+        description: "Prometheus Web UI"
+      - protocol: tcp  
+        host_port: 3000
+        container_port: 3000
+        description: "Grafana Web UI"
+      - protocol: tcp
+        host_port: 9093
+        container_port: 9093  
+        description: "Alertmanager Web UI"
+
+  # Environment Variables
+  environment:
+    PROMETHEUS_RETENTION_TIME: "30d"
+    PROMETHEUS_RETENTION_SIZE: "10GB"
+    PROMETHEUS_SCRAPE_INTERVAL: "15s"
+    PROMETHEUS_EVALUATION_INTERVAL: "15s"
+    
+    GF_SECURITY_ADMIN_USER: "admin"
+    GF_SECURITY_ADMIN_PASSWORD: "${VAULT:grafana_admin_password}"
+    GF_INSTALL_PLUGINS: "grafana-piechart-panel,grafana-worldmap-panel,grafana-clock-panel"
+    GF_SERVER_ROOT_URL: "https://monitoring.telco-client-001.com"
+    GF_SMTP_ENABLED: "true"
+    GF_SMTP_HOST: "smtp.gmail.com:587"
+    GF_SMTP_USER: "${VAULT:smtp_user}"
+    GF_SMTP_PASSWORD: "${VAULT:smtp_password}"
+
+  # Configuration Files
+  config_files:
+    - path: /etc/prometheus/prometheus.yml
+      content: |
+        global:
+          scrape_interval: 15s
+          evaluation_interval: 15s
+          external_labels:
+            monitor: 'telco-client-001'
+            environment: 'production'
+        
+        alerting:
+          alertmanagers:
+            - static_configs:
+              - targets:
+                - localhost:9093
+        
+        rule_files:
+          - '/etc/prometheus/rules/*.yml'
+        
+        scrape_configs:
+          - job_name: 'prometheus'
+            static_configs:
+              - targets: ['localhost:9090']
+          
+          - job_name: 'node'
+            static_configs:
+              - targets: 
+                - '10.0.3.10:9100'
+                - '10.0.3.11:9100'
+                - '10.0.3.12:9100'
+            relabel_configs:
+              - source_labels: [__address__]
+                regex: '10.0.3.10:.*'
+                target_label: instance
+                replacement: 'app-server-01'
+              - source_labels: [__address__]
+                regex: '10.0.3.11:.*'
+                target_label: instance
+                replacement: 'app-server-02'
+              - source_labels: [__address__]
+                regex: '10.0.3.12:.*'
+                target_label: instance
+                replacement: 'db-server-01'
+          
+          - job_name: 'freeswitch'
+            static_configs:
+              - targets: ['10.0.3.20:8081']
+          
+          - job_name: 'kamailio'
+            static_configs:
+              - targets: ['10.0.3.21:9062']
+          
+          - job_name: 'smsgateway'
+            metrics_path: '/metrics'
+            static_configs:
+              - targets: ['10.0.3.30:8080']
+
+    - path: /etc/prometheus/rules/alerts.yml
+      content: |
+        groups:
+          - name: system_alerts
+            interval: 30s
+            rules:
+              - alert: HighCPUUsage
+                expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+                for: 5m
+                labels:
+                  severity: warning
+                annotations:
+                  summary: "High CPU usage on {{ $labels.instance }}"
+                  description: "CPU usage is above 80% (current value: {{ $value }}%)"
+              
+              - alert: HighMemoryUsage
+                expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+                for: 5m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: "High memory usage on {{ $labels.instance }}"
+                  description: "Memory usage is above 90% (current value: {{ $value }}%)"
+              
+              - alert: DiskSpaceRunningLow
+                expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
+                for: 5m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: "Low disk space on {{ $labels.instance }}"
+                  description: "Disk space is below 10% (current value: {{ $value }}%)"
+
+    - path: /etc/grafana/provisioning/datasources/prometheus.yml
+      content: |
+        apiVersion: 1
+        datasources:
+          - name: Prometheus
+            type: prometheus
+            access: proxy
+            url: http://localhost:9090
+            isDefault: true
+            editable: true
+
+    - path: /etc/grafana/provisioning/dashboards/dashboard.yml
+      content: |
+        apiVersion: 1
+        providers:
+          - name: 'default'
+            orgId: 1
+            folder: ''
+            type: file
+            disableDeletion: false
+            updateIntervalSeconds: 10
+            allowUiUpdates: true
+            options:
+              path: /var/lib/grafana/dashboards
+
+  # Systemd Service Configuration (for autostart)
+  systemd:
+    - name: prometheus
+      content: |
+        [Unit]
+        Description=Prometheus Server
+        After=network.target
+        
+        [Service]
+        Type=simple
+        User=prometheus
+        Group=prometheus
+        ExecStart=/usr/local/bin/prometheus \
+          --config.file=/etc/prometheus/prometheus.yml \
+          --storage.tsdb.path=/prometheus \
+          --storage.tsdb.retention.time=30d \
+          --storage.tsdb.retention.size=10GB \
+          --web.console.templates=/usr/local/share/prometheus/consoles \
+          --web.console.libraries=/usr/local/share/prometheus/console_libraries
+        Restart=always
+        RestartSec=5
+        
+        [Install]
+        WantedBy=multi-user.target
+    
+    - name: grafana-server
+      content: |
+        [Unit]
+        Description=Grafana Server
+        After=network.target prometheus.service
+        
+        [Service]
+        Type=simple
+        User=grafana
+        Group=grafana
+        ExecStart=/usr/sbin/grafana-server \
+          --config=/etc/grafana/grafana.ini \
+          --pidfile=/var/run/grafana/grafana-server.pid \
+          --packaging=deb \
+          cfg:default.paths.logs=/var/log/grafana \
+          cfg:default.paths.data=/var/lib/grafana \
+          cfg:default.paths.plugins=/var/lib/grafana/plugins \
+          cfg:default.paths.provisioning=/etc/grafana/provisioning
+        Restart=always
+        RestartSec=5
+        
+        [Install]
+        WantedBy=multi-user.target
+
+  # Post-deployment hooks
+  post_deploy:
+    - name: "Wait for services"
+      command: "sleep 10"
+      
+    - name: "Create Grafana API key"
+      command: |
+        curl -X POST -H "Content-Type: application/json" \
+          -d '{"name":"clarity-api-key","role":"Admin"}' \
+          http://admin:${VAULT:grafana_admin_password}@localhost:3000/api/auth/keys
+      save_output: grafana_api_key
+      
+    - name: "Import default dashboards"
+      command: |
+        for dashboard in /var/lib/grafana/dashboards/*.json; do
+          curl -X POST -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${grafana_api_key}" \
+            -d @$dashboard \
+            http://localhost:3000/api/dashboards/db
+        done
+
+# Deployment targets
+targets:
+  - server_id: prod-monitor-01
+    datacenter: dc-primary
+    priority: 1
+    
+  - server_id: prod-monitor-02
+    datacenter: dc-backup
+    priority: 2
+
+# Rollback configuration
+rollback:
+  enabled: true
+  keep_versions: 3
+  strategy: blue-green  # or canary, rolling
+  
+# Health checks
+health_checks:
+  - name: prometheus_health
+    type: http
+    url: http://localhost:9090/-/healthy
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    
+  - name: grafana_health
+    type: http
+    url: http://localhost:3000/api/health
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    
+  - name: container_running
+    type: command
+    command: "lxc-info -n monitoring-prod-01 | grep RUNNING"
+    interval: 60s
+    timeout: 5s
+    retries: 3
