@@ -1,0 +1,85 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@1308.v58d48a_763b_31">
+  <description>Manual versioned build and backup of Clarity LXC container with Prometheus and Grafana</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>30</daysToKeep>
+        <numToKeep>10</numToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>VERSION</name>
+          <description>Version number for this build (e.g., 1.0.0, 2.1.3)</description>
+          <defaultValue>1.0.0</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>BUILD_TYPE</name>
+          <description>Type of build</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>RELEASE</string>
+              <string>SNAPSHOT</string>
+              <string>DEVELOPMENT</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>UPLOAD_TO_GDRIVE</name>
+          <description>Upload backup to Google Drive after build</description>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@3653.v07ea_433c90b_4">
+    <script><![CDATA[
+pipeline {
+    agent { label 'orchestrix-agent' }
+    
+    environment {
+        BUILD_DIR = '/home/mustafa/telcobright-projects/orchestrix/images/lxc/clarity'
+        CONTAINER_NAME = 'clarity'
+    }
+    
+    stages {
+        stage('Build LXC Container') {
+            steps {
+                sh '''
+                    cd ${BUILD_DIR}
+                    sudo ./buildClarity.sh --overwrite
+                '''
+            }
+        }
+        
+        stage('Verify Container') {
+            steps {
+                sh '''
+                    sudo lxc list ${CONTAINER_NAME}
+                    CONTAINER_IP=$(sudo lxc list ${CONTAINER_NAME} --format=json | jq -r '.[0].state.network.eth0.addresses[] | select(.family=="inet").address')
+                    curl -f http://${CONTAINER_IP}:9090/-/healthy
+                    curl -f http://${CONTAINER_IP}:3300/api/health
+                '''
+            }
+        }
+        
+        stage('Upload to Google Drive') {
+            steps {
+                sh '''
+                    cd ${BUILD_DIR}
+                    LATEST_BACKUP=$(ls -t clarity-*.tar.gz | head -1)
+                    rclone copy ${LATEST_BACKUP} pialmmhtb:orchestrix/lxc-images/clarity/
+                '''
+            }
+        }
+    }
+}
+    ]]></script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

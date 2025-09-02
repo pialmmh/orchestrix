@@ -1,0 +1,322 @@
+#!/usr/bin/env groovy
+
+/**
+ * Jenkins Pipeline for LXD Container Builder
+ * Automatically builds, configures, and backs up LXD containers
+ */
+
+pipeline {
+    agent any
+    
+    parameters {
+        string(name: 'CONTAINER_NAME', 
+               defaultValue: '', 
+               description: 'Name of the container to build (e.g., mysql, redis, grafana)')
+        
+        choice(name: 'CONTAINER_TYPE',
+               choices: ['database', 'cache', 'monitoring', 'web', 'custom'],
+               description: 'Type of container')
+        
+        string(name: 'VERSION',
+               defaultValue: 'latest',
+               description: 'Version of the software to install')
+        
+        choice(name: 'ACTION',
+               choices: ['create', 'rebuild', 'backup-only'],
+               description: 'Action to perform')
+        
+        booleanParam(name: 'UPLOAD_TO_GDRIVE',
+                     defaultValue: true,
+                     description: 'Upload backup to Google Drive')
+        
+        booleanParam(name: 'AUTO_START',
+                     defaultValue: true,
+                     description: 'Start container after creation')
+    }
+    
+    environment {
+        // Load from jenkins-config.yml
+        CONFIG_FILE = "${WORKSPACE}/jenkins/jenkins-config.yml"
+        BACKUP_DIR = "/tmp/lxd-backups"
+        TIMESTAMP = sh(script: "date +%Y%m%d-%H%M%S", returnStdout: true).trim()
+        BACKUP_FILE = "${params.CONTAINER_NAME}-${TIMESTAMP}.tar.gz"
+    }
+    
+    stages {
+        stage('Validate Input') {
+            steps {
+                script {
+                    if (!params.CONTAINER_NAME) {
+                        error("Container name is required!")
+                    }
+                    
+                    echo "================================================"
+                    echo "Container Build Request"
+                    echo "================================================"
+                    echo "Container Name: ${params.CONTAINER_NAME}"
+                    echo "Container Type: ${params.CONTAINER_TYPE}"
+                    echo "Version: ${params.VERSION}"
+                    echo "Action: ${params.ACTION}"
+                    echo "Timestamp: ${env.TIMESTAMP}"
+                    echo "================================================"
+                }
+            }
+        }
+        
+        stage('Check Configuration Files') {
+            steps {
+                script {
+                    def configDir = "${WORKSPACE}/containers/${params.CONTAINER_NAME}"
+                    def yamlFile = "${configDir}/${params.CONTAINER_NAME}.yml"
+                    def buildScript = "${configDir}/${params.CONTAINER_NAME}_build.sh"
+                    
+                    if (!fileExists(yamlFile)) {
+                        error("Configuration file not found: ${yamlFile}")
+                    }
+                    
+                    if (!fileExists(buildScript)) {
+                        error("Build script not found: ${buildScript}")
+                    }
+                    
+                    echo "✓ Found configuration file: ${yamlFile}"
+                    echo "✓ Found build script: ${buildScript}"
+                }
+            }
+        }
+        
+        stage('Cleanup Existing Container') {
+            when {
+                expression { params.ACTION in ['create', 'rebuild'] }
+            }
+            steps {
+                script {
+                    sh """
+                        # Check if container exists
+                        if lxc info ${params.CONTAINER_NAME} &>/dev/null; then
+                            echo "Stopping existing container..."
+                            lxc stop ${params.CONTAINER_NAME} --force || true
+                            
+                            echo "Deleting existing container..."
+                            lxc delete ${params.CONTAINER_NAME} --force || true
+                        else
+                            echo "Container does not exist, proceeding with creation..."
+                        fi
+                    """
+                }
+            }
+        }
+        
+        stage('Execute Build Script') {
+            when {
+                expression { params.ACTION in ['create', 'rebuild'] }
+            }
+            steps {
+                script {
+                    def buildScript = "${WORKSPACE}/containers/${params.CONTAINER_NAME}/${params.CONTAINER_NAME}_build.sh"
+                    
+                    sh """
+                        echo "================================================"
+                        echo "Executing build script..."
+                        echo "================================================"
+                        
+                        # Make script executable
+                        chmod +x ${buildScript}
+                        
+                        # Execute the build script
+                        ${buildScript}
+                        
+                        echo "================================================"
+                        echo "Build script completed"
+                        echo "================================================"
+                    """
+                }
+            }
+        }
+        
+        stage('Verify Container') {
+            when {
+                expression { params.ACTION in ['create', 'rebuild'] }
+            }
+            steps {
+                script {
+                    sh """
+                        echo "Verifying container status..."
+                        
+                        # Check if container exists
+                        if ! lxc info ${params.CONTAINER_NAME} &>/dev/null; then
+                            echo "ERROR: Container was not created!"
+                            exit 1
+                        fi
+                        
+                        # Get container info
+                        echo "Container Information:"
+                        lxc list ${params.CONTAINER_NAME}
+                        
+                        # Get IP address
+                        echo "Container Network:"
+                        lxc info ${params.CONTAINER_NAME} | grep -A10 "Network:"
+                        
+                        # Check if running
+                        if lxc info ${params.CONTAINER_NAME} | grep -q "Status: Running"; then
+                            echo "✓ Container is running"
+                        else
+                            echo "⚠ Container is not running"
+                            if [ "${params.AUTO_START}" = "true" ]; then
+                                echo "Starting container..."
+                                lxc start ${params.CONTAINER_NAME}
+                            fi
+                        fi
+                    """
+                }
+            }
+        }
+        
+        stage('Create Backup') {
+            steps {
+                script {
+                    sh """
+                        echo "================================================"
+                        echo "Creating container backup..."
+                        echo "================================================"
+                        
+                        # Create backup directory
+                        mkdir -p ${env.BACKUP_DIR}
+                        
+                        # Stop container for consistent backup (if running)
+                        if lxc info ${params.CONTAINER_NAME} | grep -q "Status: Running"; then
+                            echo "Stopping container for backup..."
+                            lxc stop ${params.CONTAINER_NAME}
+                            RESTART_AFTER=true
+                        fi
+                        
+                        # Export container
+                        echo "Exporting container to ${env.BACKUP_FILE}..."
+                        lxc export ${params.CONTAINER_NAME} ${env.BACKUP_DIR}/${env.BACKUP_FILE}
+                        
+                        # Restart if it was running
+                        if [ "\$RESTART_AFTER" = "true" ] && [ "${params.AUTO_START}" = "true" ]; then
+                            echo "Restarting container..."
+                            lxc start ${params.CONTAINER_NAME}
+                        fi
+                        
+                        # Show backup details
+                        echo "Backup created:"
+                        ls -lh ${env.BACKUP_DIR}/${env.BACKUP_FILE}
+                    """
+                }
+            }
+        }
+        
+        stage('Upload to Google Drive') {
+            when {
+                expression { params.UPLOAD_TO_GDRIVE == true }
+            }
+            steps {
+                script {
+                    sh """
+                        echo "================================================"
+                        echo "Uploading to Google Drive..."
+                        echo "================================================"
+                        
+                        # Check if rclone is configured
+                        if ! rclone listremotes | grep -q "pialmmhtb:"; then
+                            echo "ERROR: rclone remote 'pialmmhtb' not configured!"
+                            echo "Please run: rclone config"
+                            exit 1
+                        fi
+                        
+                        # Create remote directory if needed
+                        rclone mkdir pialmmhtb:orchestrix/lxc-images/${params.CONTAINER_NAME}/
+                        
+                        # Upload the backup
+                        echo "Uploading ${env.BACKUP_FILE}..."
+                        rclone copy \
+                            ${env.BACKUP_DIR}/${env.BACKUP_FILE} \
+                            pialmmhtb:orchestrix/lxc-images/${params.CONTAINER_NAME}/ \
+                            --progress \
+                            --stats 10s
+                        
+                        # Verify upload
+                        echo "Verifying upload..."
+                        rclone ls pialmmhtb:orchestrix/lxc-images/${params.CONTAINER_NAME}/${env.BACKUP_FILE}
+                        
+                        echo "✓ Upload completed successfully"
+                    """
+                }
+            }
+        }
+        
+        stage('Cleanup') {
+            steps {
+                script {
+                    sh """
+                        echo "Cleaning up temporary files..."
+                        
+                        # Remove local backup if upload was successful
+                        if [ "${params.UPLOAD_TO_GDRIVE}" = "true" ]; then
+                            rm -f ${env.BACKUP_DIR}/${env.BACKUP_FILE}
+                            echo "✓ Removed local backup file"
+                        else
+                            echo "✓ Kept local backup at: ${env.BACKUP_DIR}/${env.BACKUP_FILE}"
+                        fi
+                    """
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo """
+                ================================================
+                ✅ BUILD SUCCESSFUL
+                ================================================
+                Container: ${params.CONTAINER_NAME}
+                Backup: ${env.BACKUP_FILE}
+                Status: Container created and backed up successfully
+                
+                To access the container:
+                  lxc exec ${params.CONTAINER_NAME} bash
+                
+                To restore from backup:
+                  lxc import ${env.BACKUP_FILE}
+                ================================================
+            """
+            
+            // Send notification if configured
+            script {
+                if (fileExists("${env.CONFIG_FILE}")) {
+                    // TODO: Parse config and send notifications
+                    echo "Notifications would be sent here"
+                }
+            }
+        }
+        
+        failure {
+            echo """
+                ================================================
+                ❌ BUILD FAILED
+                ================================================
+                Container: ${params.CONTAINER_NAME}
+                Check the console output for error details
+                ================================================
+            """
+        }
+        
+        always {
+            // Archive any logs or artifacts
+            script {
+                if (fileExists("${env.BACKUP_DIR}/${env.BACKUP_FILE}")) {
+                    archiveArtifacts artifacts: "**/lxd-backups/*.tar.gz", 
+                                     allowEmptyArchive: true,
+                                     fingerprint: true
+                }
+            }
+            
+            // Clean workspace if needed
+            cleanWs(cleanWhenNotBuilt: false,
+                    deleteDirs: false,
+                    disableDeferredWipeout: false)
+        }
+    }
+}

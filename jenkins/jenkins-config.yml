@@ -1,0 +1,167 @@
+# Jenkins Configuration for Orchestrix LXD Container Builder
+# This file contains Jenkins server details and credentials for AI agent integration
+
+# ============================================
+# Jenkins Server Configuration
+# ============================================
+jenkins:
+  server:
+    url: "http://172.82.66.90:8080"  # Replace with your Jenkins server URL
+    job_name: "LXD-Container-Builder"    # Name of the Jenkins job for container building
+    
+  # Authentication
+  auth:
+    username: "admin"                    # Jenkins username
+    api_token: "11b7d0764a66a46cdddd2e124cf138fae9"     # Generate from Jenkins: User → Configure → API Token
+    
+  # Webhook (optional - for Git integration)
+  webhook:
+    enabled: false
+    secret: "YOUR_WEBHOOK_SECRET"        # Webhook secret for secure Git triggers
+
+# ============================================
+# Git Repository Configuration
+# ============================================
+git:
+  repository:
+    url: "https://github.com/yourusername/orchestrix-lxc.git"  # Your Git repo for LXD configs
+    branch: "main"
+    credentials_id: "git-credentials"    # Jenkins credentials ID for Git access
+    
+  # Where to store generated files
+  structure:
+    base_path: "/var/jenkins/workspace/orchestrix-lxc"
+    container_configs: "containers"      # Subdirectory for container configs
+
+# ============================================
+# LXD Server Configuration
+# ============================================
+lxd:
+  server:
+    host: "localhost"                    # LXD server (usually localhost if Jenkins on same server)
+    port: 8443
+    
+  # LXD paths
+  paths:
+    images: "/var/snap/lxd/common/lxd/images"
+    backups: "/home/telcobright/lxd-backups"
+
+# ============================================
+# Google Drive (rclone) Configuration
+# ============================================
+rclone:
+  remote_name: "pialmmhtb"                  # Name of your rclone remote
+  remote_path: "orchestrix/lxc-images"   # Path in Google Drive
+  
+  # Rclone config location
+  config_file: "/home/jenkins/.config/rclone/rclone.conf"
+  
+  # Upload settings
+  upload:
+    chunk_size: "128M"
+    transfers: 4
+    retries: 3
+
+# ============================================
+# Build Settings
+# ============================================
+build:
+  # Default container settings
+  defaults:
+    cpu_limit: 2
+    memory_limit: "2GB"
+    disk_size: "20GB"
+    
+  # Backup settings
+  backup:
+    retention_days: 30
+    compression: "gzip"
+    
+  # Timeouts (in minutes)
+  timeouts:
+    container_creation: 10
+    backup_creation: 20
+    upload: 30
+    total_build: 60
+
+# ============================================
+# Security Settings
+# ============================================
+security:
+  # Restrict who can trigger builds
+  allowed_users:
+    - "admin"
+    - "developer"
+    
+  # IP whitelist (optional)
+  ip_whitelist:
+    enabled: false
+    allowed_ips:
+      - "192.168.1.0/24"
+      - "10.0.0.0/8"
+
+# ============================================
+# AI Agent Settings
+# ============================================
+ai_agent:
+  # How AI agent should interact with Jenkins
+  trigger_method: "api"  # Options: api, webhook, cli
+  
+  # Rate limiting
+  rate_limit:
+    max_builds_per_hour: 10
+    max_concurrent_builds: 3
+  
+  # Auto-approval settings
+  auto_approve:
+    enabled: false  # If true, builds start immediately without approval
+    max_resources:
+      cpu: 4
+      memory: "8GB"
+      disk: "100GB"
+
+# ============================================
+# Environment-Specific Settings
+# ============================================
+environments:
+  development:
+    jenkins_url: "http://localhost:8080"
+    auto_approve: true
+    notifications_enabled: false
+    
+  staging:
+    jenkins_url: "http://staging-jenkins:8080"
+    auto_approve: false
+    notifications_enabled: true
+    
+  production:
+    jenkins_url: "http://jenkins.orchestrix.com"
+    auto_approve: false
+    notifications_enabled: true
+    require_approval: true
+
+# ============================================
+# Current Environment
+# ============================================
+current_environment: "development"
+
+# ============================================
+# Instructions for Setup
+# ============================================
+# 1. Update jenkins.server.url with your Jenkins server URL
+# 2. Generate API token in Jenkins and add to jenkins.auth.api_token
+# 3. Configure Git repository URL
+# 4. Set up rclone for Google Drive and update rclone.remote_name
+# 5. Update notification settings if needed
+# 6. Save this file and inform the AI agent of the location
+#
+# To generate Jenkins API Token:
+# - Login to Jenkins
+# - Click your username (top right)
+# - Click "Configure"
+# - Under "API Token", click "Add new Token"
+# - Copy the generated token to this file
+#
+# Test the configuration:
+# - Ask AI: "Test Jenkins connection using config file"
+# - AI will validate all settings and report any issues

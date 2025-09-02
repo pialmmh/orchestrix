@@ -1,0 +1,84 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job">
+  <description>Build Clarity LXC container with versioning</description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition">
+    <script>pipeline {
+    agent { label 'orchestrix-agent' }
+    
+    parameters {
+        string(name: 'VERSION', defaultValue: '1.0.0', description: 'Version number')
+        choice(name: 'BUILD_TYPE', choices: ['DEVELOPMENT', 'SNAPSHOT', 'RELEASE'], description: 'Build type')
+        booleanParam(name: 'UPLOAD_TO_GDRIVE', defaultValue: false, description: 'Upload to Google Drive')
+    }
+    
+    environment {
+        BUILD_DIR = '/home/mustafa/telcobright-projects/orchestrix/images/lxc/clarity'
+    }
+    
+    stages {
+        stage('Build Info') {
+            steps {
+                echo "================================"
+                echo "Building Clarity Container"
+                echo "Version: ${params.VERSION}"
+                echo "Type: ${params.BUILD_TYPE}"
+                echo "Upload: ${params.UPLOAD_TO_GDRIVE}"
+                echo "================================"
+            }
+        }
+        
+        stage('Build Container') {
+            steps {
+                sh '''
+                    cd $BUILD_DIR
+                    echo "Current directory: $(pwd)"
+                    echo "Build script exists: $(ls -la buildClarity.sh)"
+                    echo "Starting build..."
+                    sudo ./buildClarity.sh --overwrite
+                '''
+            }
+        }
+        
+        stage('Verify Build') {
+            steps {
+                sh '''
+                    echo "Checking container status..."
+                    sudo lxc list clarity
+                    
+                    cd $BUILD_DIR
+                    echo "Backup files created:"
+                    ls -la clarity*.tar.gz | head -5
+                '''
+            }
+        }
+        
+        stage('Upload to GDrive') {
+            when {
+                expression { params.UPLOAD_TO_GDRIVE == true }
+            }
+            steps {
+                sh '''
+                    cd $BUILD_DIR
+                    LATEST=$(ls -t clarity*.tar.gz | head -1)
+                    echo "Uploading $LATEST to Google Drive..."
+                    rclone copy "$LATEST" "pialmmhtb:orchestrix/lxc-images/clarity/${VERSION}/"
+                    echo "Upload complete"
+                '''
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo "✅ Build completed successfully!"
+        }
+        failure {
+            echo "❌ Build failed. Check console output for errors."
+        }
+    }
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+</flow-definition>
