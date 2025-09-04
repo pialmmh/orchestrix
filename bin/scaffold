@@ -1,0 +1,13 @@
+#!/bin/bash
+# Orchestrix Scaffold Command
+# Reads REQUIREMENTS.md and scaffolds a new container
+
+set -e
+
+# Find orchestrix root
+SCRIPT_PATH="$(readlink -f "$0")"
+BIN_DIR="$(dirname "$SCRIPT_PATH")"
+ORCHESTRIX_ROOT="$(cd "$BIN_DIR/.." && pwd)"
+
+# Forward to main scaffold script
+exec "$ORCHESTRIX_ROOT/scaffold" "$@"

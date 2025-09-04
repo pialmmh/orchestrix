@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  jenkins-agent:
+    image: jenkins/inbound-agent:latest-jdk17
+    container_name: jenkins-orchestrix-agent
+    restart: unless-stopped
+    user: root
+    environment:
+      - JENKINS_URL=http://172.82.66.90:8080
+      - JENKINS_AGENT_NAME=orchestrix-agent
+      - JENKINS_SECRET=8cd449babef9455c53a013b3fb6beecaa42c1720cecf66c35ebe7421e34c0a54
+      - JENKINS_AGENT_WORKDIR=/var/jenkins_home
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - JENKINS_WEB_SOCKET=true
+    volumes:
+      # Agent workspace
+      - jenkins-agent-workspace:/var/jenkins_home
+      
+      # Docker socket for Docker-in-Docker
+      - /var/run/docker.sock:/var/run/docker.sock
+      
+      # LXC/LXD access (if needed)
+      - /var/snap/lxd:/var/snap/lxd:ro
+      - /var/lib/lxd:/var/lib/lxd:ro
+      
+      # Host tools
+      - /usr/bin/docker:/usr/bin/docker:ro
+      - /usr/bin/lxc:/usr/bin/lxc:ro
+      
+      # Project files
+      - /root/telcobright-projects:/home/jenkins/projects
+      
+    networks:
+      - jenkins-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  jenkins-agent-workspace:
+    name: jenkins-agent-workspace
+
+networks:
+  jenkins-net:
+    name: jenkins-net
+    driver: bridge

@@ -1,0 +1,20 @@
+# Jenkins Instance: massivegrid01
+
+jenkins_url: http://172.82.66.90:8080
+jenkins_jnlp_port: 50000
+
+admin_user: admin
+admin_api_token: 11b8f7e5c9d5e4a0c6d9f2a1b3c4d5e6f7
+
+agents:
+  orchestrix-agent:
+    secret: 8cd449babef9455c53a013b3fb6beecaa42c1720cecf66c35ebe7421e34c0a54
+    workdir: /var/jenkins
+    
+  dev-env-01:
+    secret: # Add from Jenkins
+    workdir: /var/jenkins
+    
+  dev-env-02:
+    secret: # Add from Jenkins
+    workdir: /var/jenkins

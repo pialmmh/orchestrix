@@ -1,0 +1,36 @@
+name: dev-env
+version: 1
+base_image: debian/12
+timeout: 300
+
+packages:
+  core:
+    - curl
+    - wget
+    - git
+    - vim
+    - jq
+    - openssh-client
+    - autossh
+    - sshpass
+    - net-tools
+    - netcat-openbsd
+  
+  build:
+    - make
+    - gcc
+    - build-essential
+    - systemd
+    - supervisor
+    - zip
+    - unzip
+    - ca-certificates
+  
+  additional:
+    - docker.io
+
+custom:
+  verify: true
+  sdkman_dir: /usr/local/sdkman
+  java_version: 21.0.5-tem
+  jenkins_instance: massivegrid01

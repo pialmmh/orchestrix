@@ -1,5 +1,20 @@
 # AI Agent Instructions for Orchestrix Container Development
 
+## Custom Commands for AI Assistant
+
+### /scaffold <container-name>
+When user types `/scaffold <container-name>`, execute the scaffolding process:
+
+1. **Run the scaffold script**:
+   ```bash
+   /home/mustafa/telcobright-projects/orchestrix/scaffold <container-name>
+   ```
+
+2. **If first time**: Script will create REQUIREMENTS.md and ask user to fill it
+3. **If requirements exist**: Script will generate all files automatically
+
+This is an AI instruction command, not a shell command. When you see `/scaffold`, treat it as a direct instruction to run the scaffolding process.
+
 ## Role
 You are an AI assistant specialized in scaffolding and building LXC containers for the Orchestrix project. When asked to "scaffold" a container, follow the standardized template and patterns established in this project.
 

@@ -1,0 +1,456 @@
+#!/bin/bash
+# Orchestrix Scaffold Command
+# Usage: /scaffold <container-name>
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Check arguments
+if [ $# -lt 1 ]; then
+    echo -e "${RED}Usage: /scaffold <container-name>${NC}"
+    echo "Example: /scaffold redis-cache"
+    exit 1
+fi
+
+CONTAINER_NAME="$1"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONTAINER_DIR="$SCRIPT_DIR/images/lxc/$CONTAINER_NAME"
+BUILDER_DIR="$SCRIPT_DIR/builder"
+BUILDER_JAR="$BUILDER_DIR/target/container-builder-1.0.0.jar"
+
+# STEP 1: Read the scaffold template FIRST
+SCAFFOLD_TEMPLATE="$SCRIPT_DIR/images/lxc/CONTAINER_SCAFFOLD_TEMPLATE.md"
+if [ ! -f "$SCAFFOLD_TEMPLATE" ]; then
+    echo -e "${RED}Error: Scaffold template not found at:${NC}"
+    echo "  $SCAFFOLD_TEMPLATE"
+    exit 1
+fi
+
+echo -e "${GREEN}Reading scaffold template...${NC}"
+echo "  $SCAFFOLD_TEMPLATE"
+echo ""
+
+# STEP 2: Check if this is first time or not
+if [ ! -d "$CONTAINER_DIR" ]; then
+    # First time - create directory and REQUIREMENTS.md
+    echo -e "${YELLOW}Creating new container: $CONTAINER_NAME${NC}"
+    mkdir -p "$CONTAINER_DIR"
+    
+    # Create REQUIREMENTS.md template
+    cat > "$CONTAINER_DIR/REQUIREMENTS.md" << 'EOF'
+# Requirements for CONTAINER_NAME
+
+## Purpose
+[Describe what this container is for - BE SPECIFIC]
+
+## Base Image
+debian/12
+
+## Required Software
+[List all software packages that need to be installed]
+[Be specific about versions if needed]
+[Group them logically]
+
+## Configuration
+[List all configuration requirements]
+[Include config files that need to be created/modified]
+[Environment variables needed]
+[Services to enable/start]
+
+## Custom Setup Steps
+[List any special setup commands]
+[Include any files that need to be downloaded]
+[Special compilation steps if needed]
+
+## Verification
+[What commands should be run to verify the installation?]
+[What output is expected from version checks?]
+[Which services should be running?]
+
+## Runtime Requirements
+[Bind mounts needed]
+[Network ports to expose]
+[Resource limits if any]
+
+## Launch Configuration
+[What parameters are needed at launch time?]
+[How should the container be configured from host?]
+[What services should auto-start?]
+EOF
+    
+    sed -i "s/CONTAINER_NAME/$CONTAINER_NAME/g" "$CONTAINER_DIR/REQUIREMENTS.md"
+    
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${RED}STOP! Fill in the requirements first${NC}"
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "1. Edit the requirements file:"
+    echo "   ${YELLOW}$CONTAINER_DIR/REQUIREMENTS.md${NC}"
+    echo ""
+    echo "2. Then run again:"
+    echo "   ${GREEN}/scaffold $CONTAINER_NAME${NC}"
+    echo ""
+    exit 0
+fi
+
+# STEP 3: Check if REQUIREMENTS.md exists and has content
+if [ ! -f "$CONTAINER_DIR/REQUIREMENTS.md" ]; then
+    echo -e "${RED}Error: REQUIREMENTS.md not found!${NC}"
+    echo "Create and fill: $CONTAINER_DIR/REQUIREMENTS.md"
+    exit 1
+fi
+
+# Check if requirements are filled (not just template)
+if grep -q "\[Describe what this container is for - BE SPECIFIC\]" "$CONTAINER_DIR/REQUIREMENTS.md" || \
+   grep -q "\[List all software packages" "$CONTAINER_DIR/REQUIREMENTS.md" || \
+   grep -q "\[What commands should be run" "$CONTAINER_DIR/REQUIREMENTS.md"; then
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${RED}REQUIREMENTS.md is not filled in!${NC}"
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "Please complete: $CONTAINER_DIR/REQUIREMENTS.md"
+    echo "Then run: /scaffold $CONTAINER_NAME"
+    exit 1
+fi
+
+# STEP 4: Display requirements and proceed with scaffolding
+echo -e "${GREEN}Found completed REQUIREMENTS.md${NC}"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Container: ${YELLOW}$CONTAINER_NAME${NC}"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+grep -E "^## Purpose|^## Required Software|^## Verification" "$CONTAINER_DIR/REQUIREMENTS.md" -A 2 | head -12
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+read -p "Proceed with scaffolding? (y/N): " PROCEED
+if [[ ! "$PROCEED" =~ ^[Yy]$ ]]; then
+    echo "Aborted."
+    exit 0
+fi
+
+echo ""
+echo -e "${GREEN}Scaffolding $CONTAINER_NAME based on requirements...${NC}"
+
+# STEP 5: Create build.yaml
+if [ ! -f "$CONTAINER_DIR/build.yaml" ]; then
+    echo -e "${YELLOW}Creating build.yaml...${NC}"
+    
+    cat > "$CONTAINER_DIR/build.yaml" << EOF
+name: $CONTAINER_NAME
+version: 1
+base_image: debian/12
+timeout: 300
+
+packages:
+  core:
+    - curl
+    - wget
+    - git
+    - vim
+    - jq
+  
+  build:
+    - make
+    - gcc
+    - build-essential
+  
+  additional:
+    # TODO: Add packages from REQUIREMENTS.md "Required Software" section
+    # Example:
+    # - nginx
+    # - postgresql-15
+
+custom:
+  verify: true
+  # Add any custom settings mentioned in REQUIREMENTS.md
+EOF
+    
+    echo "  Created: $CONTAINER_DIR/build.yaml"
+    echo -e "  ${YELLOW}TODO: Add required packages from REQUIREMENTS.md${NC}"
+fi
+
+# STEP 6: Create the Java builder class
+BUILDER_CLASS="$(echo "$CONTAINER_NAME" | sed 's/-\(.\)/\U\1/g' | sed 's/^./\U&/')Builder"
+BUILDER_FILE="$BUILDER_DIR/src/main/java/com/orchestrix/builder/containers/${BUILDER_CLASS}.java"
+
+if [ ! -f "$BUILDER_FILE" ]; then
+    echo -e "${YELLOW}Creating ${BUILDER_CLASS}.java...${NC}"
+    
+    mkdir -p "$(dirname "$BUILDER_FILE")"
+    
+    cat > "$BUILDER_FILE" << EOF
+package com.orchestrix.builder.containers;
+
+import com.orchestrix.builder.*;
+import java.util.Date;
+
+/**
+ * Builder for $CONTAINER_NAME container
+ * Auto-generated from REQUIREMENTS.md
+ */
+public class $BUILDER_CLASS extends LXCBuilder {
+    
+    public $BUILDER_CLASS(BuildConfig config) {
+        super(config);
+    }
+    
+    @Override
+    protected void performCustomSetup(String buildContainer) {
+        System.out.println("\\nPerforming $CONTAINER_NAME specific setup...");
+        
+        // TODO: Implement based on REQUIREMENTS.md "Custom Setup Steps" section
+        // The base class already handles package installation from build.yaml
+        
+        // Example: Configure service
+        // System.out.println("  - Configuring service");
+        // execute("lxc exec " + buildContainer + " -- command here");
+        
+        // Example: Create directories
+        // System.out.println("  - Creating directories");
+        // execute("lxc exec " + buildContainer + " -- mkdir -p /var/lib/myservice");
+        
+        // Example: Push configuration files
+        // System.out.println("  - Installing configuration");
+        // String config = \"\"\"
+        //     # Config content from REQUIREMENTS.md "Configuration" section
+        //     \"\"\";
+        // execute(String.format(
+        //     "lxc exec %s -- bash -c 'cat > /etc/myservice.conf << EOF\\\\n%s\\\\nEOF'",
+        //     buildContainer, config
+        // ));
+    }
+    
+    @Override
+    protected void performVerification(String buildContainer) {
+        if (!config.getCustomBoolean("verify", true)) {
+            return;
+        }
+        
+        System.out.println("\\nVerifying $CONTAINER_NAME installation...");
+        
+        // TODO: Implement based on REQUIREMENTS.md "Verification" section
+        // Only verify critical components
+        
+        // Example:
+        // executeWithVerification(
+        //     "lxc exec " + buildContainer + " -- service --version",
+        //     "Expected output from REQUIREMENTS.md",
+        //     10  // timeout seconds
+        // );
+        
+        System.out.println(GREEN + "  ✓ Verification passed" + RESET);
+    }
+    
+    @Override
+    protected String getLaunchScriptContent() {
+        // TODO: Customize based on REQUIREMENTS.md "Launch Configuration" section
+        return \"\"\"
+            #!/bin/bash
+            set -e
+            
+            CONFIG_FILE="\${1:-\$(dirname "\$0")/sample.conf}"
+            source "\$CONFIG_FILE"
+            
+            # Launch from versioned image
+            SCRIPT_DIR=\$(cd "\$(dirname "\$0")" && pwd)
+            VERSION_DIR=\$(cd "\$SCRIPT_DIR/.." && pwd)
+            VERSION=\$(basename "\$VERSION_DIR" | cut -d. -f2)
+            BASE_DIR=\$(cd "\$VERSION_DIR/.." && pwd)
+            BASE_NAME=\$(basename "\$BASE_DIR")
+            IMAGE_NAME="\${BASE_NAME}:\${VERSION}"
+            
+            echo "Launching container from image: \${IMAGE_NAME}"
+            lxc launch \${IMAGE_NAME} \${CONTAINER_NAME}
+            sleep 3
+            
+            # Apply bind mounts from REQUIREMENTS.md "Runtime Requirements"
+            for mount in "\${BIND_MOUNTS[@]}"; do
+                lxc config device add \${CONTAINER_NAME} \$(basename \${mount%%:*}) disk source=\${mount%%:*} path=\${mount#*:}
+            done
+            
+            # TODO: Add any runtime configuration from REQUIREMENTS.md
+            
+            echo "Container \${CONTAINER_NAME} launched from \${IMAGE_NAME}"
+            \"\"\";
+    }
+    
+    @Override
+    protected String getSampleConfigContent() {
+        // TODO: Customize based on REQUIREMENTS.md "Runtime Requirements" section
+        return String.format(\"\"\"
+            # Runtime Configuration for %s v.%d
+            CONTAINER_NAME=%s-instance-01
+            
+            # Bind Mounts (from REQUIREMENTS.md)
+            BIND_MOUNTS=(
+                # "/host/path:/container/path"
+            )
+            
+            # TODO: Add other runtime parameters from REQUIREMENTS.md
+            \"\"\", containerBase, version, containerBase);
+    }
+}
+EOF
+    
+    echo "  Created: $BUILDER_FILE"
+    echo -e "  ${YELLOW}TODO: Implement methods based on REQUIREMENTS.md${NC}"
+fi
+
+# STEP 7: Update BuilderCLI to include new builder
+echo -e "${YELLOW}Updating BuilderCLI...${NC}"
+
+# Check if case already exists
+if ! grep -q "case \"$CONTAINER_NAME\":" "$BUILDER_DIR/src/main/java/com/orchestrix/builder/BuilderCLI.java"; then
+    # Add the new case after dev-env
+    sed -i "/case \"dev-env\":/a\\            case \"$CONTAINER_NAME\":\\n                return new ${BUILDER_CLASS}(config);" \
+        "$BUILDER_DIR/src/main/java/com/orchestrix/builder/BuilderCLI.java"
+    echo "  Updated: BuilderCLI.java"
+fi
+
+# STEP 8: Create build scripts
+if [ ! -d "$CONTAINER_DIR/build" ]; then
+    mkdir -p "$CONTAINER_DIR/build"
+fi
+
+BUILD_SCRIPT="$CONTAINER_DIR/build/build.sh"
+if [ ! -f "$BUILD_SCRIPT" ]; then
+    echo -e "${YELLOW}Creating build script...${NC}"
+    
+    if [ -f "$SCRIPT_DIR/images/lxc/template-build.sh" ]; then
+        cp "$SCRIPT_DIR/images/lxc/template-build.sh" "$BUILD_SCRIPT"
+    else
+        # Create from scratch if template doesn't exist
+        cat > "$BUILD_SCRIPT" << 'BUILDEOF'
+#!/bin/bash
+set -e
+
+# Get paths
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONTAINER_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ORCHESTRIX_ROOT="$(cd "$CONTAINER_DIR/../../.." && pwd)"
+BUILDER_JAR="$ORCHESTRIX_ROOT/builder/target/container-builder-1.0.0.jar"
+
+# Check if builder JAR exists, build if not
+if [ ! -f "$BUILDER_JAR" ]; then
+    echo "Building Java builder library..."
+    cd "$ORCHESTRIX_ROOT/builder"
+    ./build.sh
+    cd - > /dev/null
+fi
+
+# Find existing versions and determine default
+CONTAINER_BASE=$(basename "$CONTAINER_DIR")
+EXISTING_VERSIONS=($(ls -d "$CONTAINER_DIR"/${CONTAINER_BASE}-v.* 2>/dev/null | grep -o 'v\.[0-9]*' | cut -d. -f2 | sort -n))
+
+if [ ${#EXISTING_VERSIONS[@]} -eq 0 ]; then
+    DEFAULT_VERSION=1
+else
+    LATEST=${EXISTING_VERSIONS[-1]}
+    DEFAULT_VERSION=$LATEST
+fi
+
+# Handle --overwrite flag
+FORCE_FLAG=""
+if [ "$1" == "--overwrite" ]; then
+    FORCE_FLAG="--force"
+    VERSION=$DEFAULT_VERSION
+else
+    # Prompt for version
+    read -p "Version to build [$DEFAULT_VERSION]: " VERSION
+    VERSION=${VERSION:-$DEFAULT_VERSION}
+fi
+
+# Validate integer
+if ! [[ "$VERSION" =~ ^[0-9]+$ ]]; then
+    echo "Error: Version must be integer"
+    exit 1
+fi
+
+# Update version in build.yaml
+BUILD_YAML="$CONTAINER_DIR/build.yaml"
+if [ -f "$BUILD_YAML" ]; then
+    sed -i "s/^version:.*/version: $VERSION/" "$BUILD_YAML"
+fi
+
+# Run Java builder
+echo "Building ${CONTAINER_BASE}:${VERSION}..."
+cd "$CONTAINER_DIR"
+java -jar "$BUILDER_JAR" ${CONTAINER_BASE} build.yaml $FORCE_FLAG
+
+echo ""
+echo "✅ Built ${CONTAINER_BASE}:${VERSION}"
+echo "   Generated files in: ${CONTAINER_BASE}-v.${VERSION}/generated/"
+echo ""
+echo "To launch: cd ${CONTAINER_BASE}-v.${VERSION}/generated && sudo ./launch.sh"
+BUILDEOF
+    fi
+    
+    chmod +x "$BUILD_SCRIPT"
+    echo "  Created: $BUILD_SCRIPT"
+fi
+
+# Create convenience wrapper
+WRAPPER_SCRIPT="$CONTAINER_DIR/build.sh"
+if [ ! -f "$WRAPPER_SCRIPT" ]; then
+    cat > "$WRAPPER_SCRIPT" << 'EOF'
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+exec "$SCRIPT_DIR/build/build.sh" "$@"
+EOF
+    chmod +x "$WRAPPER_SCRIPT"
+    echo "  Created: $WRAPPER_SCRIPT (convenience wrapper)"
+fi
+
+# STEP 9: Compile the builder
+echo ""
+echo -e "${YELLOW}Compiling Java builder...${NC}"
+cd "$BUILDER_DIR"
+if mvn clean package -q; then
+    echo -e "${GREEN}✅ Builder compiled successfully${NC}"
+else
+    echo -e "${RED}Failed to compile builder${NC}"
+    echo "Fix compilation errors and run: mvn clean package"
+    exit 1
+fi
+
+# STEP 10: Summary and next steps
+echo ""
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}✅ Scaffolding complete for: $CONTAINER_NAME${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo "Generated files:"
+echo "  📝 $CONTAINER_DIR/build.yaml"
+echo "  ☕ $BUILDER_FILE"
+echo "  🔧 $BUILD_SCRIPT"
+echo ""
+echo -e "${YELLOW}IMPORTANT - Complete these TODOs:${NC}"
+echo ""
+echo "1. Edit build.yaml:"
+echo "   - Add packages from REQUIREMENTS.md 'Required Software' section"
+echo ""
+echo "2. Edit ${BUILDER_CLASS}.java:"
+echo "   - Implement performCustomSetup() from 'Custom Setup Steps'"
+echo "   - Implement performVerification() from 'Verification' section"
+echo "   - Update getLaunchScriptContent() from 'Launch Configuration'"
+echo "   - Update getSampleConfigContent() from 'Runtime Requirements'"
+echo ""
+echo -e "${GREEN}When ready to build:${NC}"
+echo "  cd $CONTAINER_DIR"
+echo "  sudo ./build.sh"
+echo ""
+
+read -p "Open the files for editing now? (y/N): " EDIT_NOW
+if [[ "$EDIT_NOW" =~ ^[Yy]$ ]]; then
+    echo ""
+    echo "Opening files for editing..."
+    echo "  1. $CONTAINER_DIR/build.yaml"
+    echo "  2. $BUILDER_FILE"
+    ${EDITOR:-vim} "$CONTAINER_DIR/build.yaml" "$BUILDER_FILE"
+fi
