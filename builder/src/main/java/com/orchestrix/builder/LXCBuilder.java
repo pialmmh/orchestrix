@@ -84,7 +84,8 @@ public abstract class LXCBuilder {
             shell.expect(expectedPattern);
             
             System.out.println(GREEN + "  ✓ Verified: " + expectedPattern + RESET);
-            shell.close();
+            shell.send("exit\n");
+            shell.expectClose();
         } catch (Exception e) {
             throw new BuildException("Verification failed for: " + command + " - " + e.getMessage());
         }
@@ -109,39 +110,6 @@ public abstract class LXCBuilder {
         execute("lxc delete " + containerName + " --force 2>/dev/null || true", false);
     }
     
-    /**
-     * Check for running containers with same base name
-     */
-    protected boolean checkRunningContainers() {
-        String cmd = "lxc list --format=csv -c n | grep '^" + containerBase + "'";
-        
-        try {
-            Process p = Runtime.getRuntime().exec(new String[]{"bash", "-c", cmd});
-            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            List<String> running = new ArrayList<>();
-            String line;
-            
-            while ((line = reader.readLine()) != null) {
-                running.add(line);
-            }
-            
-            if (!running.isEmpty()) {
-                System.out.println("Warning: Found running containers:");
-                running.forEach(c -> System.out.println("  - " + c));
-                
-                if (!config.isForceMode()) {
-                    Scanner scanner = new Scanner(System.in);
-                    System.out.print("Continue anyway? (y/N): ");
-                    String response = scanner.nextLine();
-                    return response.equalsIgnoreCase("y");
-                }
-            }
-            return true;
-        } catch (Exception e) {
-            log.warn("Could not check running containers", e);
-            return true;
-        }
-    }
     
     /**
      * Install packages with verbose output
@@ -249,11 +217,80 @@ public abstract class LXCBuilder {
      * Pre-flight checks before build
      */
     protected void performPreFlightChecks(String containerName, String buildContainer) {
-        if (!checkRunningContainers()) {
-            throw new BuildException("Build aborted by user");
+        System.out.println("\nPre-flight checks...");
+        
+        // Check for existing image
+        if (imageExists(containerName)) {
+            System.out.println("⚠️  Image " + containerName + " already exists");
+            if (!config.isForceMode()) {
+                Scanner scanner = new Scanner(System.in);
+                System.out.print("Delete existing image and rebuild? (y/N): ");
+                String response = scanner.nextLine();
+                if (!response.equalsIgnoreCase("y")) {
+                    throw new BuildException("Build aborted - image already exists");
+                }
+            }
+            System.out.println("  Deleting existing image...");
+            execute("lxc image delete '" + containerName + "'");
         }
-        safeDeleteImage(containerName);
+        
+        // Check for running containers with same base name
+        List<String> runningContainers = findRunningContainers(containerBase);
+        if (!runningContainers.isEmpty()) {
+            System.out.println("⚠️  Found running containers:");
+            runningContainers.forEach(c -> System.out.println("    - " + c));
+            
+            if (!config.isForceMode()) {
+                Scanner scanner = new Scanner(System.in);
+                System.out.print("Stop and delete these containers? (y/N): ");
+                String response = scanner.nextLine();
+                if (!response.equalsIgnoreCase("y")) {
+                    System.out.println("Tip: Stop them manually with: lxc stop <container-name>");
+                    throw new BuildException("Build aborted - containers still running");
+                }
+            }
+            
+            System.out.println("  Stopping containers...");
+            for (String container : runningContainers) {
+                execute("lxc stop " + container + " --force 2>/dev/null || true", false);
+                execute("lxc delete " + container + " --force 2>/dev/null || true", false);
+            }
+        }
+        
+        // Clean up any leftover build container
         safeDeleteContainer(buildContainer);
+    }
+    
+    /**
+     * Check if image exists
+     */
+    protected boolean imageExists(String imageName) {
+        String checkCmd = String.format("lxc image list --format=csv | grep -q '^%s,'", 
+            imageName.replace(":", ","));
+        return execute(checkCmd, false) == 0;
+    }
+    
+    /**
+     * Find running containers with base name
+     */
+    protected List<String> findRunningContainers(String baseName) {
+        List<String> containers = new ArrayList<>();
+        String cmd = "lxc list --format=csv -c ns | grep '^" + baseName + ".*,RUNNING'";
+        
+        try {
+            Process p = Runtime.getRuntime().exec(new String[]{"bash", "-c", cmd});
+            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String line;
+            
+            while ((line = reader.readLine()) != null) {
+                String containerName = line.split(",")[0];
+                containers.add(containerName);
+            }
+        } catch (Exception e) {
+            // Ignore errors, return empty list
+        }
+        
+        return containers;
     }
     
     /**
@@ -262,7 +299,53 @@ public abstract class LXCBuilder {
     protected void createBuildContainer(String buildContainer) {
         System.out.println("\nCreating build container...");
         execute("lxc launch images:" + config.getBaseImage() + " " + buildContainer);
+        
+        // Wait for container to fully initialize
+        System.out.println("Waiting for container to initialize...");
+        waitForContainerReady(buildContainer);
+        
         waitForNetwork(buildContainer);
+    }
+    
+    /**
+     * Wait for container to be ready for commands
+     * This fixes the common "System has not been booted with systemd" error
+     */
+    protected void waitForContainerReady(String container) {
+        int maxAttempts = 30; // 30 seconds max
+        int attempt = 0;
+        
+        while (attempt < maxAttempts) {
+            try {
+                // Try a simple command to check if container is ready
+                Process p = Runtime.getRuntime().exec(new String[]{
+                    "bash", "-c", 
+                    String.format("lxc exec %s -- systemctl --version 2>&1", container)
+                });
+                
+                BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+                String line = reader.readLine();
+                
+                if (line != null && line.contains("systemd")) {
+                    System.out.println("  Container is ready");
+                    return;
+                }
+            } catch (Exception e) {
+                // Ignore and retry
+            }
+            
+            attempt++;
+            if (attempt < maxAttempts) {
+                try {
+                    Thread.sleep(1000); // Wait 1 second before retry
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+        
+        // If we get here, container might not be fully ready but continue anyway
+        System.out.println("  Container initialization timeout - continuing anyway");
     }
     
     /**
@@ -315,14 +398,177 @@ public abstract class LXCBuilder {
     protected abstract void performVerification(String buildContainer);
     
     /**
-     * Template method - subclasses define launch script content
+     * Generate standard launch script with common functionality
+     * Subclasses can override to customize, or use the helper methods
      */
-    protected abstract String getLaunchScriptContent();
+    protected String getLaunchScriptContent() {
+        return generateLaunchScript(
+            null,  // No pre-launch setup
+            null,  // No post-launch setup
+            null   // No runtime config
+        );
+    }
+    
+    /**
+     * Helper to generate launch script with custom sections
+     * @param preLaunchSetup Optional commands before launching container
+     * @param postLaunchSetup Optional commands after launching container
+     * @param runtimeConfig Optional runtime configuration to push to container
+     */
+    protected String generateLaunchScript(String preLaunchSetup, String postLaunchSetup, String runtimeConfig) {
+        StringBuilder script = new StringBuilder();
+        
+        // Standard header
+        script.append("""
+            #!/bin/bash
+            set -e
+            
+            # Load configuration
+            CONFIG_FILE="${1:-$(dirname "$0")/sample.conf}"
+            if [ ! -f "$CONFIG_FILE" ]; then
+                echo "Error: Config file not found: $CONFIG_FILE"
+                echo "Usage: $0 [config-file]"
+                exit 1
+            fi
+            source "$CONFIG_FILE"
+            
+            """);
+        
+        // Add pre-launch setup if provided
+        if (preLaunchSetup != null && !preLaunchSetup.trim().isEmpty()) {
+            script.append("# Pre-launch setup\n");
+            script.append(preLaunchSetup);
+            script.append("\n\n");
+        }
+        
+        // Standard image resolution and launch
+        script.append("""
+            # Resolve image name from directory structure
+            SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+            VERSION_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
+            VERSION=$(basename "$VERSION_DIR" | cut -d. -f2)
+            BASE_DIR=$(cd "$VERSION_DIR/.." && pwd)
+            BASE_NAME=$(basename "$BASE_DIR")
+            IMAGE_NAME="${BASE_NAME}:${VERSION}"
+            
+            # Check if container already exists
+            if lxc list --format=csv -c n | grep -q "^${CONTAINER_NAME}$"; then
+                echo "⚠️  Container ${CONTAINER_NAME} already exists"
+                read -p "Delete existing container? (y/N): " DELETE_EXISTING
+                if [[ "$DELETE_EXISTING" =~ ^[Yy]$ ]]; then
+                    echo "Deleting existing container..."
+                    lxc delete ${CONTAINER_NAME} --force
+                else
+                    echo "Aborted."
+                    exit 1
+                fi
+            fi
+            
+            echo "Launching container: ${CONTAINER_NAME}"
+            echo "From image: ${IMAGE_NAME}"
+            
+            # Launch container (use local: prefix to avoid remote interpretation)
+            lxc launch local:${IMAGE_NAME} ${CONTAINER_NAME}
+            
+            # Wait for container to be ready
+            echo "Waiting for container initialization..."
+            for i in {1..30}; do
+                if lxc exec ${CONTAINER_NAME} -- systemctl --version &>/dev/null 2>&1; then
+                    echo "  Container ready"
+                    break
+                fi
+                sleep 1
+            done
+            
+            # Apply bind mounts if configured
+            if [ -n "${BIND_MOUNTS+x}" ]; then
+                for mount in "${BIND_MOUNTS[@]}"; do
+                    if [ -n "$mount" ]; then
+                        HOST_PATH="${mount%%:*}"
+                        CONTAINER_PATH="${mount#*:}"
+                        DEVICE_NAME=$(basename "$HOST_PATH" | tr '/' '_')
+                        echo "  Mounting: $HOST_PATH -> $CONTAINER_PATH"
+                        lxc config device add ${CONTAINER_NAME} ${DEVICE_NAME} disk source="${HOST_PATH}" path="${CONTAINER_PATH}"
+                    fi
+                done
+            fi
+            
+            """);
+        
+        // Add runtime configuration if provided
+        if (runtimeConfig != null && !runtimeConfig.trim().isEmpty()) {
+            script.append("# Push runtime configuration\n");
+            script.append(runtimeConfig);
+            script.append("\n\n");
+        }
+        
+        // Add post-launch setup if provided
+        if (postLaunchSetup != null && !postLaunchSetup.trim().isEmpty()) {
+            script.append("# Post-launch setup\n");
+            script.append(postLaunchSetup);
+            script.append("\n\n");
+        }
+        
+        // Standard footer with status display
+        script.append("""
+            # Display container status
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "✅ Container ${CONTAINER_NAME} is running"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            echo "Container Info:"
+            lxc list ${CONTAINER_NAME} --format=table --columns=ns4tS
+            echo ""
+            echo "Container Details:"
+            lxc info ${CONTAINER_NAME} | head -15
+            echo ""
+            echo "Quick Commands:"
+            echo "  Access:  lxc exec ${CONTAINER_NAME} -- bash"
+            echo "  Stop:    lxc stop ${CONTAINER_NAME}"
+            echo "  Delete:  lxc delete ${CONTAINER_NAME} --force"
+            echo "  Status:  lxc list ${CONTAINER_NAME}"
+            """);
+        
+        return script.toString();
+    }
     
     /**
      * Template method - subclasses define sample config content
      */
     protected abstract String getSampleConfigContent();
+    
+    /**
+     * Generate standard sample config
+     * Subclasses can override or use this as base
+     */
+    protected String generateSampleConfigContent(String additionalConfig) {
+        StringBuilder config = new StringBuilder();
+        
+        config.append(String.format("""
+            # Runtime Configuration for %s v.%d
+            # Generated by Orchestrix Builder
+            
+            # Container instance name
+            CONTAINER_NAME=%s-instance-01
+            
+            # Bind Mounts (host:container)
+            # Uncomment and modify as needed
+            BIND_MOUNTS=(
+                # "/host/path:/container/path"
+                # "/home/user/data:/data"
+            )
+            
+            """, containerBase, version, containerBase));
+        
+        if (additionalConfig != null && !additionalConfig.trim().isEmpty()) {
+            config.append("# Container-specific configuration\n");
+            config.append(additionalConfig);
+            config.append("\n");
+        }
+        
+        return config.toString();
+    }
     
     /**
      * Template method - subclasses can override README content

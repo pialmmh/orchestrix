@@ -150,12 +150,8 @@ EOF'
     
     @Override
     protected String getLaunchScriptContent() {
-        return """
-            #!/bin/bash
-            set -e
-            CONFIG_FILE="${1:-$(dirname "$0")/sample.conf}"
-            source "$CONFIG_FILE"
-            
+        // Pre-launch: Fetch Jenkins configuration
+        String preLaunchSetup = """
             # Fetch Jenkins params from instance config
             if [ -n "$JENKINS_INSTANCE" ]; then
                 JENKINS_CONFIG="/home/mustafa/telcobright-projects/orchestrix/jenkins/instances/$JENKINS_INSTANCE/config.yml"
@@ -170,56 +166,47 @@ EOF'
                     fi
                 fi
             fi
-            
-            # Launch from versioned image
-            SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-            VERSION_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
-            VERSION=$(basename "$VERSION_DIR" | cut -d. -f2)
-            BASE_DIR=$(cd "$VERSION_DIR/.." && pwd)
-            BASE_NAME=$(basename "$BASE_DIR")
-            IMAGE_NAME="${BASE_NAME}:${VERSION}"
-            
-            echo "Launching container from image: ${IMAGE_NAME}"
-            
-            lxc launch ${IMAGE_NAME} ${CONTAINER_NAME}
-            sleep 3
-            
-            # Apply bind mounts
-            for mount in "${BIND_MOUNTS[@]}"; do
-                lxc config device add ${CONTAINER_NAME} $(basename ${mount%%:*}) disk source=${mount%%:*} path=${mount#*:}
-            done
-            
-            # Push runtime config
+            """;
+        
+        // Runtime config to push to container
+        String runtimeConfig = """
+            # Push Jenkins configuration to container
             cat <<EOF | lxc file push - ${CONTAINER_NAME}/etc/container.conf
             export JENKINS_URL="$JENKINS_URL"
             export JENKINS_AGENT_NAME="$JENKINS_AGENT_NAME"
             export AGENT_SECRET="$AGENT_SECRET"
             EOF
-            
-            # Start agent if configured
+            """;
+        
+        // Post-launch: Start Jenkins agent if configured
+        String postLaunchSetup = """
+            # Start Jenkins agent if configured
             if [ -n "$AGENT_SECRET" ]; then
+                echo "Starting Jenkins agent..."
                 lxc exec ${CONTAINER_NAME} -- /usr/local/bin/start-jenkins-agent.sh
             fi
-            
-            echo "Container ${CONTAINER_NAME} launched from ${IMAGE_NAME}"
             """;
+        
+        // Use the base class generator with custom sections
+        return generateLaunchScript(preLaunchSetup, postLaunchSetup, runtimeConfig);
     }
     
     @Override
     protected String getSampleConfigContent() {
-        return String.format("""
-            # Runtime Configuration for %s v.%d
-            CONTAINER_NAME=%s-instance-01
-            
-            # Jenkins Integration - auto-fetches from instance config
+        String additionalConfig = """
+            # Jenkins Integration
+            # These values are auto-fetched from the instance config
             JENKINS_INSTANCE=massivegrid01
             JENKINS_AGENT_NAME=orchestrix-agent
             
-            # Bind Mounts (host:container)
+            # Example workspace mount
             BIND_MOUNTS=(
                 "/home/mustafa/telcobright-projects:/workspace"
             )
-            """, containerBase, version, containerBase);
+            """;
+        
+        // Use the base class generator with additional config
+        return generateSampleConfigContent(additionalConfig);
     }
     
     @Override

@@ -249,51 +249,31 @@ public class $BUILDER_CLASS extends LXCBuilder {
     
     @Override
     protected String getLaunchScriptContent() {
+        // Option 1: Use default launch script (handles all common functionality)
+        // return super.getLaunchScriptContent();
+        
+        // Option 2: Use generator with custom sections
         // TODO: Customize based on REQUIREMENTS.md "Launch Configuration" section
-        return \"\"\"
-            #!/bin/bash
-            set -e
-            
-            CONFIG_FILE="\${1:-\$(dirname "\$0")/sample.conf}"
-            source "\$CONFIG_FILE"
-            
-            # Launch from versioned image
-            SCRIPT_DIR=\$(cd "\$(dirname "\$0")" && pwd)
-            VERSION_DIR=\$(cd "\$SCRIPT_DIR/.." && pwd)
-            VERSION=\$(basename "\$VERSION_DIR" | cut -d. -f2)
-            BASE_DIR=\$(cd "\$VERSION_DIR/.." && pwd)
-            BASE_NAME=\$(basename "\$BASE_DIR")
-            IMAGE_NAME="\${BASE_NAME}:\${VERSION}"
-            
-            echo "Launching container from image: \${IMAGE_NAME}"
-            lxc launch \${IMAGE_NAME} \${CONTAINER_NAME}
-            sleep 3
-            
-            # Apply bind mounts from REQUIREMENTS.md "Runtime Requirements"
-            for mount in "\${BIND_MOUNTS[@]}"; do
-                lxc config device add \${CONTAINER_NAME} \$(basename \${mount%%:*}) disk source=\${mount%%:*} path=\${mount#*:}
-            done
-            
-            # TODO: Add any runtime configuration from REQUIREMENTS.md
-            
-            echo "Container \${CONTAINER_NAME} launched from \${IMAGE_NAME}"
-            \"\"\";
+        String preLaunchSetup = null;  // Add pre-launch commands if needed
+        String postLaunchSetup = null; // Add post-launch commands if needed  
+        String runtimeConfig = null;   // Add runtime config to push to container
+        
+        return generateLaunchScript(preLaunchSetup, postLaunchSetup, runtimeConfig);
     }
     
     @Override
     protected String getSampleConfigContent() {
+        // Option 1: Use default sample config
+        // return super.generateSampleConfigContent(null);
+        
+        // Option 2: Add container-specific config
         // TODO: Customize based on REQUIREMENTS.md "Runtime Requirements" section
-        return String.format(\"\"\"
-            # Runtime Configuration for %s v.%d
-            CONTAINER_NAME=%s-instance-01
-            
-            # Bind Mounts (from REQUIREMENTS.md)
-            BIND_MOUNTS=(
-                # "/host/path:/container/path"
-            )
-            
-            # TODO: Add other runtime parameters from REQUIREMENTS.md
-            \"\"\", containerBase, version, containerBase);
+        String additionalConfig = \"\"\"
+            # Container-specific settings
+            # Add configuration from REQUIREMENTS.md here
+            \"\"\";
+        
+        return generateSampleConfigContent(additionalConfig);
     }
 }
 EOF
