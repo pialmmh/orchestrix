@@ -35,6 +35,19 @@ BASE_DIR=$(cd "$VERSION_DIR/.." && pwd)
 BASE_NAME=$(basename "$BASE_DIR")
 IMAGE_NAME="${BASE_NAME}:${VERSION}"
 
+# Check if container already exists
+if lxc list --format=csv -c n | grep -q "^${CONTAINER_NAME}$"; then
+    echo "⚠️  Container ${CONTAINER_NAME} already exists"
+    read -p "Delete existing container? (y/N): " DELETE_EXISTING
+    if [[ "$DELETE_EXISTING" =~ ^[Yy]$ ]]; then
+        echo "Deleting existing container..."
+        lxc delete ${CONTAINER_NAME} --force
+    else
+        echo "Aborted."
+        exit 1
+    fi
+fi
+
 echo "Launching container: ${CONTAINER_NAME}"
 echo "From image: ${IMAGE_NAME}"
 

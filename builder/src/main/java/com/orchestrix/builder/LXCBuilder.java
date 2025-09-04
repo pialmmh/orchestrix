@@ -219,6 +219,23 @@ public abstract class LXCBuilder {
     protected void performPreFlightChecks(String containerName, String buildContainer) {
         System.out.println("\nPre-flight checks...");
         
+        // Check for existing artifact (tar.gz)
+        String artifactPath = String.format("../%s-v.%d/generated/%s-v.%d.tar.gz", 
+            containerBase, version, containerBase, version);
+        File artifactFile = new File(artifactPath);
+        if (artifactFile.exists()) {
+            System.out.println("⚠️  Artifact " + artifactFile.getName() + " already exists");
+            if (!config.isForceMode()) {
+                Scanner scanner = new Scanner(System.in);
+                System.out.print("Overwrite existing artifact? (y/N): ");
+                String response = scanner.nextLine();
+                if (!response.equalsIgnoreCase("y")) {
+                    throw new BuildException("Build aborted - artifact already exists");
+                }
+            }
+            System.out.println("  Will overwrite existing artifact");
+        }
+        
         // Check for existing image
         if (imageExists(containerName)) {
             System.out.println("⚠️  Image " + containerName + " already exists");
