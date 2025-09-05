@@ -63,18 +63,27 @@ interface ComputeResource {
   ipAddress?: string;
   status: string;
   environment: string;
+  nodeType?: string;
   purpose?: string;
   cpuCores?: number;
   memoryGb?: number;
   storageGb?: number;
-  osType?: string;
-  osVersion?: string;
+  osVersionId?: number;
+  osVersionDisplay?: string;
   datacenterId?: number;
   datacenterName?: string;
   partnerId?: number;
   partnerName?: string;
   tags?: string[];
   notes?: string;
+}
+
+interface OSVersion {
+  id: number;
+  osType: string;
+  distribution: string;
+  version: string;
+  displayName: string;
 }
 
 interface AccessCredential {
@@ -99,6 +108,7 @@ const Compute: React.FC = () => {
   const [resources, setResources] = useState<ComputeResource[]>([]);
   const [selectedResource, setSelectedResource] = useState<ComputeResource | null>(null);
   const [credentials, setCredentials] = useState<AccessCredential[]>([]);
+  const [osVersions, setOSVersions] = useState<OSVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [openCredentialDialog, setOpenCredentialDialog] = useState(false);
@@ -111,12 +121,12 @@ const Compute: React.FC = () => {
     ipAddress: '',
     status: 'ACTIVE',
     environment: 'PRODUCTION',
+    nodeType: 'dedicated_server',
     purpose: '',
     cpuCores: 0,
     memoryGb: 0,
     storageGb: 0,
-    osType: 'Linux',
-    osVersion: '',
+    osVersionId: '',
     tags: '',
     notes: '',
   });
@@ -139,7 +149,17 @@ const Compute: React.FC = () => {
 
   useEffect(() => {
     fetchResources();
+    fetchOSVersions();
   }, []);
+
+  const fetchOSVersions = async () => {
+    try {
+      const response = await axios.get('/api/os-versions');
+      setOSVersions(response.data || []);
+    } catch (error) {
+      console.error('Error fetching OS versions:', error);
+    }
+  };
 
   const fetchResources = async () => {
     try {
@@ -168,12 +188,12 @@ const Compute: React.FC = () => {
       ipAddress: '',
       status: 'ACTIVE',
       environment: 'PRODUCTION',
+      nodeType: 'dedicated_server',
       purpose: '',
       cpuCores: 0,
       memoryGb: 0,
       storageGb: 0,
-      osType: 'Linux',
-      osVersion: '',
+      osVersionId: '',
       tags: '',
       notes: '',
     });
@@ -188,12 +208,12 @@ const Compute: React.FC = () => {
       ipAddress: resource.ipAddress || '',
       status: resource.status,
       environment: resource.environment,
+      nodeType: resource.nodeType || 'dedicated_server',
       purpose: resource.purpose || '',
       cpuCores: resource.cpuCores || 0,
       memoryGb: resource.memoryGb || 0,
       storageGb: resource.storageGb || 0,
-      osType: resource.osType || 'Linux',
-      osVersion: resource.osVersion || '',
+      osVersionId: resource.osVersionId?.toString() || '',
       tags: resource.tags?.join(', ') || '',
       notes: resource.notes || '',
     });
@@ -220,6 +240,7 @@ const Compute: React.FC = () => {
     try {
       const payload: any = {
         ...formData,
+        osVersionId: formData.osVersionId ? parseInt(formData.osVersionId) : null,
         tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : [],
       };
 
@@ -351,6 +372,7 @@ const Compute: React.FC = () => {
                     <TableCell>Name</TableCell>
                     <TableCell>Hostname / IP</TableCell>
                     <TableCell>Environment</TableCell>
+                    <TableCell>Node Type</TableCell>
                     <TableCell>OS</TableCell>
                     <TableCell>Resources</TableCell>
                     <TableCell>Status</TableCell>
@@ -384,11 +406,17 @@ const Compute: React.FC = () => {
                         />
                       </TableCell>
                       <TableCell>
-                        {resource.osType && (
-                          <Typography variant="body2">
-                            {resource.osType} {resource.osVersion}
-                          </Typography>
-                        )}
+                        <Chip
+                          label={resource.nodeType === 'dedicated_server' ? 'Dedicated Server' : 'Virtual Machine'}
+                          color={resource.nodeType === 'dedicated_server' ? 'primary' : 'secondary'}
+                          size="small"
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {resource.osVersionDisplay || 'Not specified'}
+                        </Typography>
                       </TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={1}>
@@ -621,28 +649,31 @@ const Compute: React.FC = () => {
             </Box>
             <Box sx={{ display: 'flex', gap: 2 }}>
               <FormControl fullWidth>
-                <InputLabel>OS Type</InputLabel>
+                <InputLabel>Node Type</InputLabel>
                 <Select
-                  value={formData.osType}
-                  onChange={(e) => setFormData({ ...formData, osType: e.target.value })}
-                  label="OS Type"
+                  value={formData.nodeType}
+                  onChange={(e) => setFormData({ ...formData, nodeType: e.target.value })}
+                  label="Node Type"
                 >
-                  <MenuItem value="Linux">Linux</MenuItem>
-                  <MenuItem value="Windows">Windows</MenuItem>
-                  <MenuItem value="AIX">AIX</MenuItem>
-                  <MenuItem value="Solaris">Solaris</MenuItem>
-                  <MenuItem value="FreeBSD">FreeBSD</MenuItem>
-                  <MenuItem value="VMware">VMware ESXi</MenuItem>
+                  <MenuItem value="dedicated_server">Dedicated Server</MenuItem>
+                  <MenuItem value="vm">Virtual Machine</MenuItem>
                 </Select>
               </FormControl>
-              <TextField
-                fullWidth
-                label="OS Version"
-                name="osVersion"
-                value={formData.osVersion}
-                onChange={(e) => setFormData({ ...formData, osVersion: e.target.value })}
-                placeholder="e.g., Ubuntu 22.04, Windows Server 2022"
-              />
+              <FormControl fullWidth>
+                <InputLabel>Operating System</InputLabel>
+                <Select
+                  value={formData.osVersionId}
+                  onChange={(e) => setFormData({ ...formData, osVersionId: e.target.value })}
+                  label="Operating System"
+                >
+                  <MenuItem value="">Select OS...</MenuItem>
+                  {osVersions.map((osVersion) => (
+                    <MenuItem key={osVersion.id} value={osVersion.id}>
+                      {osVersion.displayName}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Box>
             <TextField
               fullWidth

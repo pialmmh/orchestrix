@@ -19,13 +19,18 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
+import Clouds from './pages/Clouds';
 import Datacenters from './pages/resources/DatacentersNew';
 import Compute from './pages/resources/Compute';
 import Storage from './pages/resources/Storage';
 import Countries from './pages/resources/Countries';
 import './utils/debugAxios';
+// @ts-ignore
+import { useClaudeBridge } from './hooks/useClaudeBridge';
 
 function App() {
+  // Enable Claude Bridge for debugging in development
+  useClaudeBridge(process.env.NODE_ENV === 'development');
   return (
     <Provider store={store}>
       <ThemeProvider theme={theme}>
@@ -45,6 +50,7 @@ function App() {
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
+              <Route path="clouds" element={<Clouds />} />
               <Route path="users" element={<Users />} />
               <Route path="users/:id" element={<UserProfile />} />
               <Route path="partners" element={<Partners />} />

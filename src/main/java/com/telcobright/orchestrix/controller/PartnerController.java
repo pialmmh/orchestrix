@@ -90,6 +90,16 @@ public class PartnerController {
     // Create new partner
     @PostMapping
     public ResponseEntity<?> createPartner(@RequestBody Partner partner) {
+        // Validate 'self' role - only one partner can have it
+        if (partner.getRoles() != null && partner.getRoles().contains("self")) {
+            List<Partner> existingSelfPartners = partnerRepository.findByRolesContaining("self");
+            if (!existingSelfPartners.isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Only one partner can have the 'self' role. Currently assigned to: " + existingSelfPartners.get(0).getDisplayName());
+                return ResponseEntity.badRequest().body(error);
+            }
+        }
+        
         Partner saved = partnerRepository.save(partner);
         return ResponseEntity.ok(saved);
     }
@@ -109,7 +119,31 @@ public class PartnerController {
                     partner.setType((String) partnerData.get("type"));
                 }
                 if (partnerData.get("roles") != null) {
-                    partner.setRoles((List<String>) partnerData.get("roles"));
+                    List<String> newRoles = (List<String>) partnerData.get("roles");
+                    
+                    // Check if partner currently has 'self' role
+                    boolean currentlyHasSelfRole = partner.getRoles() != null && partner.getRoles().contains("self");
+                    boolean newHasSelfRole = newRoles != null && newRoles.contains("self");
+                    
+                    // Prevent removing 'self' role from a partner that has it
+                    if (currentlyHasSelfRole && !newHasSelfRole) {
+                        Map<String, String> error = new HashMap<>();
+                        error.put("error", "The 'self' role cannot be removed once assigned to a partner");
+                        return ResponseEntity.badRequest().body(error);
+                    }
+                    
+                    // Validate 'self' role - only one partner can have it
+                    if (!currentlyHasSelfRole && newHasSelfRole) {
+                        List<Partner> existingSelfPartners = partnerRepository.findByRolesContaining("self");
+                        // Check if another partner has the self role
+                        if (!existingSelfPartners.isEmpty()) {
+                            Map<String, String> error = new HashMap<>();
+                            error.put("error", "Only one partner can have the 'self' role. Currently assigned to: " + existingSelfPartners.get(0).getDisplayName());
+                            return ResponseEntity.badRequest().body(error);
+                        }
+                    }
+                    
+                    partner.setRoles(newRoles);
                 }
                 if (partnerData.get("contactEmail") != null) {
                     partner.setContactEmail((String) partnerData.get("contactEmail"));

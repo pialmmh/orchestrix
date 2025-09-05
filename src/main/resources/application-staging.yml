@@ -1,0 +1,39 @@
+spring:
+  datasource:
+    url: jdbc:mysql://staging-db.orchestrix.com:3306/orchestrix?useSSL=true&serverTimezone=UTC
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USER:orchestrix}
+    password: ${DB_PASSWORD:changeme}
+    
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+    
+orchestrix:
+  runtime:
+    mode: staging
+  
+  images:
+    base-path: /opt/orchestrix/images
+  
+  deployments:
+    base-path: /opt/deployments/staging
+  
+  repository:
+    type: google-drive
+    google-drive:
+      folder-id: ${GDRIVE_FOLDER_ID}
+      credentials-path: /opt/orchestrix/credentials/google-drive-staging.json
+    
+vault:
+  enabled: true
+  url: https://vault-staging.orchestrix.com
+  token: ${VAULT_TOKEN}
+  
+logging:
+  level:
+    com.telcobright.orchestrix: INFO
+  file:
+    name: /var/log/orchestrix/staging.log

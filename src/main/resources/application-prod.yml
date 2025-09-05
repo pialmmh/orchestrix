@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:prod-db.orchestrix.com}:3306/orchestrix?useSSL=true&serverTimezone=UTC
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USER:orchestrix}
+    password: ${DB_PASSWORD}
+    
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+    
+orchestrix:
+  runtime:
+    mode: production
+    client-id: ${CLIENT_ID}
+  
+  images:
+    base-path: /opt/orchestrix/images
+  
+  deployments:
+    base-path: /opt/deployments/prod
+  
+  repository:
+    type: google-drive
+    google-drive:
+      folder-id: ${GDRIVE_FOLDER_ID}
+      credentials-path: /opt/orchestrix/credentials/google-drive-prod.json
+    
+vault:
+  enabled: true
+  url: ${VAULT_URL}
+  token: ${VAULT_TOKEN}
+  
+logging:
+  level:
+    com.telcobright.orchestrix: WARN
+  file:
+    name: /var/log/orchestrix/production.log

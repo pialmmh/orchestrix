@@ -16,7 +16,7 @@ import {
   Storage,
   TrendingUp,
   Security,
-  CloudQueue,
+  Cloud,
   Speed,
 } from '@mui/icons-material';
 import {
@@ -260,7 +260,7 @@ const Dashboard: React.FC = () => {
                 {
                   action: 'New deployment completed',
                   time: '2 minutes ago',
-                  icon: <CloudQueue />,
+                  icon: <Cloud />,
                   color: theme.palette.success.main,
                 },
                 {

@@ -37,7 +37,7 @@ import {
   CloudUpload,
   Storage as StorageIcon,
   Folder,
-  CloudQueue,
+  Cloud,
   Security,
   Backup,
   Warning,
@@ -151,7 +151,7 @@ const Storage: React.FC = () => {
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'CLOUD': return <CloudQueue />;
+      case 'CLOUD': return <Cloud />;
       case 'NETWORK': return <Dns />;
       case 'ATTACHED': return <StorageIcon />;
       default: return <Folder />;

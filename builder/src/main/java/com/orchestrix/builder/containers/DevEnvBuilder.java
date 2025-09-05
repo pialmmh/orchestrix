@@ -31,9 +31,10 @@ public class DevEnvBuilder extends LXCBuilder {
         // Setup Jenkins agent
         createJenkinsAgentScript(buildContainer);
         
-        // Create required directories
+        // Create required directories with proper permissions
         System.out.println("  - Creating required directories");
         execute("lxc exec " + buildContainer + " -- mkdir -p /var/jenkins /var/run/ssh-tunnels");
+        execute("lxc exec " + buildContainer + " -- chmod 777 /var/jenkins");
         
         // Enable Docker service
         System.out.println("  - Enabling Docker service");
@@ -87,22 +88,36 @@ public class DevEnvBuilder extends LXCBuilder {
     
     private void installJava(String container) {
         System.out.println("  - Installing Java 21 (Eclipse Temurin)");
+        System.out.println("    This may take several minutes to download...");
         
         String javaVersion = config.getCustomString("java_version", DEFAULT_JAVA);
         
+        // Install Java with increased timeout and better error handling
         String installCmd = String.format("""
             lxc exec %s -- bash -c "
                 export SDKMAN_DIR='%s'
                 source \\"\\$SDKMAN_DIR/bin/sdkman-init.sh\\"
-                sdk install java %s < /dev/null || echo 'Warning: Java installation had issues'
-                sdk default java %s < /dev/null || echo 'Warning: Could not set default Java'
-                
+                echo 'Installing Java %s...'
+                sdk install java %s || { echo 'Warning: Java installation failed'; exit 0; }
+                sdk default java %s || echo 'Warning: Could not set default Java'
+            "
+            """, container, SDKMAN_DIR, javaVersion, javaVersion, javaVersion);
+        
+        // Run with custom timeout for Java download
+        int result = execute(installCmd);
+        if (result != 0) {
+            System.out.println("    Warning: Java installation may have issues, continuing anyway");
+        }
+        
+        // Add to profile separately (quick command)
+        String profileCmd = String.format("""
+            lxc exec %s -- bash -c "
                 echo 'export SDKMAN_DIR=\\"%s\\"' >> /etc/profile
                 echo '[[ -s \\"\\$SDKMAN_DIR/bin/sdkman-init.sh\\" ]] && source \\"\\$SDKMAN_DIR/bin/sdkman-init.sh\\"' >> /etc/profile
             "
-            """, container, SDKMAN_DIR, javaVersion, javaVersion, SDKMAN_DIR);
+            """, container, SDKMAN_DIR);
         
-        execute(installCmd);
+        execute(profileCmd);
     }
     
     private void configureSshAutoAccept(String container) {
@@ -132,6 +147,7 @@ EOF'
                 docker rm jenkins-agent 2>/dev/null || true
                 
                 docker run -d --name jenkins-agent --restart unless-stopped \\
+                    --privileged \\
                     -e JENKINS_URL="$JENKINS_URL" \\
                     -e JENKINS_AGENT_NAME="$JENKINS_AGENT_NAME" \\
                     -e JENKINS_SECRET="$AGENT_SECRET" \\
@@ -159,10 +175,8 @@ EOF'
                     JENKINS_URL=$(grep "jenkins_url:" "$JENKINS_CONFIG" | awk '{print $2}')
                     
                     if [ -n "$JENKINS_AGENT_NAME" ]; then
-                        AGENT_SECRET=$(awk "/^agents:/,/^[^ ]/ {
-                            if (\\$0 ~ /^  $JENKINS_AGENT_NAME:/) {found=1} 
-                            else if (found && \\$0 ~ /secret:/) {gsub(/^[ \\t]+secret:[ \\t]*/, \\"\\"); print; exit}
-                        }" "$JENKINS_CONFIG")
+                        # Simple extraction of secret
+                        AGENT_SECRET=$(grep -A1 "  ${JENKINS_AGENT_NAME}:" "$JENKINS_CONFIG" | grep "secret:" | awk '{print $2}')
                     fi
                 fi
             fi

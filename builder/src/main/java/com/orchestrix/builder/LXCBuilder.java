@@ -487,6 +487,15 @@ public abstract class LXCBuilder {
             # Launch container (use local: prefix to avoid remote interpretation)
             lxc launch local:${IMAGE_NAME} ${CONTAINER_NAME}
             
+            # Enable Docker support if detected in image
+            if lxc exec ${CONTAINER_NAME} -- which docker &>/dev/null 2>&1; then
+                echo "  Configuring container for Docker support..."
+                lxc config set ${CONTAINER_NAME} security.privileged true
+                lxc config set ${CONTAINER_NAME} security.nesting true
+                lxc restart ${CONTAINER_NAME}
+                sleep 5
+            fi
+            
             # Wait for container to be ready
             echo "Waiting for container initialization..."
             for i in {1..30}; do

@@ -1,5 +1,6 @@
 package com.telcobright.orchestrix.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -47,6 +48,14 @@ public class Datacenter {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "partner_id")
     private Partner partner;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cloud_id")
+    @JsonBackReference
+    private Cloud cloud;
+    
+    @Column(name = "is_dr_site")
+    private Boolean isDrSite = false;
     
     @Column(name = "latitude", precision = 10, scale = 8)
     private BigDecimal latitude;

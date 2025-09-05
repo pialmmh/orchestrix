@@ -10,10 +10,8 @@ if [ -n "$JENKINS_INSTANCE" ]; then
         JENKINS_URL=$(grep "jenkins_url:" "$JENKINS_CONFIG" | awk '{print $2}')
         
         if [ -n "$JENKINS_AGENT_NAME" ]; then
-            AGENT_SECRET=$(awk "/^agents:/,/^[^ ]/ {
-                if (\$0 ~ /^  $JENKINS_AGENT_NAME:/) {found=1} 
-                else if (found && \$0 ~ /secret:/) {gsub(/^[ \t]+secret:[ \t]*/, \"\"); print; exit}
-            }" "$JENKINS_CONFIG")
+            # Simple extraction of secret
+            AGENT_SECRET=$(grep -A1 "  ${JENKINS_AGENT_NAME}:" "$JENKINS_CONFIG" | grep "secret:" | awk '{print $2}')
         fi
     fi
 fi

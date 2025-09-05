@@ -3,38 +3,39 @@ spring:
     name: orchestrix
   
   profiles:
-    active: ${ORCHESTRIX_PROFILE:debug-local}
+    active: ${ORCHESTRIX_PROFILE:dev}
   
-  datasource:
-    url: jdbc:mysql://127.0.0.1:3306/orchestrix?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    username: root
-    password: 123456
-  
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: false
-    database-platform: org.hibernate.dialect.MySQL5InnoDBDialect
-    properties:
-      hibernate:
-        format_sql: true
+  servlet:
+    multipart:
+      max-file-size: ${MAX_FILE_SIZE:10MB}
+      max-request-size: ${MAX_REQUEST_SIZE:10MB}
 
 server:
   port: 8080
+  servlet:
+    session:
+      timeout: ${SESSION_TIMEOUT:30m}
 
-# Orchestrix specific configuration
-orchestrix:
-  images:
-    base-path: ${ORCHESTRIX_IMAGES_PATH:./images}
-  
-  deployments:
-    base-path: ${ORCHESTRIX_DEPLOYMENTS_PATH:./deployments}
-  
-  repository:
-    default-type: google-drive
-    
-logging:
-  level:
-    com.telcobright.orchestrix.clarity: DEBUG
-    org.springframework: INFO
+# CORS Configuration  
+cors:
+  allowed-origins: ${CORS_ORIGINS:http://localhost:3010}
+  allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  allowed-headers: "*"
+  allow-credentials: true
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:orchestrix-secret-key-for-jwt-token-generation-must-be-at-least-256-bits}
+  expiration: ${JWT_EXPIRATION:86400000}
+  refresh:
+    expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
   Box,
   Card,
@@ -26,6 +27,7 @@ import {
   Select,
   MenuItem,
   Tooltip,
+  Alert,
 } from '@mui/material';
 import {
   Add,
@@ -37,95 +39,61 @@ import {
   Phone,
   Email,
   LocationOn,
-  Star,
-  StarBorder,
 } from '@mui/icons-material';
 
 interface Partner {
-  id: string;
+  id: number;
   name: string;
+  displayName: string;
   type: string;
-  status: string;
-  contact: string;
-  email: string;
-  phone: string;
-  address: string;
-  rating: number;
-  contractStart: string;
-  contractEnd: string;
+  roles?: string[];
+  status?: string;
+  contactPerson?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  address?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 const Partners: React.FC = () => {
-  const [partners, setPartners] = useState<Partner[]>([
-    {
-      id: '1',
-      name: 'TechCorp Solutions',
-      type: 'Technology Partner',
-      status: 'Active',
-      contact: 'John Smith',
-      email: 'john@techcorp.com',
-      phone: '+1 234-567-8900',
-      address: '123 Tech Street, Silicon Valley, CA',
-      rating: 5,
-      contractStart: '2023-01-01',
-      contractEnd: '2025-12-31',
-    },
-    {
-      id: '2',
-      name: 'Global Networks Inc',
-      type: 'Infrastructure Partner',
-      status: 'Active',
-      contact: 'Sarah Johnson',
-      email: 'sarah@globalnet.com',
-      phone: '+1 234-567-8901',
-      address: '456 Network Ave, New York, NY',
-      rating: 4,
-      contractStart: '2023-06-01',
-      contractEnd: '2024-05-31',
-    },
-    {
-      id: '3',
-      name: 'CloudBase Systems',
-      type: 'Cloud Partner',
-      status: 'Active',
-      contact: 'Mike Chen',
-      email: 'mike@cloudbase.com',
-      phone: '+1 234-567-8902',
-      address: '789 Cloud Way, Seattle, WA',
-      rating: 5,
-      contractStart: '2022-01-01',
-      contractEnd: '2024-12-31',
-    },
-    {
-      id: '4',
-      name: 'SecureNet Partners',
-      type: 'Security Partner',
-      status: 'Inactive',
-      contact: 'Emily Brown',
-      email: 'emily@securenet.com',
-      phone: '+1 234-567-8903',
-      address: '321 Security Blvd, Austin, TX',
-      rating: 3,
-      contractStart: '2021-01-01',
-      contractEnd: '2023-12-31',
-    },
-  ]);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [formData, setFormData] = useState({
+    displayName: '',
     name: '',
-    type: 'Technology Partner',
-    contact: '',
-    email: '',
-    phone: '',
+    type: 'vendor',
+    roles: [] as string[],
+    contactPerson: '',
+    contactEmail: '',
+    contactPhone: '',
     address: '',
-    contractStart: '',
-    contractEnd: '',
   });
+
+  useEffect(() => {
+    fetchPartners();
+  }, []);
+
+  const fetchPartners = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/api/partners');
+      setPartners(response.data.partners || []);
+      setError(null);
+    } catch (error) {
+      console.error('Error fetching partners:', error);
+      setError('Failed to fetch partners');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -138,14 +106,14 @@ const Partners: React.FC = () => {
 
   const handleCreatePartner = () => {
     setFormData({
+      displayName: '',
       name: '',
-      type: 'Technology Partner',
-      contact: '',
-      email: '',
-      phone: '',
+      type: 'vendor',
+      roles: [],
+      contactPerson: '',
+      contactEmail: '',
+      contactPhone: '',
       address: '',
-      contractStart: '',
-      contractEnd: '',
     });
     setSelectedPartner(null);
     setOpenDialog(true);
@@ -153,47 +121,47 @@ const Partners: React.FC = () => {
 
   const handleEditPartner = (partner: Partner) => {
     setFormData({
+      displayName: partner.displayName,
       name: partner.name,
       type: partner.type,
-      contact: partner.contact,
-      email: partner.email,
-      phone: partner.phone,
-      address: partner.address,
-      contractStart: partner.contractStart,
-      contractEnd: partner.contractEnd,
+      roles: partner.roles || [],
+      contactPerson: partner.contactPerson || '',
+      contactEmail: partner.contactEmail || '',
+      contactPhone: partner.contactPhone || '',
+      address: partner.address || '',
     });
     setSelectedPartner(partner);
     setOpenDialog(true);
   };
 
-  const handleDeletePartner = (id: string) => {
-    setPartners(partners.filter((p) => p.id !== id));
+  const handleDeletePartner = async (id: number) => {
+    try {
+      await axios.delete(`/api/partners/${id}`);
+      fetchPartners();
+    } catch (error) {
+      console.error('Error deleting partner:', error);
+      setError('Failed to delete partner');
+    }
   };
 
-  const handleSubmit = () => {
-    if (selectedPartner) {
-      // Update existing partner
-      setPartners(
-        partners.map((p) =>
-          p.id === selectedPartner.id
-            ? {
-                ...p,
-                ...formData,
-              }
-            : p
-        )
-      );
-    } else {
-      // Create new partner
-      const newPartner: Partner = {
-        id: String(Date.now()),
+  const handleSubmit = async () => {
+    try {
+      const payload = {
         ...formData,
-        status: 'Active',
-        rating: 5,
+        name: formData.name || formData.displayName.toLowerCase().replace(/\s+/g, '_'),
       };
-      setPartners([...partners, newPartner]);
+      
+      if (selectedPartner) {
+        await axios.put(`/api/partners/${selectedPartner.id}`, payload);
+      } else {
+        await axios.post('/api/partners', payload);
+      }
+      setOpenDialog(false);
+      fetchPartners();
+    } catch (error: any) {
+      console.error('Error saving partner:', error);
+      setError(error.response?.data?.error || 'Failed to save partner');
     }
-    setOpenDialog(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -209,40 +177,28 @@ const Partners: React.FC = () => {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'Technology Partner':
+      case 'vendor':
         return 'primary';
-      case 'Infrastructure Partner':
+      case 'customer':
         return 'secondary';
-      case 'Cloud Partner':
+      case 'self':
         return 'info';
-      case 'Security Partner':
-        return 'warning';
       default:
         return 'default';
     }
   };
-
-  const renderRating = (rating: number) => {
-    return (
-      <Box sx={{ display: 'flex' }}>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <IconButton key={star} size="small" disabled>
-            {star <= rating ? (
-              <Star fontSize="small" sx={{ color: 'gold' }} />
-            ) : (
-              <StarBorder fontSize="small" />
-            )}
-          </IconButton>
-        ))}
-      </Box>
-    );
+  
+  const getRolesDisplay = (roles?: string[]) => {
+    if (!roles || roles.length === 0) return '-';
+    return roles.join(', ');
   };
 
   const filteredPartners = partners.filter(
     (partner) =>
+      partner.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       partner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      partner.contact.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      partner.email.toLowerCase().includes(searchTerm.toLowerCase())
+      (partner.contactPerson && partner.contactPerson.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (partner.contactEmail && partner.contactEmail.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -250,6 +206,12 @@ const Partners: React.FC = () => {
       <Typography variant="h4" gutterBottom>
         Partner Management
       </Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
       <Card sx={{ mb: 3 }}>
         <CardContent>
@@ -276,23 +238,22 @@ const Partners: React.FC = () => {
               >
                 Add Partner
               </Button>
-              <IconButton>
+              <IconButton onClick={fetchPartners}>
                 <Refresh />
               </IconButton>
             </Box>
           </Box>
 
           <TableContainer component={Paper}>
-            <Table>
+            <Table size="small">
               <TableHead>
                 <TableRow>
                   <TableCell>Partner</TableCell>
                   <TableCell>Type</TableCell>
-                  <TableCell>Contact</TableCell>
+                  <TableCell>Roles</TableCell>
+                  <TableCell>Contact Person</TableCell>
                   <TableCell>Email</TableCell>
                   <TableCell>Phone</TableCell>
-                  <TableCell>Rating</TableCell>
-                  <TableCell>Status</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -305,9 +266,9 @@ const Partners: React.FC = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                           <Business sx={{ mr: 2, color: 'text.secondary' }} />
                           <Box>
-                            <Typography variant="body1">{partner.name}</Typography>
+                            <Typography variant="body1">{partner.displayName}</Typography>
                             <Typography variant="caption" color="text.secondary">
-                              {partner.address}
+                              {partner.address || partner.name}
                             </Typography>
                           </Box>
                         </Box>
@@ -319,17 +280,10 @@ const Partners: React.FC = () => {
                           size="small"
                         />
                       </TableCell>
-                      <TableCell>{partner.contact}</TableCell>
-                      <TableCell>{partner.email}</TableCell>
-                      <TableCell>{partner.phone}</TableCell>
-                      <TableCell>{renderRating(partner.rating)}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={partner.status}
-                          color={getStatusColor(partner.status) as any}
-                          size="small"
-                        />
-                      </TableCell>
+                      <TableCell>{getRolesDisplay(partner.roles)}</TableCell>
+                      <TableCell>{partner.contactPerson || '-'}</TableCell>
+                      <TableCell>{partner.contactEmail || '-'}</TableCell>
+                      <TableCell>{partner.contactPhone || '-'}</TableCell>
                       <TableCell align="right">
                         <Tooltip title="Edit">
                           <IconButton
@@ -356,7 +310,7 @@ const Partners: React.FC = () => {
           </TableContainer>
 
           <TablePagination
-            rowsPerPageOptions={[5, 10, 25]}
+            rowsPerPageOptions={[10, 20, 50]}
             component="div"
             count={filteredPartners.length}
             rowsPerPage={rowsPerPage}
@@ -377,11 +331,22 @@ const Partners: React.FC = () => {
             <Box sx={{ flex: '0 0 100%' }}>
               <TextField
                 fullWidth
-                label="Partner Name"
+                label="Display Name"
+                name="displayName"
+                value={formData.displayName}
+                onChange={handleInputChange}
+                required
+                helperText="The name that will be displayed in the UI"
+              />
+            </Box>
+            <Box sx={{ flex: { xs: '0 0 100%', sm: '0 0 calc(50% - 8px)' } }}>
+              <TextField
+                fullWidth
+                label="System Name"
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                required
+                helperText="Leave empty to auto-generate from display name"
               />
             </Box>
             <Box sx={{ flex: { xs: '0 0 100%', sm: '0 0 calc(50% - 8px)' } }}>
@@ -395,46 +360,66 @@ const Partners: React.FC = () => {
                   }
                   label="Partner Type"
                 >
-                  <MenuItem value="Technology Partner">Technology Partner</MenuItem>
-                  <MenuItem value="Infrastructure Partner">Infrastructure Partner</MenuItem>
-                  <MenuItem value="Cloud Partner">Cloud Partner</MenuItem>
-                  <MenuItem value="Security Partner">Security Partner</MenuItem>
-                  <MenuItem value="Consulting Partner">Consulting Partner</MenuItem>
+                  <MenuItem value="vendor">Vendor</MenuItem>
+                  <MenuItem value="customer">Customer</MenuItem>
+                  <MenuItem value="self">Self (Own Company)</MenuItem>
                 </Select>
+              </FormControl>
+            </Box>
+            <Box sx={{ flex: '0 0 100%' }}>
+              <FormControl fullWidth>
+                <InputLabel>Roles</InputLabel>
+                <Select
+                  multiple
+                  value={formData.roles}
+                  onChange={(e) =>
+                    setFormData({ ...formData, roles: e.target.value as string[] })
+                  }
+                  label="Roles"
+                  renderValue={(selected) => (selected as string[]).join(', ')}
+                  disabled={!!(selectedPartner && selectedPartner.roles && selectedPartner.roles.includes('self'))}
+                >
+                  <MenuItem value="vendor">Vendor</MenuItem>
+                  <MenuItem value="customer">Customer</MenuItem>
+                  <MenuItem value="self">Self</MenuItem>
+                  <MenuItem value="partner">Partner</MenuItem>
+                </Select>
+                {selectedPartner && selectedPartner.roles && selectedPartner.roles.includes('self') && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                    The 'self' role cannot be changed once assigned
+                  </Typography>
+                )}
               </FormControl>
             </Box>
             <Box sx={{ flex: { xs: '0 0 100%', sm: '0 0 calc(50% - 8px)' } }}>
               <TextField
                 fullWidth
                 label="Contact Person"
-                name="contact"
-                value={formData.contact}
+                name="contactPerson"
+                value={formData.contactPerson}
                 onChange={handleInputChange}
-                required
               />
             </Box>
             <Box sx={{ flex: { xs: '0 0 100%', sm: '0 0 calc(50% - 8px)' } }}>
               <TextField
                 fullWidth
-                label="Email"
-                name="email"
+                label="Contact Email"
+                name="contactEmail"
                 type="email"
-                value={formData.email}
+                value={formData.contactEmail}
                 onChange={handleInputChange}
-                required
               />
             </Box>
             <Box sx={{ flex: { xs: '0 0 100%', sm: '0 0 calc(50% - 8px)' } }}>
               <TextField
                 fullWidth
-                label="Phone"
-                name="phone"
-                value={formData.phone}
+                label="Contact Phone"
+                name="contactPhone"
+                value={formData.contactPhone}
                 onChange={handleInputChange}
-                required
               />
             </Box>
-            <Box sx={{ flex: '0 0 100%' }}>
+            <Box sx={{ flex: { xs: '0 0 100%', sm: '0 0 calc(50% - 8px)' } }}>
               <TextField
                 fullWidth
                 label="Address"
@@ -443,28 +428,6 @@ const Partners: React.FC = () => {
                 onChange={handleInputChange}
                 multiline
                 rows={2}
-              />
-            </Box>
-            <Box sx={{ flex: { xs: '0 0 100%', sm: '0 0 calc(50% - 8px)' } }}>
-              <TextField
-                fullWidth
-                label="Contract Start Date"
-                name="contractStart"
-                type="date"
-                value={formData.contractStart}
-                onChange={handleInputChange}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Box>
-            <Box sx={{ flex: { xs: '0 0 100%', sm: '0 0 calc(50% - 8px)' } }}>
-              <TextField
-                fullWidth
-                label="Contract End Date"
-                name="contractEnd"
-                type="date"
-                value={formData.contractEnd}
-                onChange={handleInputChange}
-                InputLabelProps={{ shrink: true }}
               />
             </Box>
           </Box>

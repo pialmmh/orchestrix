@@ -18,10 +18,8 @@ if [ -n "$JENKINS_INSTANCE" ]; then
         JENKINS_URL=$(grep "jenkins_url:" "$JENKINS_CONFIG" | awk '{print $2}')
 
         if [ -n "$JENKINS_AGENT_NAME" ]; then
-            AGENT_SECRET=$(awk "/^agents:/,/^[^ ]/ {
-                if (\$0 ~ /^  $JENKINS_AGENT_NAME:/) {found=1}
-                else if (found && \$0 ~ /secret:/) {gsub(/^[ \t]+secret:[ \t]*/, \"\"); print; exit}
-            }" "$JENKINS_CONFIG")
+            # Simple extraction of secret
+            AGENT_SECRET=$(grep -A1 "  ${JENKINS_AGENT_NAME}:" "$JENKINS_CONFIG" | grep "secret:" | awk '{print $2}')
         fi
     fi
 fi
@@ -53,6 +51,15 @@ echo "From image: ${IMAGE_NAME}"
 
 # Launch container (use local: prefix to avoid remote interpretation)
 lxc launch local:${IMAGE_NAME} ${CONTAINER_NAME}
+
+# Enable Docker support if detected in image
+if lxc exec ${CONTAINER_NAME} -- which docker &>/dev/null 2>&1; then
+    echo "  Configuring container for Docker support..."
+    lxc config set ${CONTAINER_NAME} security.privileged true
+    lxc config set ${CONTAINER_NAME} security.nesting true
+    lxc restart ${CONTAINER_NAME}
+    sleep 5
+fi
 
 # Wait for container to be ready
 echo "Waiting for container initialization..."

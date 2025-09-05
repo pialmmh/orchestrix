@@ -1,0 +1,15 @@
+{
+  "name": "claude-bridge",
+  "version": "1.0.0",
+  "description": "Bridge server for Claude Code and React app communication",
+  "main": "bridge-server.js",
+  "scripts": {
+    "start": "node ws-bridge.js",
+    "dev": "node ws-bridge.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "ws": "^8.18.3"
+  }
+}

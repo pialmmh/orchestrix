@@ -30,7 +30,6 @@ import {
   Dashboard,
   People,
   Settings,
-  CloudQueue,
   Storage,
   Security,
   Assessment,
@@ -45,11 +44,13 @@ import {
   Computer,
   Dns,
   Folder,
+  Cloud,
 } from '@mui/icons-material';
 import { AppDispatch, RootState } from '../store/store';
 import { logout } from '../store/slices/authSlice';
+import OrchestrixLogo from './OrchestrixLogo';
 
-const drawerWidth = 260;
+const drawerWidth = 290;
 
 const Layout: React.FC = () => {
   const theme = useTheme();
@@ -81,33 +82,18 @@ const Layout: React.FC = () => {
     navigate('/login');
   };
 
-  const menuItems = [
-    { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
-    { text: 'Users', icon: <People />, path: '/users' },
-    { text: 'Clients', icon: <BusinessCenter />, path: '/clients' },
-    { text: 'Partners', icon: <Public />, path: '/partners' },
-    { text: 'Deployments', icon: <DeveloperBoard />, path: '/deployments' },
-    { text: 'Servers', icon: <Storage />, path: '/servers' },
-    { text: 'Security', icon: <Security />, path: '/security' },
-    { text: 'Reports', icon: <Assessment />, path: '/reports' },
-    { text: 'Settings', icon: <Settings />, path: '/settings' },
-  ];
 
   const handleResourcesClick = () => {
     setResourcesOpen(!resourcesOpen);
   };
+
 
   return (
     <Box sx={{ display: 'flex' }}>
       <AppBar
         position="fixed"
         sx={{
-          width: { sm: `calc(100% - ${open ? drawerWidth : 0}px)` },
-          ml: { sm: `${open ? drawerWidth : 0}px` },
-          transition: theme.transitions.create(['margin', 'width'], {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
-          }),
+          zIndex: theme.zIndex.drawer + 1,
           background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
           boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
         }}
@@ -123,9 +109,12 @@ const Layout: React.FC = () => {
             <MenuIcon />
           </IconButton>
           
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Orchestrix
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+            <OrchestrixLogo sx={{ mr: 1 }} fontSize="large" />
+            <Typography variant="h6" noWrap component="div">
+              Orchestrix
+            </Typography>
+          </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Tooltip title="Notifications">
@@ -199,10 +188,12 @@ const Layout: React.FC = () => {
           '& .MuiDrawer-paper': {
             width: drawerWidth,
             boxSizing: 'border-box',
-            background: 'linear-gradient(180deg, #1a237e 0%, #283593 100%)',
-            color: 'white',
+            background: 'linear-gradient(180deg, #f5f5f5 0%, #e0e0e0 100%)',
+            color: '#424242',
             borderRight: 'none',
             boxShadow: '2px 0 10px rgba(0,0,0,0.1)',
+            display: 'flex',
+            flexDirection: 'column',
           },
         }}
         variant={isMobile ? 'temporary' : 'persistent'}
@@ -210,51 +201,12 @@ const Layout: React.FC = () => {
         open={open}
         onClose={handleDrawerToggle}
       >
-        <Toolbar
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            px: [1],
-            background: alpha('#000', 0.1),
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <CloudQueue sx={{ mr: 1, fontSize: 28 }} />
-            <Typography variant="h6" noWrap>
-              Orchestrix
-            </Typography>
-          </Box>
-          <IconButton onClick={handleDrawerToggle} sx={{ color: 'white' }}>
-            <ChevronLeft />
-          </IconButton>
-        </Toolbar>
+        {/* Add toolbar spacing */}
+        <Toolbar />
         
-        <Divider sx={{ borderColor: alpha('#fff', 0.1) }} />
-        
-        <Box sx={{ p: 2, textAlign: 'center' }}>
-          <Avatar
-            sx={{
-              width: 80,
-              height: 80,
-              margin: '0 auto',
-              bgcolor: theme.palette.secondary.main,
-              fontSize: '2rem',
-            }}
-          >
-            {user?.firstName?.[0] || user?.username?.[0]?.toUpperCase()}
-          </Avatar>
-          <Typography variant="h6" sx={{ mt: 1 }}>
-            {user?.fullName || user?.username}
-          </Typography>
-          <Typography variant="caption" sx={{ opacity: 0.8 }}>
-            {user?.role?.replace('_', ' ')}
-          </Typography>
-        </Box>
-        
-        <Divider sx={{ borderColor: alpha('#fff', 0.1) }} />
-        
-        <List sx={{ px: 1 }}>
+        {/* Scrollable Content Section */}
+        <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
+          <List sx={{ px: 1 }}>
           {/* Dashboard */}
           <ListItem disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
@@ -263,20 +215,45 @@ const Layout: React.FC = () => {
               sx={{
                 borderRadius: 1,
                 '&.Mui-selected': {
-                  backgroundColor: alpha('#fff', 0.15),
+                  backgroundColor: alpha('#000', 0.08),
                   '&:hover': {
-                    backgroundColor: alpha('#fff', 0.2),
+                    backgroundColor: alpha('#000', 0.12),
                   },
                 },
                 '&:hover': {
-                  backgroundColor: alpha('#fff', 0.1),
+                  backgroundColor: alpha('#000', 0.05),
                 },
               }}
             >
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+              <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
                 <Dashboard />
               </ListItemIcon>
               <ListItemText primary="Dashboard" />
+            </ListItemButton>
+          </ListItem>
+
+          {/* Clouds */}
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton
+              onClick={() => navigate('/clouds')}
+              selected={location.pathname === '/clouds'}
+              sx={{
+                borderRadius: 1,
+                '&.Mui-selected': {
+                  backgroundColor: alpha('#000', 0.08),
+                  '&:hover': {
+                    backgroundColor: alpha('#000', 0.12),
+                  },
+                },
+                '&:hover': {
+                  backgroundColor: alpha('#000', 0.05),
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
+                <Cloud />
+              </ListItemIcon>
+              <ListItemText primary="Clouds" />
             </ListItemButton>
           </ListItem>
 
@@ -288,17 +265,17 @@ const Layout: React.FC = () => {
               sx={{
                 borderRadius: 1,
                 '&.Mui-selected': {
-                  backgroundColor: alpha('#fff', 0.15),
+                  backgroundColor: alpha('#000', 0.08),
                   '&:hover': {
-                    backgroundColor: alpha('#fff', 0.2),
+                    backgroundColor: alpha('#000', 0.12),
                   },
                 },
                 '&:hover': {
-                  backgroundColor: alpha('#fff', 0.1),
+                  backgroundColor: alpha('#000', 0.05),
                 },
               }}
             >
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+              <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
                 <People />
               </ListItemIcon>
               <ListItemText primary="Users" />
@@ -312,15 +289,15 @@ const Layout: React.FC = () => {
               sx={{
                 borderRadius: 1,
                 '&:hover': {
-                  backgroundColor: alpha('#fff', 0.1),
+                  backgroundColor: alpha('#000', 0.05),
                 },
               }}
             >
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+              <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
                 <Folder />
               </ListItemIcon>
               <ListItemText primary="Resources" />
-              {resourcesOpen ? <ExpandLess sx={{ color: 'white' }} /> : <ExpandMore sx={{ color: 'white' }} />}
+              {resourcesOpen ? <ExpandLess sx={{ color: '#424242' }} /> : <ExpandMore sx={{ color: '#424242' }} />}
             </ListItemButton>
           </ListItem>
           <Collapse in={resourcesOpen} timeout="auto" unmountOnExit>
@@ -332,17 +309,17 @@ const Layout: React.FC = () => {
                   sx={{
                     borderRadius: 1,
                     '&.Mui-selected': {
-                      backgroundColor: alpha('#fff', 0.15),
+                      backgroundColor: alpha('#000', 0.08),
                       '&:hover': {
-                        backgroundColor: alpha('#fff', 0.2),
+                        backgroundColor: alpha('#000', 0.12),
                       },
                     },
                     '&:hover': {
-                      backgroundColor: alpha('#fff', 0.1),
+                      backgroundColor: alpha('#000', 0.05),
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+                  <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
                     <Public />
                   </ListItemIcon>
                   <ListItemText primary="Countries" />
@@ -355,17 +332,17 @@ const Layout: React.FC = () => {
                   sx={{
                     borderRadius: 1,
                     '&.Mui-selected': {
-                      backgroundColor: alpha('#fff', 0.15),
+                      backgroundColor: alpha('#000', 0.08),
                       '&:hover': {
-                        backgroundColor: alpha('#fff', 0.2),
+                        backgroundColor: alpha('#000', 0.12),
                       },
                     },
                     '&:hover': {
-                      backgroundColor: alpha('#fff', 0.1),
+                      backgroundColor: alpha('#000', 0.05),
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+                  <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
                     <Dns />
                   </ListItemIcon>
                   <ListItemText primary="Datacenters" />
@@ -378,17 +355,17 @@ const Layout: React.FC = () => {
                   sx={{
                     borderRadius: 1,
                     '&.Mui-selected': {
-                      backgroundColor: alpha('#fff', 0.15),
+                      backgroundColor: alpha('#000', 0.08),
                       '&:hover': {
-                        backgroundColor: alpha('#fff', 0.2),
+                        backgroundColor: alpha('#000', 0.12),
                       },
                     },
                     '&:hover': {
-                      backgroundColor: alpha('#fff', 0.1),
+                      backgroundColor: alpha('#000', 0.05),
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+                  <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
                     <Computer />
                   </ListItemIcon>
                   <ListItemText primary="Compute" />
@@ -401,17 +378,17 @@ const Layout: React.FC = () => {
                   sx={{
                     borderRadius: 1,
                     '&.Mui-selected': {
-                      backgroundColor: alpha('#fff', 0.15),
+                      backgroundColor: alpha('#000', 0.08),
                       '&:hover': {
-                        backgroundColor: alpha('#fff', 0.2),
+                        backgroundColor: alpha('#000', 0.12),
                       },
                     },
                     '&:hover': {
-                      backgroundColor: alpha('#fff', 0.1),
+                      backgroundColor: alpha('#000', 0.05),
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+                  <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
                     <Storage />
                   </ListItemIcon>
                   <ListItemText primary="Storage" />
@@ -428,17 +405,17 @@ const Layout: React.FC = () => {
               sx={{
                 borderRadius: 1,
                 '&.Mui-selected': {
-                  backgroundColor: alpha('#fff', 0.15),
+                  backgroundColor: alpha('#000', 0.08),
                   '&:hover': {
-                    backgroundColor: alpha('#fff', 0.2),
+                    backgroundColor: alpha('#000', 0.12),
                   },
                 },
                 '&:hover': {
-                  backgroundColor: alpha('#fff', 0.1),
+                  backgroundColor: alpha('#000', 0.05),
                 },
               }}
             >
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+              <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
                 <BusinessCenter />
               </ListItemIcon>
               <ListItemText primary="Clients" />
@@ -452,17 +429,17 @@ const Layout: React.FC = () => {
               sx={{
                 borderRadius: 1,
                 '&.Mui-selected': {
-                  backgroundColor: alpha('#fff', 0.15),
+                  backgroundColor: alpha('#000', 0.08),
                   '&:hover': {
-                    backgroundColor: alpha('#fff', 0.2),
+                    backgroundColor: alpha('#000', 0.12),
                   },
                 },
                 '&:hover': {
-                  backgroundColor: alpha('#fff', 0.1),
+                  backgroundColor: alpha('#000', 0.05),
                 },
               }}
             >
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+              <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
                 <Public />
               </ListItemIcon>
               <ListItemText primary="Partners" />
@@ -476,17 +453,17 @@ const Layout: React.FC = () => {
               sx={{
                 borderRadius: 1,
                 '&.Mui-selected': {
-                  backgroundColor: alpha('#fff', 0.15),
+                  backgroundColor: alpha('#000', 0.08),
                   '&:hover': {
-                    backgroundColor: alpha('#fff', 0.2),
+                    backgroundColor: alpha('#000', 0.12),
                   },
                 },
                 '&:hover': {
-                  backgroundColor: alpha('#fff', 0.1),
+                  backgroundColor: alpha('#000', 0.05),
                 },
               }}
             >
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+              <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
                 <DeveloperBoard />
               </ListItemIcon>
               <ListItemText primary="Deployments" />
@@ -500,17 +477,17 @@ const Layout: React.FC = () => {
               sx={{
                 borderRadius: 1,
                 '&.Mui-selected': {
-                  backgroundColor: alpha('#fff', 0.15),
+                  backgroundColor: alpha('#000', 0.08),
                   '&:hover': {
-                    backgroundColor: alpha('#fff', 0.2),
+                    backgroundColor: alpha('#000', 0.12),
                   },
                 },
                 '&:hover': {
-                  backgroundColor: alpha('#fff', 0.1),
+                  backgroundColor: alpha('#000', 0.05),
                 },
               }}
             >
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+              <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
                 <Storage />
               </ListItemIcon>
               <ListItemText primary="Servers" />
@@ -524,17 +501,17 @@ const Layout: React.FC = () => {
               sx={{
                 borderRadius: 1,
                 '&.Mui-selected': {
-                  backgroundColor: alpha('#fff', 0.15),
+                  backgroundColor: alpha('#000', 0.08),
                   '&:hover': {
-                    backgroundColor: alpha('#fff', 0.2),
+                    backgroundColor: alpha('#000', 0.12),
                   },
                 },
                 '&:hover': {
-                  backgroundColor: alpha('#fff', 0.1),
+                  backgroundColor: alpha('#000', 0.05),
                 },
               }}
             >
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+              <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
                 <Security />
               </ListItemIcon>
               <ListItemText primary="Security" />
@@ -548,17 +525,17 @@ const Layout: React.FC = () => {
               sx={{
                 borderRadius: 1,
                 '&.Mui-selected': {
-                  backgroundColor: alpha('#fff', 0.15),
+                  backgroundColor: alpha('#000', 0.08),
                   '&:hover': {
-                    backgroundColor: alpha('#fff', 0.2),
+                    backgroundColor: alpha('#000', 0.12),
                   },
                 },
                 '&:hover': {
-                  backgroundColor: alpha('#fff', 0.1),
+                  backgroundColor: alpha('#000', 0.05),
                 },
               }}
             >
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+              <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
                 <Assessment />
               </ListItemIcon>
               <ListItemText primary="Reports" />
@@ -572,23 +549,24 @@ const Layout: React.FC = () => {
               sx={{
                 borderRadius: 1,
                 '&.Mui-selected': {
-                  backgroundColor: alpha('#fff', 0.15),
+                  backgroundColor: alpha('#000', 0.08),
                   '&:hover': {
-                    backgroundColor: alpha('#fff', 0.2),
+                    backgroundColor: alpha('#000', 0.12),
                   },
                 },
                 '&:hover': {
-                  backgroundColor: alpha('#fff', 0.1),
+                  backgroundColor: alpha('#000', 0.05),
                 },
               }}
             >
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+              <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
                 <Settings />
               </ListItemIcon>
               <ListItemText primary="Settings" />
             </ListItemButton>
           </ListItem>
-        </List>
+          </List>
+        </Box>
       </Drawer>
 
       <Box

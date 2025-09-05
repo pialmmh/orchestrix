@@ -20,10 +20,10 @@ import {
   Visibility,
   VisibilityOff,
   LockOutlined,
-  CloudQueue,
 } from '@mui/icons-material';
 import { AppDispatch, RootState } from '../store/store';
 import { login, clearError } from '../store/slices/authSlice';
+import OrchestrixLogo from '../components/OrchestrixLogo';
 
 const Login: React.FC = () => {
   const theme = useTheme();
@@ -130,7 +130,7 @@ const Login: React.FC = () => {
                 mb: 2,
               }}
             >
-              <CloudQueue sx={{ fontSize: 40, color: 'white' }} />
+              <OrchestrixLogo sx={{ fontSize: 40, color: 'white' }} />
             </Paper>
             <Typography
               variant="h4"

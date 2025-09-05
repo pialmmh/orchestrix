@@ -1,0 +1,16 @@
+<svg width="16" height="16" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Ultra-simplified version for 16x16 favicon -->
+  
+  <!-- Central hexagon -->
+  <path d="M50 20 L70 35 L70 65 L50 80 L30 65 L30 35 Z" 
+        fill="#1976d2"/>
+  
+  <!-- Small outer dots -->
+  <circle cx="25" cy="25" r="6" fill="#42a5f5"/>
+  <circle cx="75" cy="25" r="6" fill="#42a5f5"/>
+  <circle cx="25" cy="75" r="6" fill="#42a5f5"/>
+  <circle cx="75" cy="75" r="6" fill="#42a5f5"/>
+  
+  <!-- Center dot -->
+  <circle cx="50" cy="50" r="6" fill="#ffffff"/>
+</svg>

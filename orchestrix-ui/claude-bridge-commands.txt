@@ -1,0 +1,83 @@
+================================================
+    Claude Bridge Commands for Orchestrix
+================================================
+
+The Claude Bridge is now integrated into your Orchestrix React app!
+
+📡 STARTING THE BRIDGE:
+-----------------------
+Option 1 - Start both together:
+  ./start-with-bridge.sh
+
+Option 2 - Start separately:
+  Terminal 1: cd claude-bridge && npm start
+  Terminal 2: npm start
+
+🔍 DEBUGGING COMMANDS:
+----------------------
+Once the bridge is running, you can use these commands in Claude Code:
+
+1. Evaluate JavaScript in the browser:
+   curl -X POST http://localhost:3456/eval \
+     -H "Content-Type: application/json" \
+     -d '{"code": "document.title"}'
+
+2. Get current React state:
+   curl http://localhost:3456/state
+
+3. Check Redux store state:
+   curl -X POST http://localhost:3456/eval \
+     -H "Content-Type: application/json" \
+     -d '{"code": "window.__REDUX_DEVTOOLS_EXTENSION__ && store.getState()"}'
+
+4. Check current route:
+   curl -X POST http://localhost:3456/eval \
+     -H "Content-Type: application/json" \
+     -d '{"code": "window.location.pathname"}'
+
+5. Get all localStorage data:
+   curl -X POST http://localhost:3456/eval \
+     -H "Content-Type: application/json" \
+     -d '{"code": "Object.entries(localStorage)"}'
+
+6. Check authentication status:
+   curl -X POST http://localhost:3456/eval \
+     -H "Content-Type: application/json" \
+     -d '{"code": "localStorage.getItem(\"token\")"}'
+
+7. Get all API endpoints being called:
+   curl -X POST http://localhost:3456/eval \
+     -H "Content-Type: application/json" \
+     -d '{"code": "performance.getEntriesByType(\"resource\").filter(r => r.name.includes(\"/api/\"))"}'
+
+8. Check for console errors:
+   curl -X POST http://localhost:3456/eval \
+     -H "Content-Type: application/json" \
+     -d '{"code": "window.__errors || []"}'
+
+🎯 ORCHESTRIX-SPECIFIC COMMANDS:
+---------------------------------
+1. Get current clouds data:
+   curl -X POST http://localhost:3456/eval \
+     -H "Content-Type: application/json" \
+     -d '{"code": "document.querySelector(\"[data-testid=clouds-table]\")?.innerText"}'
+
+2. Check partner dropdown options:
+   curl -X POST http://localhost:3456/eval \
+     -H "Content-Type: application/json" \
+     -d '{"code": "Array.from(document.querySelectorAll(\"[role=option]\")).map(el => el.innerText)"}'
+
+3. Get form values:
+   curl -X POST http://localhost:3456/eval \
+     -H "Content-Type: application/json" \
+     -d '{"code": "Object.fromEntries(new FormData(document.querySelector(\"form\")))"}'
+
+📌 NOTES:
+---------
+- The bridge automatically reconnects if disconnected
+- All commands work while the app is running
+- Results are returned as JSON
+- The bridge is only active in development mode
+- Check the browser console for "🌉 Claude Bridge connected" message
+
+Happy debugging! 🚀

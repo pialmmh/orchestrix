@@ -20,6 +20,9 @@ public interface PartnerRepository extends JpaRepository<Partner, Integer> {
     @Query(value = "SELECT * FROM partners p WHERE JSON_CONTAINS(p.roles, :role, '$')", nativeQuery = true)
     List<Partner> findByRole(@Param("role") String role);
     
+    @Query(value = "SELECT * FROM partners p WHERE JSON_CONTAINS(p.roles, JSON_QUOTE(:role), '$')", nativeQuery = true)
+    List<Partner> findByRolesContaining(@Param("role") String role);
+    
     @Query("SELECT p FROM Partner p WHERE p.type IN ('cloud-provider', 'both')")
     List<Partner> findCloudProviders();
     
