@@ -13,7 +13,7 @@ public interface CloudRepository extends JpaRepository<Cloud, Long> {
     
     List<Cloud> findByClientName(String clientName);
     
-    @Query("SELECT c FROM Cloud c LEFT JOIN FETCH c.datacenters")
+    @Query("SELECT DISTINCT c FROM Cloud c LEFT JOIN FETCH c.datacenters")
     List<Cloud> findAllWithDatacenters();
     
     @Query("SELECT c FROM Cloud c LEFT JOIN FETCH c.datacenters WHERE c.id = ?1")
