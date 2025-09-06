@@ -160,17 +160,7 @@ const InfrastructureCloudNative: React.FC = () => {
       const datacenters = datacentersRes.status === 'fulfilled' ? datacentersRes.value.data : [];
       const pools = poolsRes.status === 'fulfilled' ? poolsRes.value.data : [];
       const computes = computesRes.status === 'fulfilled' ? computesRes.value.data : [];
-      // Hardcode resource groups since API is not available
-      const resourceGroups = [{
-        id: 1,
-        name: 'cloud_computing',
-        displayName: 'Cloud Computing',
-        category: 'IaaS',
-        isActive: true,
-        serviceTypes: ['Compute', 'Storage', 'Block Storage', 'Object Storage', 'Virtual Network'],
-        icon: 'cloud',
-        color: '#2196F3'
-      }];
+      const resourceGroups = resourceGroupsRes.status === 'fulfilled' ? resourceGroupsRes.value.data : [];
       const dcResourceGroups: any[] = []; // Will be populated from datacenter data
 
       // Build the hierarchical tree structure
@@ -272,33 +262,65 @@ const InfrastructureCloudNative: React.FC = () => {
                     utilization: dc.utilization || 0
                   },
                   children: (() => {
-                    // Show all active resource groups under each datacenter
-                    // This simulates auto-assignment of resource groups to datacenters
-                    const activeResourceGroups = resourceGroups.filter((rg: any) => 
-                      rg.isActive !== false
-                    );
+                    // Use resource groups assigned to this datacenter
+                    // If datacenter has assigned resource groups, use them
+                    // Otherwise show active resource groups (for new datacenters)
+                    const dcAssignedGroups = dc.datacenterResourceGroups || [];
                     
-                    return activeResourceGroups.map((rg: any, rgIndex: number) => ({
-                      id: `resource-group-${dc.id}-${rg.id}-${envType}-${cloudIndex}`,
-                      name: rg.displayName || rg.name,
-                      type: 'resource-group' as const,
-                      data: rg,
-                      metadata: {
-                        category: rg.category,
-                        icon: rg.icon,
-                        color: rg.color
-                      },
-                      children: (rg.serviceTypes || []).map((service: string, serviceIndex: number) => ({
-                        id: `service-${dc.id}-${rg.id}-${serviceIndex}-${envType}-${cloudIndex}`,
-                        name: service,
-                        type: 'service' as const,
-                        data: { name: service, resourceGroupId: rg.id, datacenterId: dc.id },
+                    if (dcAssignedGroups.length > 0) {
+                      // Use the assigned resource groups from the datacenter
+                      return dcAssignedGroups.map((dcRg: any, rgIndex: number) => {
+                        const rg = dcRg.resourceGroup;
+                        return {
+                          id: `resource-group-${dc.id}-${rg.id}-${envType}-${rgIndex}-${dcIndex}`,
+                          name: rg.displayName || rg.name,
+                          type: 'resource-group' as const,
+                          data: rg,
+                          metadata: {
+                            category: rg.category,
+                            icon: rg.icon,
+                            color: rg.color
+                          },
+                          children: (rg.serviceTypes || []).map((service: string, serviceIndex: number) => ({
+                            id: `service-${dc.id}-${rg.id}-${serviceIndex}-${envType}-${rgIndex}-${dcIndex}`,
+                            name: service,
+                            type: 'service' as const,
+                            data: { name: service, resourceGroupId: rg.id, datacenterId: dc.id },
+                            metadata: {
+                              resourceGroup: rg.name
+                            },
+                            children: []
+                          }))
+                        };
+                      });
+                    } else {
+                      // For datacenters without assigned groups, show active resource groups
+                      const activeResourceGroups = resourceGroups.filter((rg: any) => 
+                        rg.isActive !== false
+                      );
+                      
+                      return activeResourceGroups.map((rg: any, rgIndex: number) => ({
+                        id: `resource-group-${dc.id}-${rg.id}-${envType}-${rgIndex}-${dcIndex}`,
+                        name: rg.displayName || rg.name,
+                        type: 'resource-group' as const,
+                        data: rg,
                         metadata: {
-                          resourceGroup: rg.name
+                          category: rg.category,
+                          icon: rg.icon,
+                          color: rg.color
                         },
-                        children: []
-                      }))
-                    }));
+                        children: (rg.serviceTypes || []).map((service: string, serviceIndex: number) => ({
+                          id: `service-${dc.id}-${rg.id}-${serviceIndex}-${envType}-${rgIndex}-${dcIndex}`,
+                          name: service,
+                          type: 'service' as const,
+                          data: { name: service, resourceGroupId: rg.id, datacenterId: dc.id },
+                          metadata: {
+                            resourceGroup: rg.name
+                          },
+                          children: []
+                        }))
+                      }));
+                    }
                   })()
                 }))
             }))
@@ -315,9 +337,38 @@ const InfrastructureCloudNative: React.FC = () => {
       'az': 'datacenter',
       'datacenter': 'resource-pool',
       'pool': 'compute',
+      'service': 'compute', // Service nodes can have compute children
       'compute': 'container'
     };
     return childTypeMap[nodeType] || null;
+  };
+  
+  const getAddButtonLabel = (nodeType: string, nodeName?: string): string => {
+    // For service nodes, provide specific labels based on the service type
+    if (nodeType === 'service' && nodeName) {
+      const serviceLabels: { [key: string]: string } = {
+        'Compute': 'Add Compute Node',
+        'Storage': 'Add Storage',
+        'Block Storage': 'Add Block Storage',
+        'Object Storage': 'Add Object Storage',
+        'Network': 'Add Network',
+        'Load Balancer': 'Add Load Balancer',
+        'Container Registry': 'Add Container Registry',
+        'Kubernetes Engine': 'Add Kubernetes Cluster'
+      };
+      return serviceLabels[nodeName] || 'Add Resource';
+    }
+    
+    const labelMap: { [key: string]: string } = {
+      'environment': 'Add Cloud Provider',
+      'cloud': 'Add Region',
+      'region': 'Add Availability Zone',
+      'az': 'Add Datacenter',
+      'datacenter': 'Add Resource Pool',
+      'pool': 'Add Compute Node',
+      'compute': 'Add Container',
+    };
+    return labelMap[nodeType] || 'Add Child';
   };
 
   const buildNodePath = (nodes: TreeNode[], targetId: string, path: TreeNode[] = []): TreeNode[] | null => {
@@ -504,8 +555,18 @@ const InfrastructureCloudNative: React.FC = () => {
         'compute': {
           endpoint: editMode ? `/api/computes/${formData.id}` : '/api/computes',
           prepare: () => {
-            if (!editMode && selectedNode?.type === 'pool') {
-              payload.resourcePoolId = selectedNode.data.id;
+            if (!editMode) {
+              if (selectedNode?.type === 'pool') {
+                payload.resourcePoolId = selectedNode.data.id;
+              } else if (selectedNode?.type === 'service') {
+                // For service nodes, we need to get the datacenter ID from the node data
+                // Service nodes have datacenterId in their data
+                if (selectedNode.data?.datacenterId) {
+                  // We'll create the compute under the datacenter
+                  // The backend should handle assigning it properly
+                  payload.datacenterId = selectedNode.data.datacenterId;
+                }
+              }
             }
             return payload;
           }
@@ -597,7 +658,6 @@ const InfrastructureCloudNative: React.FC = () => {
     
     return defaults[type] || {};
   };
-
   const renderTreeItem = (node: TreeNode) => {
     const iconMap: { [key: string]: ReactElement } = {
       'organization': <Business />,
@@ -703,13 +763,42 @@ const InfrastructureCloudNative: React.FC = () => {
                     'datacenter': 'Datacenter',
                     'pool': 'Resource Pool',
                     'compute': 'Compute Node',
-                    'container': 'Container'
+                    'container': 'Container',
+                    'service': 'Service',
+                    'resource-group': 'Resource Group'
                   };
                   return typeMap[selectedNode.type] || selectedNode.type.charAt(0).toUpperCase() + selectedNode.type.slice(1);
                 })()})
               </Typography>
             </Typography>
             <Stack direction="row" spacing={1}>
+              {/* Add button for nodes that can have children */}
+              {(selectedNode.type === 'service' || getChildTypeForNode(selectedNode.type)) && (
+                <Button 
+                  size="small" 
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={() => {
+                    if (selectedNode.type === 'service') {
+                      // For service nodes, determine what type to add based on service name
+                      if (selectedNode.name === 'Compute') {
+                        handleAdd('compute', selectedNode);
+                      } else {
+                        // For other services, we might need specific handling
+                        handleAdd('compute', selectedNode); // Default to compute for now
+                      }
+                    } else {
+                      const childType = getChildTypeForNode(selectedNode.type);
+                      if (childType) {
+                        handleAdd(childType, selectedNode);
+                      }
+                    }
+                  }}
+                  title={getAddButtonLabel(selectedNode.type, selectedNode.name)}
+                >
+                  {getAddButtonLabel(selectedNode.type, selectedNode.name)}
+                </Button>
+              )}
               <IconButton 
                 size="small" 
                 onClick={() => {
@@ -733,29 +822,6 @@ const InfrastructureCloudNative: React.FC = () => {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Path: {selectedNodePath.map(n => n.name).join(' / ')}
           </Typography>
-          
-          {/* Add child section - separate from entity actions */}
-          {getChildTypeForNode(selectedNode.type) && (
-            <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Child Resources
-              </Typography>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<Add />}
-                onClick={() => {
-                  const childType = getChildTypeForNode(selectedNode.type);
-                  if (childType) {
-                    handleAdd(childType, selectedNode);
-                  }
-                }}
-                sx={{ mt: 1 }}
-              >
-                Add {getChildTypeForNode(selectedNode.type)?.replace('-', ' ')}
-              </Button>
-            </Box>
-          )}
           
           {selectedNode.data && (
             <Box sx={{ mt: 2 }}>
@@ -949,8 +1015,83 @@ const InfrastructureCloudNative: React.FC = () => {
           </>
         )}
         
+        {contextMenu?.node?.type === 'service' && (
+          <>
+            {contextMenu.node.name === 'Compute' && (
+              <MenuItem onClick={() => handleContextMenuAction('add-compute')}>
+                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
+                <ListItemText>Add Compute Node</ListItemText>
+              </MenuItem>
+            )}
+            {contextMenu.node.name === 'Storage' && (
+              <MenuItem onClick={() => handleContextMenuAction('add-storage')}>
+                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
+                <ListItemText>Add Storage</ListItemText>
+              </MenuItem>
+            )}
+            {contextMenu.node.name === 'Block Storage' && (
+              <MenuItem onClick={() => handleContextMenuAction('add-block-storage')}>
+                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
+                <ListItemText>Add Block Storage</ListItemText>
+              </MenuItem>
+            )}
+            {contextMenu.node.name === 'Network' && (
+              <MenuItem onClick={() => handleContextMenuAction('add-network')}>
+                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
+                <ListItemText>Add Network</ListItemText>
+              </MenuItem>
+            )}
+            {contextMenu.node.name === 'Load Balancer' && (
+              <MenuItem onClick={() => handleContextMenuAction('add-load-balancer')}>
+                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
+                <ListItemText>Add Load Balancer</ListItemText>
+              </MenuItem>
+            )}
+            {contextMenu.node.name === 'Container Registry' && (
+              <MenuItem onClick={() => handleContextMenuAction('add-container-registry')}>
+                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
+                <ListItemText>Add Container Registry</ListItemText>
+              </MenuItem>
+            )}
+            {contextMenu.node.name === 'Kubernetes Engine' && (
+              <MenuItem onClick={() => handleContextMenuAction('add-kubernetes-cluster')}>
+                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
+                <ListItemText>Add Kubernetes Cluster</ListItemText>
+              </MenuItem>
+            )}
+            {contextMenu.node.name === 'Object Storage' && (
+              <MenuItem onClick={() => handleContextMenuAction('add-object-storage')}>
+                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
+                <ListItemText>Add Object Storage</ListItemText>
+              </MenuItem>
+            )}
+          </>
+        )}
+        
+        {contextMenu?.node?.type === 'resource-group' && (
+          <>
+            <MenuItem onClick={() => handleContextMenuAction('add-pool')}>
+              <ListItemIcon><Add fontSize="small" /></ListItemIcon>
+              <ListItemText>Add Resource Pool</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={() => handleContextMenuAction('edit')}>
+              <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
+              <ListItemText>Edit Resource Group</ListItemText>
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={() => handleContextMenuAction('delete')}>
+              <ListItemIcon><Delete fontSize="small" /></ListItemIcon>
+              <ListItemText>Delete Resource Group</ListItemText>
+            </MenuItem>
+          </>
+        )}
+        
         {contextMenu?.node?.type === 'compute' && (
           <>
+            <MenuItem onClick={() => handleContextMenuAction('add-container')}>
+              <ListItemIcon><Add fontSize="small" /></ListItemIcon>
+              <ListItemText>Add Container</ListItemText>
+            </MenuItem>
             <MenuItem onClick={() => handleContextMenuAction('edit')}>
               <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
               <ListItemText>Edit Compute Node</ListItemText>
@@ -1040,6 +1181,67 @@ const InfrastructureCloudNative: React.FC = () => {
                   }
                   label="Is DR Site"
                 />
+              </>
+            )}
+            
+            {dialogType === 'compute' && (
+              <>
+                <TextField
+                  label="Hostname"
+                  value={formData.hostname || ''}
+                  onChange={(e) => setFormData({ ...formData, hostname: e.target.value })}
+                  required
+                />
+                <TextField
+                  label="IP Address"
+                  value={formData.ipAddress || ''}
+                  onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
+                />
+                <FormControl>
+                  <InputLabel>Type</InputLabel>
+                  <Select
+                    value={formData.computeType || 'DEDICATED'}
+                    onChange={(e) => setFormData({ ...formData, computeType: e.target.value })}
+                    label="Type"
+                  >
+                    <MenuItem value="DEDICATED">Dedicated</MenuItem>
+                    <MenuItem value="VM">Virtual Machine</MenuItem>
+                    <MenuItem value="BLADE">Blade Server</MenuItem>
+                    <MenuItem value="CLOUD">Cloud Instance</MenuItem>
+                  </Select>
+                </FormControl>
+                <TextField
+                  label="CPU Cores"
+                  type="number"
+                  value={formData.cpuCores || ''}
+                  onChange={(e) => setFormData({ ...formData, cpuCores: parseInt(e.target.value) || 0 })}
+                />
+                <TextField
+                  label="Memory (GB)"
+                  type="number"
+                  value={formData.memoryGb || ''}
+                  onChange={(e) => setFormData({ ...formData, memoryGb: parseInt(e.target.value) || 0 })}
+                />
+                <TextField
+                  label="Storage (GB)"
+                  type="number"
+                  value={formData.storageGb || ''}
+                  onChange={(e) => setFormData({ ...formData, storageGb: parseInt(e.target.value) || 0 })}
+                />
+                <FormControl>
+                  <InputLabel>Operating System</InputLabel>
+                  <Select
+                    value={formData.operatingSystem || 'LINUX'}
+                    onChange={(e) => setFormData({ ...formData, operatingSystem: e.target.value })}
+                    label="Operating System"
+                  >
+                    <MenuItem value="LINUX">Linux</MenuItem>
+                    <MenuItem value="WINDOWS">Windows</MenuItem>
+                    <MenuItem value="UNIX">Unix</MenuItem>
+                    <MenuItem value="MACOS">macOS</MenuItem>
+                    <MenuItem value="OTHER">Other</MenuItem>
+                  </Select>
+                </FormControl>
               </>
             )}
             

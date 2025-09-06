@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/resource-groups")
+@RequestMapping("/resource-groups")
 @CrossOrigin(origins = "*")
 public class ResourceGroupController {
     

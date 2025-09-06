@@ -104,11 +104,18 @@ public class DatacenterController {
             // Automatically assign all active resource groups to the new datacenter
             List<ResourceGroup> activeGroups = resourceGroupRepository.findByIsActiveOrderBySortOrder(true);
             for (ResourceGroup group : activeGroups) {
-                DatacenterResourceGroup assignment = new DatacenterResourceGroup();
-                assignment.setDatacenter(saved);
-                assignment.setResourceGroup(group);
-                assignment.setStatus("ACTIVE");
-                datacenterResourceGroupRepository.save(assignment);
+                // Check if assignment already exists to avoid duplicates
+                boolean exists = datacenterResourceGroupRepository
+                    .findByDatacenterIdAndResourceGroupId(saved.getId(), group.getId())
+                    .isPresent();
+                    
+                if (!exists) {
+                    DatacenterResourceGroup assignment = new DatacenterResourceGroup();
+                    assignment.setDatacenter(saved);
+                    assignment.setResourceGroup(group);
+                    assignment.setStatus("ACTIVE");
+                    datacenterResourceGroupRepository.save(assignment);
+                }
             }
             
             // Reload the datacenter with all its relationships
