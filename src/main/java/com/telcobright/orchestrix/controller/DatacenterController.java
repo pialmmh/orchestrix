@@ -2,8 +2,14 @@ package com.telcobright.orchestrix.controller;
 
 import com.telcobright.orchestrix.entity.Datacenter;
 import com.telcobright.orchestrix.entity.Cloud;
+import com.telcobright.orchestrix.entity.AvailabilityZone;
+import com.telcobright.orchestrix.entity.ResourceGroup;
+import com.telcobright.orchestrix.entity.DatacenterResourceGroup;
 import com.telcobright.orchestrix.repository.DatacenterRepository;
 import com.telcobright.orchestrix.repository.CloudRepository;
+import com.telcobright.orchestrix.repository.AvailabilityZoneRepository;
+import com.telcobright.orchestrix.repository.ResourceGroupRepository;
+import com.telcobright.orchestrix.repository.DatacenterResourceGroupRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +28,15 @@ public class DatacenterController {
     
     @Autowired
     private CloudRepository cloudRepository;
+    
+    @Autowired
+    private AvailabilityZoneRepository availabilityZoneRepository;
+    
+    @Autowired
+    private ResourceGroupRepository resourceGroupRepository;
+    
+    @Autowired
+    private DatacenterResourceGroupRepository datacenterResourceGroupRepository;
     
     // Get all datacenters
     @GetMapping
@@ -57,6 +72,11 @@ public class DatacenterController {
             datacenter.setIsDrSite((Boolean) datacenterData.getOrDefault("isDrSite", false));
             datacenter.setStatus((String) datacenterData.getOrDefault("status", "ACTIVE"));
             
+            // Set tier if provided
+            if (datacenterData.get("tier") != null) {
+                datacenter.setTier(Integer.valueOf(datacenterData.get("tier").toString()));
+            }
+            
             // Set cloud if provided
             if (datacenterData.get("cloudId") != null) {
                 Long cloudId = Long.valueOf(datacenterData.get("cloudId").toString());
@@ -68,7 +88,29 @@ public class DatacenterController {
                 }
             }
             
+            // Set availability zone if provided
+            if (datacenterData.get("availabilityZoneId") != null) {
+                Long azId = Long.valueOf(datacenterData.get("availabilityZoneId").toString());
+                AvailabilityZone az = availabilityZoneRepository.findById(azId).orElse(null);
+                if (az != null) {
+                    datacenter.setAvailabilityZone(az);
+                } else {
+                    return ResponseEntity.badRequest().body("Invalid availability zone ID");
+                }
+            }
+            
             Datacenter saved = datacenterRepository.save(datacenter);
+            
+            // Automatically assign all active resource groups to the new datacenter
+            List<ResourceGroup> activeGroups = resourceGroupRepository.findByIsActiveOrderBySortOrder(true);
+            for (ResourceGroup group : activeGroups) {
+                DatacenterResourceGroup assignment = new DatacenterResourceGroup();
+                assignment.setDatacenter(saved);
+                assignment.setResourceGroup(group);
+                assignment.setStatus("ACTIVE");
+                datacenterResourceGroupRepository.save(assignment);
+            }
+            
             return ResponseEntity.ok(saved);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();

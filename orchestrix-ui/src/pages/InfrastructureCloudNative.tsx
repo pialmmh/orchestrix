@@ -57,7 +57,7 @@ import axios from 'axios';
 interface TreeNode {
   id: string;
   name: string;
-  type: 'organization' | 'environment' | 'cloud' | 'region' | 'az' | 'datacenter' | 'pool' | 'compute' | 'container';
+  type: 'organization' | 'environment' | 'cloud' | 'region' | 'az' | 'datacenter' | 'pool' | 'compute' | 'container' | 'resource-group' | 'service';
   data?: any;
   children?: TreeNode[];
   metadata?: {
@@ -66,6 +66,12 @@ interface TreeNode {
     compliance?: string[];
     capabilities?: string[];
     utilization?: number;
+    category?: string;
+    icon?: string;
+    color?: string;
+    resourceGroup?: string;
+    hostname?: string;
+    ipAddress?: string;
   };
 }
 
@@ -138,13 +144,14 @@ const InfrastructureCloudNative: React.FC = () => {
     setLoading(true);
     try {
       // Fetch all data in parallel
-      const [cloudsRes, regionsRes, azsRes, datacentersRes, poolsRes, computesRes] = await Promise.allSettled([
+      const [cloudsRes, regionsRes, azsRes, datacentersRes, poolsRes, computesRes, resourceGroupsRes] = await Promise.allSettled([
         axios.get('/api/clouds'),
         axios.get('/api/regions').catch(() => ({ data: [] })),
         axios.get('/api/availability-zones').catch(() => ({ data: [] })),
         axios.get('/api/datacenters'),
         axios.get('/api/resource-pools').catch(() => ({ data: [] })),
-        axios.get('/api/computes').catch(() => ({ data: [] }))
+        axios.get('/api/computes').catch(() => ({ data: [] })),
+        axios.get('/api/resource-groups').catch(() => ({ data: [] }))
       ]);
 
       const clouds = cloudsRes.status === 'fulfilled' ? cloudsRes.value.data : [];
@@ -153,6 +160,8 @@ const InfrastructureCloudNative: React.FC = () => {
       const datacenters = datacentersRes.status === 'fulfilled' ? datacentersRes.value.data : [];
       const pools = poolsRes.status === 'fulfilled' ? poolsRes.value.data : [];
       const computes = computesRes.status === 'fulfilled' ? computesRes.value.data : [];
+      const resourceGroups = resourceGroupsRes.status === 'fulfilled' ? resourceGroupsRes.value.data : [];
+      const dcResourceGroups: any[] = []; // Will be populated from datacenter data
 
       // Build the hierarchical tree structure
       const tree: TreeNode[] = [
@@ -167,21 +176,21 @@ const InfrastructureCloudNative: React.FC = () => {
               name: 'Production Environment',
               type: 'environment',
               data: { type: 'PRODUCTION' },
-              children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, 'PRODUCTION')
+              children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, resourceGroups, dcResourceGroups, 'PRODUCTION')
             },
             {
               id: 'env-dev',
               name: 'Development Environment',
               type: 'environment',
               data: { type: 'DEVELOPMENT' },
-              children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, 'DEVELOPMENT')
+              children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, resourceGroups, dcResourceGroups, 'DEVELOPMENT')
             },
             {
               id: 'env-staging',
               name: 'Staging Environment',
               type: 'environment',
               data: { type: 'STAGING' },
-              children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, 'STAGING')
+              children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, resourceGroups, dcResourceGroups, 'STAGING')
             }
           ]
         }
@@ -206,6 +215,8 @@ const InfrastructureCloudNative: React.FC = () => {
     datacenters: any[], 
     pools: any[], 
     computes: any[],
+    resourceGroups: any[],
+    dcResourceGroups: any[],
     envType: string
   ): TreeNode[] => {
     // Filter datacenters by environment
@@ -221,7 +232,7 @@ const InfrastructureCloudNative: React.FC = () => {
       children: regions
         .filter(r => r.cloud?.id === cloud.id || r.cloudId === cloud.id)
         .map((region: any, regionIndex: number) => ({
-          id: `region-${cloud.id}-${region.id}-${envType}`,
+          id: `region-${cloud.id}-${region.id}-${envType}-${cloudIndex}`,
           name: region.name,
           type: 'region' as const,
           data: region,
@@ -231,7 +242,7 @@ const InfrastructureCloudNative: React.FC = () => {
           children: azs
             .filter(az => az.region?.id === region.id || az.regionId === region.id)
             .map((az: any, azIndex: number) => ({
-              id: `az-${region.id}-${az.id}-${envType}`,
+              id: `az-${cloud.id}-${region.id}-${az.id}-${envType}-${cloudIndex}`,
               name: az.name,
               type: 'az' as const,
               data: az,
@@ -241,7 +252,7 @@ const InfrastructureCloudNative: React.FC = () => {
               children: envDatacenters
                 .filter(dc => dc.availabilityZone?.id === az.id || dc.availabilityZoneId === az.id)
                 .map((dc: any, dcIndex: number) => ({
-                  id: `datacenter-${az.id}-${dc.id}-${envType}`,
+                  id: `datacenter-${cloud.id}-${az.id}-${dc.id}-${envType}-${cloudIndex}`,
                   name: dc.name,
                   type: 'datacenter' as const,
                   data: dc,
@@ -250,26 +261,35 @@ const InfrastructureCloudNative: React.FC = () => {
                     drPaired: dc.drPairedDatacenter != null,
                     utilization: dc.utilization || 0
                   },
-                  children: pools
-                    .filter(p => p.datacenter?.id === dc.id || p.datacenterId === dc.id)
-                    .map((pool: any, poolIndex: number) => ({
-                      id: `pool-${dc.id}-${pool.id}-${envType}`,
-                      name: pool.name,
-                      type: 'pool' as const,
-                      data: pool,
+                  children: (() => {
+                    // Show all active resource groups under each datacenter
+                    // This simulates auto-assignment of resource groups to datacenters
+                    const activeResourceGroups = resourceGroups.filter((rg: any) => 
+                      rg.isActive !== false
+                    );
+                    
+                    return activeResourceGroups.map((rg: any, rgIndex: number) => ({
+                      id: `resource-group-${dc.id}-${rg.id}-${envType}-${cloudIndex}`,
+                      name: rg.displayName || rg.name,
+                      type: 'resource-group' as const,
+                      data: rg,
                       metadata: {
-                        utilization: pool.cpuUtilizationPercent || 0
+                        category: rg.category,
+                        icon: rg.icon,
+                        color: rg.color
                       },
-                      children: computes
-                        .filter(c => c.resourcePool?.id === pool.id || c.resourcePoolId === pool.id)
-                        .map((compute: any, compIndex: number) => ({
-                          id: `compute-${pool.id}-${compute.id}-${envType}`,
-                          name: compute.name || compute.hostname,
-                          type: 'compute' as const,
-                          data: compute,
-                          children: []
-                        }))
-                    }))
+                      children: (rg.serviceTypes || []).map((service: string, serviceIndex: number) => ({
+                        id: `service-${dc.id}-${rg.id}-${serviceIndex}-${envType}-${cloudIndex}`,
+                        name: service,
+                        type: 'service' as const,
+                        data: { name: service, resourceGroupId: rg.id, datacenterId: dc.id },
+                        metadata: {
+                          resourceGroup: rg.name
+                        },
+                        children: []
+                      }))
+                    }));
+                  })()
                 }))
             }))
         }))
@@ -483,9 +503,14 @@ const InfrastructureCloudNative: React.FC = () => {
       };
       
       const config = saveConfig[dialogType || ''];
-      if (!config) return;
+      if (!config) {
+        console.error('No save config for type:', dialogType);
+        return;
+      }
       
       payload = config.prepare();
+      console.log('Saving with payload:', payload);
+      console.log('Endpoint:', config.endpoint);
       
       if (editMode) {
         await axios.put(config.endpoint, payload);
@@ -495,9 +520,10 @@ const InfrastructureCloudNative: React.FC = () => {
       
       setOpenDialog(false);
       await fetchInfrastructureData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving:', error);
-      alert('Failed to save item');
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to save item';
+      alert(`Failed to save: ${errorMessage}`);
     }
   };
 
@@ -967,12 +993,13 @@ const InfrastructureCloudNative: React.FC = () => {
             
             {dialogType === 'datacenter' && (
               <>
-                <FormControl fullWidth>
+                <FormControl>
                   <InputLabel>Type</InputLabel>
                   <Select
                     value={formData.type || 'PRIMARY'}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                     label="Type"
+                    sx={{ minWidth: 200 }}
                   >
                     <MenuItem value="PRIMARY">Primary</MenuItem>
                     <MenuItem value="SECONDARY">Secondary</MenuItem>
@@ -980,12 +1007,13 @@ const InfrastructureCloudNative: React.FC = () => {
                     <MenuItem value="EDGE">Edge</MenuItem>
                   </Select>
                 </FormControl>
-                <FormControl fullWidth>
+                <FormControl>
                   <InputLabel>Tier</InputLabel>
                   <Select
                     value={formData.tier || 3}
                     onChange={(e) => setFormData({ ...formData, tier: e.target.value })}
                     label="Tier"
+                    sx={{ minWidth: 200 }}
                   >
                     <MenuItem value={1}>Tier 1 (99.995% uptime)</MenuItem>
                     <MenuItem value={2}>Tier 2 (99.982% uptime)</MenuItem>

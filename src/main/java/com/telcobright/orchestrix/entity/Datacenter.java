@@ -97,6 +97,10 @@ public class Datacenter {
     @JsonIgnoreProperties({"datacenter"})
     private List<ResourcePool> resourcePools;
     
+    @OneToMany(mappedBy = "datacenter", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"datacenter"})
+    private List<DatacenterResourceGroup> datacenterResourceGroups;
+    
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
