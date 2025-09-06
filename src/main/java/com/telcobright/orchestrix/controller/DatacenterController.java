@@ -111,7 +111,11 @@ public class DatacenterController {
                 datacenterResourceGroupRepository.save(assignment);
             }
             
-            return ResponseEntity.ok(saved);
+            // Reload the datacenter with all its relationships
+            Datacenter result = datacenterRepository.findById(saved.getId())
+                .orElse(saved);
+            
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
             error.put("error", "Failed to create datacenter: " + e.getMessage());
@@ -167,6 +171,19 @@ public class DatacenterController {
     public ResponseEntity<?> deleteDatacenter(@PathVariable Integer id) {
         return datacenterRepository.findById(id)
             .map(datacenter -> {
+                // Check if datacenter has any resource pools or resource groups
+                if (datacenter.getResourcePools() != null && !datacenter.getResourcePools().isEmpty()) {
+                    Map<String, String> error = new HashMap<>();
+                    error.put("error", "Cannot delete datacenter with existing resource pools");
+                    return ResponseEntity.badRequest().body(error);
+                }
+                
+                if (datacenter.getDatacenterResourceGroups() != null && !datacenter.getDatacenterResourceGroups().isEmpty()) {
+                    Map<String, String> error = new HashMap<>();
+                    error.put("error", "Cannot delete datacenter with assigned resource groups");
+                    return ResponseEntity.badRequest().body(error);
+                }
+                
                 datacenterRepository.delete(datacenter);
                 Map<String, String> response = new HashMap<>();
                 response.put("message", "Datacenter deleted successfully");

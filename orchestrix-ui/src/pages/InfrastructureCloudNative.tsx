@@ -160,7 +160,17 @@ const InfrastructureCloudNative: React.FC = () => {
       const datacenters = datacentersRes.status === 'fulfilled' ? datacentersRes.value.data : [];
       const pools = poolsRes.status === 'fulfilled' ? poolsRes.value.data : [];
       const computes = computesRes.status === 'fulfilled' ? computesRes.value.data : [];
-      const resourceGroups = resourceGroupsRes.status === 'fulfilled' ? resourceGroupsRes.value.data : [];
+      // Hardcode resource groups since API is not available
+      const resourceGroups = [{
+        id: 1,
+        name: 'cloud_computing',
+        displayName: 'Cloud Computing',
+        category: 'IaaS',
+        isActive: true,
+        serviceTypes: ['Compute', 'Storage', 'Block Storage', 'Object Storage', 'Virtual Network'],
+        icon: 'cloud',
+        color: '#2196F3'
+      }];
       const dcResourceGroups: any[] = []; // Will be populated from datacenter data
 
       // Build the hierarchical tree structure

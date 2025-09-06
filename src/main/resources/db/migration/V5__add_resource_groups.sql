@@ -34,16 +34,16 @@ CREATE TABLE datacenter_resource_groups (
     UNIQUE KEY unique_datacenter_resource_group (datacenter_id, resource_group_id)
 );
 
--- Insert default resource groups
-INSERT INTO resource_groups (name, display_name, description, category, sort_order, icon, color) VALUES
-('cloud_computing', 'Cloud Computing', 'Infrastructure as a Service - Compute, Storage, and Networking', 'IaaS', 1, 'cloud', '#2196F3'),
-('platform_services', 'Platform Services', 'Platform as a Service - Development and deployment platforms', 'PaaS', 2, 'developer_mode', '#9C27B0'),
-('saas_applications', 'SaaS Applications', 'Software as a Service - Business applications and databases', 'SaaS', 3, 'apps', '#4CAF50'),
-('data_analytics', 'Data & Analytics', 'Big Data, Analytics, and Business Intelligence services', 'SaaS', 4, 'analytics', '#FF9800'),
-('security_compliance', 'Security & Compliance', 'Security, Identity, and Compliance services', 'SaaS', 5, 'security', '#F44336'),
-('networking_cdn', 'Networking & CDN', 'Content Delivery Network and networking services', 'IaaS', 6, 'network_check', '#00BCD4'),
-('ai_ml', 'AI & Machine Learning', 'Artificial Intelligence and Machine Learning services', 'PaaS', 7, 'psychology', '#673AB7'),
-('containers_kubernetes', 'Containers & Kubernetes', 'Container orchestration and management', 'PaaS', 8, 'widgets', '#3F51B5');
+-- Insert default resource groups (only first one active)
+INSERT INTO resource_groups (name, display_name, description, category, is_active, sort_order, icon, color) VALUES
+('cloud_computing', 'Cloud Computing', 'Infrastructure as a Service - Compute, Storage, and Networking', 'IaaS', TRUE, 1, 'cloud', '#2196F3'),
+('platform_services', 'Platform Services', 'Platform as a Service - Development and deployment platforms', 'PaaS', FALSE, 2, 'developer_mode', '#9C27B0'),
+('saas_applications', 'SaaS Applications', 'Software as a Service - Business applications and databases', 'SaaS', FALSE, 3, 'apps', '#4CAF50'),
+('data_analytics', 'Data & Analytics', 'Big Data, Analytics, and Business Intelligence services', 'SaaS', FALSE, 4, 'analytics', '#FF9800'),
+('security_compliance', 'Security & Compliance', 'Security, Identity, and Compliance services', 'SaaS', FALSE, 5, 'security', '#F44336'),
+('networking_cdn', 'Networking & CDN', 'Content Delivery Network and networking services', 'IaaS', FALSE, 6, 'network_check', '#00BCD4'),
+('ai_ml', 'AI & Machine Learning', 'Artificial Intelligence and Machine Learning services', 'PaaS', FALSE, 7, 'psychology', '#673AB7'),
+('containers_kubernetes', 'Containers & Kubernetes', 'Container orchestration and management', 'PaaS', FALSE, 8, 'widgets', '#3F51B5');
 
 -- Insert service types for each resource group
 -- Cloud Computing (IaaS)
