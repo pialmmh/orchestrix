@@ -656,6 +656,22 @@ const InfrastructureCloudNative: React.FC = () => {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h5">
               {selectedNode.name}
+              <Typography component="span" variant="h6" color="text.secondary" sx={{ ml: 1 }}>
+                ({(() => {
+                  const typeMap: { [key: string]: string } = {
+                    'organization': 'Organization',
+                    'environment': 'Environment',
+                    'cloud': 'Cloud',
+                    'region': 'Region',
+                    'az': 'Availability Zone',
+                    'datacenter': 'Datacenter',
+                    'pool': 'Resource Pool',
+                    'compute': 'Compute Node',
+                    'container': 'Container'
+                  };
+                  return typeMap[selectedNode.type] || selectedNode.type.charAt(0).toUpperCase() + selectedNode.type.slice(1);
+                })()})
+              </Typography>
             </Typography>
             <Stack direction="row" spacing={1}>
               <IconButton 
@@ -678,27 +694,9 @@ const InfrastructureCloudNative: React.FC = () => {
           
           <Divider sx={{ my: 2 }} />
           
-          <Stack spacing={1} sx={{ mb: 2 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
-              Type: {(() => {
-                const typeMap: { [key: string]: string } = {
-                  'organization': 'Organization',
-                  'environment': 'Environment',
-                  'cloud': 'Cloud',
-                  'region': 'Region',
-                  'az': 'Availability Zone',
-                  'datacenter': 'Datacenter',
-                  'pool': 'Resource Pool',
-                  'compute': 'Compute Node',
-                  'container': 'Container'
-                };
-                return typeMap[selectedNode.type] || selectedNode.type.charAt(0).toUpperCase() + selectedNode.type.slice(1);
-              })()}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Path: {selectedNodePath.map(n => n.name).join(' / ')}
-            </Typography>
-          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Path: {selectedNodePath.map(n => n.name).join(' / ')}
+          </Typography>
           
           {/* Add child section - separate from entity actions */}
           {getChildTypeForNode(selectedNode.type) && (
