@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="petalGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6ec7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c471ed;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="petalGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffa3d5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e589f5;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="centerGrad">
+      <stop offset="0%" style="stop-color:#ffd700;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ff8c00;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Simplified orchid for favicon -->
+  <!-- Main petals -->
+  <ellipse cx="50" cy="25" rx="18" ry="23" fill="url(#petalGrad1)" opacity="0.95"/>
+  <ellipse cx="75" cy="50" rx="18" ry="23" fill="url(#petalGrad2)" transform="rotate(90 50 50)" opacity="0.95"/>
+  <ellipse cx="50" cy="75" rx="18" ry="23" fill="url(#petalGrad1)" transform="rotate(180 50 50)" opacity="0.95"/>
+  <ellipse cx="25" cy="50" rx="18" ry="23" fill="url(#petalGrad2)" transform="rotate(270 50 50)" opacity="0.95"/>
+  
+  <!-- Diagonal petals -->
+  <ellipse cx="70" cy="30" rx="15" ry="20" fill="url(#petalGrad2)" transform="rotate(45 50 50)" opacity="0.9"/>
+  <ellipse cx="70" cy="70" rx="15" ry="20" fill="url(#petalGrad1)" transform="rotate(135 50 50)" opacity="0.9"/>
+  <ellipse cx="30" cy="70" rx="15" ry="20" fill="url(#petalGrad2)" transform="rotate(225 50 50)" opacity="0.9"/>
+  <ellipse cx="30" cy="30" rx="15" ry="20" fill="url(#petalGrad1)" transform="rotate(315 50 50)" opacity="0.9"/>
+  
+  <!-- Center -->
+  <circle cx="50" cy="50" r="12" fill="url(#centerGrad)"/>
+  <circle cx="48" cy="48" r="2" fill="#fff" opacity="0.8" />
+</svg>

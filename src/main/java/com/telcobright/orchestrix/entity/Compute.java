@@ -2,6 +2,7 @@ package com.telcobright.orchestrix.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,6 +30,7 @@ public class Compute {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "os_version_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private OSVersion osVersion;
 
     @Column(name = "cpu_cores")
@@ -49,7 +51,19 @@ public class Compute {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "datacenter_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Datacenter datacenter;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "resource_pool_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "computes"})
+    private ResourcePool resourcePool;
+    
+    @Column(name = "hypervisor", length = 50)
+    private String hypervisor; // VMWARE, KVM, HYPERV, XEN
+    
+    @Column(name = "is_physical")
+    private Boolean isPhysical = false;
 
     @OneToMany(mappedBy = "compute", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
@@ -193,6 +207,30 @@ public class Compute {
 
     public void setDatacenter(Datacenter datacenter) {
         this.datacenter = datacenter;
+    }
+    
+    public ResourcePool getResourcePool() {
+        return resourcePool;
+    }
+    
+    public void setResourcePool(ResourcePool resourcePool) {
+        this.resourcePool = resourcePool;
+    }
+    
+    public String getHypervisor() {
+        return hypervisor;
+    }
+    
+    public void setHypervisor(String hypervisor) {
+        this.hypervisor = hypervisor;
+    }
+    
+    public Boolean getIsPhysical() {
+        return isPhysical;
+    }
+    
+    public void setIsPhysical(Boolean isPhysical) {
+        this.isPhysical = isPhysical;
     }
 
     public List<Container> getContainers() {

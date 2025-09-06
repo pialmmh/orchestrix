@@ -232,11 +232,11 @@ const Layout: React.FC = () => {
             </ListItemButton>
           </ListItem>
 
-          {/* Clouds */}
+          {/* Infrastructure */}
           <ListItem disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
-              onClick={() => navigate('/clouds')}
-              selected={location.pathname === '/clouds'}
+              onClick={() => navigate('/infrastructure')}
+              selected={location.pathname === '/infrastructure'}
               sx={{
                 borderRadius: 1,
                 '&.Mui-selected': {
@@ -253,7 +253,7 @@ const Layout: React.FC = () => {
               <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
                 <Cloud />
               </ListItemIcon>
-              <ListItemText primary="Clouds" />
+              <ListItemText primary="Infrastructure" />
             </ListItemButton>
           </ListItem>
 

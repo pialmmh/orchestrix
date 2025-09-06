@@ -17,42 +17,69 @@ const OrchestrixLogo: React.FC<OrchestrixLogoProps> = ({ sx, fontSize = 'medium'
       viewBox="0 0 100 100" 
       {...props}
     >
-      {/* Modern hexagonal nodes representing distributed systems */}
+      <defs>
+        <linearGradient id="petalGradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style={{ stopColor: '#ff6ec7', stopOpacity: 1 }} />
+          <stop offset="100%" style={{ stopColor: '#c471ed', stopOpacity: 1 }} />
+        </linearGradient>
+        <linearGradient id="petalGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style={{ stopColor: '#ffa3d5', stopOpacity: 1 }} />
+          <stop offset="100%" style={{ stopColor: '#e589f5', stopOpacity: 1 }} />
+        </linearGradient>
+        <linearGradient id="petalGradient3" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style={{ stopColor: '#ffb3e6', stopOpacity: 1 }} />
+          <stop offset="100%" style={{ stopColor: '#d4a5f9', stopOpacity: 1 }} />
+        </linearGradient>
+        <radialGradient id="centerGradient">
+          <stop offset="0%" style={{ stopColor: '#ffd700', stopOpacity: 1 }} />
+          <stop offset="70%" style={{ stopColor: '#ffaa00', stopOpacity: 1 }} />
+          <stop offset="100%" style={{ stopColor: '#ff8c00', stopOpacity: 1 }} />
+        </radialGradient>
+        <filter id="softGlow">
+          <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
       
-      {/* Central hub hexagon */}
-      <path d="M50 25 L62 35 L62 55 L50 65 L38 55 L38 35 Z" 
-            fill="#1976d2" stroke="#ffffff" strokeWidth="2"/>
+      {/* Top petal */}
+      <ellipse cx="50" cy="25" rx="18" ry="23" fill="url(#petalGradient1)" transform="rotate(-5 50 50)" opacity="0.95"/>
       
-      {/* Top left hexagon */}
-      <path d="M25 15 L32 20 L32 30 L25 35 L18 30 L18 20 Z" 
-            fill="#42a5f5" stroke="#ffffff" strokeWidth="1.5"/>
+      {/* Top-right petal */}
+      <ellipse cx="70" cy="35" rx="16" ry="22" fill="url(#petalGradient2)" transform="rotate(35 50 50)" opacity="0.9"/>
       
-      {/* Top right hexagon */}
-      <path d="M75 15 L82 20 L82 30 L75 35 L68 30 L68 20 Z" 
-            fill="#42a5f5" stroke="#ffffff" strokeWidth="1.5"/>
+      {/* Right petal */}
+      <ellipse cx="75" cy="50" rx="18" ry="23" fill="url(#petalGradient3)" transform="rotate(75 50 50)" opacity="0.95"/>
       
-      {/* Bottom left hexagon */}
-      <path d="M25 65 L32 70 L32 80 L25 85 L18 80 L18 70 Z" 
-            fill="#42a5f5" stroke="#ffffff" strokeWidth="1.5"/>
+      {/* Bottom-right petal */}
+      <ellipse cx="65" cy="70" rx="16" ry="21" fill="url(#petalGradient1)" transform="rotate(115 50 50)" opacity="0.9"/>
       
-      {/* Bottom right hexagon */}
-      <path d="M75 65 L82 70 L82 80 L75 85 L68 80 L68 70 Z" 
-            fill="#42a5f5" stroke="#ffffff" strokeWidth="1.5"/>
+      {/* Bottom petal */}
+      <ellipse cx="50" cy="75" rx="18" ry="23" fill="url(#petalGradient2)" transform="rotate(175 50 50)" opacity="0.95"/>
       
-      {/* Connection lines */}
-      <line x1="38" y1="35" x2="25" y2="30" stroke="#1976d2" strokeWidth="2" opacity="0.7"/>
-      <line x1="62" y1="35" x2="75" y2="30" stroke="#1976d2" strokeWidth="2" opacity="0.7"/>
-      <line x1="38" y1="55" x2="25" y2="70" stroke="#1976d2" strokeWidth="2" opacity="0.7"/>
-      <line x1="62" y1="55" x2="75" y2="70" stroke="#1976d2" strokeWidth="2" opacity="0.7"/>
+      {/* Bottom-left petal */}
+      <ellipse cx="35" cy="70" rx="16" ry="21" fill="url(#petalGradient3)" transform="rotate(215 50 50)" opacity="0.9"/>
       
-      {/* Center dot */}
-      <circle cx="50" cy="45" r="3" fill="#ffffff"/>
+      {/* Left petal */}
+      <ellipse cx="25" cy="50" rx="18" ry="23" fill="url(#petalGradient1)" transform="rotate(255 50 50)" opacity="0.95"/>
       
-      {/* Small dots on outer nodes */}
-      <circle cx="25" cy="25" r="1.5" fill="#ffffff"/>
-      <circle cx="75" cy="25" r="1.5" fill="#ffffff"/>
-      <circle cx="25" cy="75" r="1.5" fill="#ffffff"/>
-      <circle cx="75" cy="75" r="1.5" fill="#ffffff"/>
+      {/* Top-left petal */}
+      <ellipse cx="30" cy="35" rx="16" ry="22" fill="url(#petalGradient2)" transform="rotate(325 50 50)" opacity="0.9"/>
+      
+      {/* Inner petals layer for depth */}
+      <ellipse cx="50" cy="35" rx="12" ry="16" fill="url(#petalGradient3)" transform="rotate(15 50 50)" opacity="0.7"/>
+      <ellipse cx="65" cy="50" rx="12" ry="16" fill="url(#petalGradient1)" transform="rotate(90 50 50)" opacity="0.7"/>
+      <ellipse cx="50" cy="65" rx="12" ry="16" fill="url(#petalGradient2)" transform="rotate(165 50 50)" opacity="0.7"/>
+      <ellipse cx="35" cy="50" rx="12" ry="16" fill="url(#petalGradient3)" transform="rotate(270 50 50)" opacity="0.7"/>
+      
+      {/* Center of the orchid */}
+      <circle cx="50" cy="50" r="12" fill="url(#centerGradient)" filter="url(#softGlow)"/>
+      
+      {/* Center details */}
+      <circle cx="47" cy="48" r="2" fill="#fff" opacity="0.8" />
+      <circle cx="53" cy="52" r="1.5" fill="#fff" opacity="0.6" />
     </SvgIcon>
   );
 };

@@ -1,12 +1,14 @@
 package com.telcobright.orchestrix.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import javax.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "datacenters")
@@ -71,6 +73,29 @@ public class Datacenter {
     
     @Column(name = "utilization")
     private Integer utilization = 0;
+    
+    // New fields for cloud-native hierarchy
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "availability_zone_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "datacenters"})
+    private AvailabilityZone availabilityZone;
+    
+    @Column(name = "tier")
+    private Integer tier = 3; // Tier 1-4 datacenter classification
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "dr_paired_with")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private Datacenter drPairedDatacenter;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "environment_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "datacenters"})
+    private Environment environment;
+    
+    @OneToMany(mappedBy = "datacenter", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"datacenter"})
+    private List<ResourcePool> resourcePools;
     
     @Column(name = "created_at")
     private LocalDateTime createdAt;

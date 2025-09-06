@@ -2,6 +2,7 @@ package com.telcobright.orchestrix.entity;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -51,6 +52,10 @@ public class Cloud {
     @OneToMany(mappedBy = "cloud", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnore
     private List<Networking> networks;
+    
+    @OneToMany(mappedBy = "cloud", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"cloud"})
+    private List<Region> regions;
 
     @PrePersist
     protected void onCreate() {
@@ -185,5 +190,13 @@ public class Cloud {
 
     public void setNetworks(List<Networking> networks) {
         this.networks = networks;
+    }
+    
+    public List<Region> getRegions() {
+        return regions;
+    }
+    
+    public void setRegions(List<Region> regions) {
+        this.regions = regions;
     }
 }
