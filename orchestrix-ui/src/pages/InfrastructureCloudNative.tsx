@@ -28,6 +28,8 @@ import {
   Tooltip,
   Breadcrumbs,
   Link,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import {
@@ -49,6 +51,7 @@ import {
   Domain as DataCenterIcon,
   Settings as SettingsIcon,
   AccountTree as AccountTreeIcon,
+  DataObject,
 } from '@mui/icons-material';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
@@ -101,6 +104,8 @@ const InfrastructureCloudNative: React.FC = () => {
   const [environments, setEnvironments] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
   const [availabilityZones, setAvailabilityZones] = useState<any[]>([]);
+  const [viewerTabIndex, setViewerTabIndex] = useState(0);
+  const [jsonModalOpen, setJsonModalOpen] = useState(false);
   
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
@@ -117,6 +122,11 @@ const InfrastructureCloudNative: React.FC = () => {
     fetchPartners();
     fetchEnvironments();
   }, []);
+
+  // Reset viewer tab when node selection changes
+  useEffect(() => {
+    setViewerTabIndex(0);
+  }, [selectedNodeId]);
 
   const fetchPartners = async () => {
     try {
@@ -428,6 +438,185 @@ const InfrastructureCloudNative: React.FC = () => {
 
   const handleCloseContextMenu = () => {
     setContextMenu(null);
+  };
+
+  // Helper function to organize data into logical tabs
+  const organizeDataIntoTabs = (data: any, entityType: string) => {
+    if (!data) return {};
+
+    const tabs: { [key: string]: { [key: string]: any } } = {};
+
+    switch (entityType) {
+      case 'compute':
+        tabs['Basic Info'] = {
+          name: data.name,
+          hostname: data.hostname,
+          ipAddress: data.ipAddress,
+          nodeType: data.nodeType,
+          status: data.status,
+          description: data.description
+        };
+        tabs['Hardware'] = {
+          brand: data.brand,
+          model: data.model,
+          serialNumber: data.serialNumber,
+          assetTag: data.assetTag,
+          rackLocation: data.rackLocation,
+          rackUnit: data.rackUnit,
+          cpuCores: data.cpuCores,
+          memoryGb: data.memoryGb,
+          diskGb: data.diskGb,
+          powerConsumptionWatts: data.powerConsumptionWatts,
+          thermalOutputBtu: data.thermalOutputBtu,
+          isPhysical: data.isPhysical
+        };
+        tabs['Network'] = {
+          primaryMacAddress: data.primaryMacAddress,
+          managementIp: data.managementIp,
+          publicIp: data.publicIp,
+          privateIp: data.privateIp,
+          ipmiIp: data.ipmiIp,
+          vlanIds: data.vlanIds,
+          networkInterfacesCount: data.networkInterfacesCount,
+          networkSpeedGbps: data.networkSpeedGbps
+        };
+        tabs['OS & Software'] = {
+          osType: data.osType,
+          osDistribution: data.osDistribution,
+          osVersionString: data.osVersionString,
+          kernelVersion: data.kernelVersion,
+          firmwareVersion: data.firmwareVersion,
+          biosVersion: data.biosVersion,
+          hypervisor: data.hypervisor,
+          virtualizationType: data.virtualizationType
+        };
+        tabs['Storage'] = {
+          storageType: data.storageType,
+          storageRaidLevel: data.storageRaidLevel,
+          totalStorageGb: data.totalStorageGb,
+          usedStorageGb: data.usedStorageGb,
+          storageIops: data.storageIops
+        };
+        tabs['Performance'] = {
+          cpuBenchmarkScore: data.cpuBenchmarkScore,
+          memoryBandwidthGbps: data.memoryBandwidthGbps,
+          networkLatencyMs: data.networkLatencyMs,
+          uptimeDays: data.uptimeDays,
+          lastRebootDate: data.lastRebootDate
+        };
+        tabs['Compliance & Security'] = {
+          complianceStatus: data.complianceStatus,
+          securityZone: data.securityZone,
+          encryptionEnabled: data.encryptionEnabled,
+          lastSecurityScanDate: data.lastSecurityScanDate,
+          patchLevel: data.patchLevel,
+          antivirusStatus: data.antivirusStatus
+        };
+        tabs['Maintenance'] = {
+          warrantyExpiryDate: data.warrantyExpiryDate,
+          supportContractId: data.supportContractId,
+          maintenanceWindow: data.maintenanceWindow,
+          lastMaintenanceDate: data.lastMaintenanceDate,
+          nextMaintenanceDate: data.nextMaintenanceDate
+        };
+        tabs['Monitoring'] = {
+          monitoringEnabled: data.monitoringEnabled,
+          monitoringAgent: data.monitoringAgent,
+          managementTool: data.managementTool,
+          backupEnabled: data.backupEnabled,
+          backupSchedule: data.backupSchedule,
+          lastBackupDate: data.lastBackupDate
+        };
+        tabs['Roles & Metadata'] = {
+          computeRole: data.computeRole,
+          purpose: data.purpose,
+          environmentType: data.environmentType,
+          serviceTier: data.serviceTier,
+          businessUnit: data.businessUnit,
+          costCenter: data.costCenter,
+          supportsContainers: data.supportsContainers,
+          containerRuntime: data.containerRuntime,
+          orchestrationPlatform: data.orchestrationPlatform,
+          maxContainers: data.maxContainers,
+          currentContainers: data.currentContainers,
+          tags: data.tags,
+          notes: data.notes,
+          customAttributes: data.customAttributes
+        };
+        break;
+      
+      case 'datacenter':
+        tabs['Basic Info'] = {
+          name: data.name,
+          type: data.type,
+          status: data.status,
+          provider: data.provider,
+          tier: data.tier,
+          isDrSite: data.isDrSite
+        };
+        tabs['Location'] = {
+          country: data.country?.name,
+          state: data.state?.name,
+          city: data.city?.name,
+          locationOther: data.locationOther,
+          latitude: data.latitude,
+          longitude: data.longitude
+        };
+        tabs['Capacity'] = {
+          servers: data.servers,
+          storageTb: data.storageTb,
+          utilization: data.utilization
+        };
+        break;
+      
+      case 'cloud':
+        tabs['Basic Info'] = {
+          name: data.name,
+          description: data.description,
+          clientName: data.clientName,
+          status: data.status
+        };
+        tabs['Configuration'] = {
+          deploymentRegion: data.deploymentRegion,
+          partner: data.partner?.name
+        };
+        break;
+      
+      default:
+        // For other entity types, organize into Basic Info and Details
+        const basicFields = ['name', 'description', 'status', 'type', 'code'];
+        const basicInfo: { [key: string]: any } = {};
+        const details: { [key: string]: any } = {};
+        
+        Object.entries(data).forEach(([key, value]) => {
+          if (basicFields.includes(key)) {
+            basicInfo[key] = value;
+          } else if (value !== null && value !== undefined && value !== '') {
+            details[key] = value;
+          }
+        });
+        
+        if (Object.keys(basicInfo).length > 0) {
+          tabs['Basic Info'] = basicInfo;
+        }
+        if (Object.keys(details).length > 0) {
+          tabs['Details'] = details;
+        }
+        break;
+    }
+
+    // Filter out empty tabs
+    Object.keys(tabs).forEach(tabKey => {
+      const tabData = tabs[tabKey];
+      const hasData = Object.values(tabData).some(value => 
+        value !== null && value !== undefined && value !== ''
+      );
+      if (!hasData) {
+        delete tabs[tabKey];
+      }
+    });
+
+    return tabs;
   };
 
   const handleAdd = (type: string, parentNode?: TreeNode) => {
@@ -754,27 +943,38 @@ const InfrastructureCloudNative: React.FC = () => {
           </Breadcrumbs>
           
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h5">
-              {selectedNode.name}
-              <Typography component="span" variant="h6" color="text.secondary" sx={{ ml: 1 }}>
-                ({(() => {
-                  const typeMap: { [key: string]: string } = {
-                    'organization': 'Organization',
-                    'environment': 'Environment',
-                    'cloud': 'Cloud',
-                    'region': 'Region',
-                    'az': 'Availability Zone',
-                    'datacenter': 'Datacenter',
-                    'pool': 'Resource Pool',
-                    'compute': 'Compute Node',
-                    'container': 'Container',
-                    'service': 'Service',
-                    'resource-group': 'Resource Group'
-                  };
-                  return typeMap[selectedNode.type] || selectedNode.type.charAt(0).toUpperCase() + selectedNode.type.slice(1);
-                })()})
+            <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+              <Typography variant="h5" sx={{ mr: 1 }}>
+                {selectedNode.name}
+                <Typography component="span" variant="h6" color="text.secondary" sx={{ ml: 1 }}>
+                  ({(() => {
+                    const typeMap: { [key: string]: string } = {
+                      'organization': 'Organization',
+                      'environment': 'Environment',
+                      'cloud': 'Cloud',
+                      'region': 'Region',
+                      'az': 'Availability Zone',
+                      'datacenter': 'Datacenter',
+                      'pool': 'Resource Pool',
+                      'compute': 'Compute Node',
+                      'container': 'Container',
+                      'service': 'Service',
+                      'resource-group': 'Resource Group'
+                    };
+                    return typeMap[selectedNode.type] || selectedNode.type.charAt(0).toUpperCase() + selectedNode.type.slice(1);
+                  })()})
+                </Typography>
               </Typography>
-            </Typography>
+              <Tooltip title="View as Data">
+                <IconButton
+                  size="small"
+                  onClick={() => setJsonModalOpen(true)}
+                  sx={{ ml: 1 }}
+                >
+                  <DataObject />
+                </IconButton>
+              </Tooltip>
+            </Box>
             {/* CRUD action buttons for the selected item */}
             <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
               <IconButton 
@@ -801,17 +1001,71 @@ const InfrastructureCloudNative: React.FC = () => {
             Path: {selectedNodePath.map(n => n.name).join(' / ')}
           </Typography>
           
-          {selectedNode.data && (
-            <Box sx={{ mt: 2 }}>
-              {Object.entries(selectedNode.data).map(([key, value]) => (
-                <Box key={key} sx={{ py: 0.5 }}>
-                  <Typography variant="body2">
-                    <strong>{key}:</strong> {String(value)}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-          )}
+          {selectedNode.data && (() => {
+            const organizedTabs = organizeDataIntoTabs(selectedNode.data, selectedNode.type);
+            const tabKeys = Object.keys(organizedTabs);
+            
+            if (tabKeys.length === 0) return null;
+            
+            // Reset tab index if it exceeds available tabs
+            if (viewerTabIndex >= tabKeys.length) {
+              setViewerTabIndex(0);
+            }
+            
+            return (
+              <Box sx={{ mt: 2 }}>
+                <Tabs
+                  value={viewerTabIndex}
+                  onChange={(_, newValue) => setViewerTabIndex(newValue)}
+                  variant="scrollable"
+                  scrollButtons="auto"
+                  sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
+                >
+                  {tabKeys.map((tabKey, index) => (
+                    <Tab key={tabKey} label={tabKey} />
+                  ))}
+                </Tabs>
+                
+                {tabKeys.map((tabKey, index) => (
+                  <Box
+                    key={tabKey}
+                    role="tabpanel"
+                    hidden={viewerTabIndex !== index}
+                    sx={{ display: viewerTabIndex === index ? 'block' : 'none' }}
+                  >
+                    {viewerTabIndex === index && (
+                      <Box>
+                        {Object.entries(organizedTabs[tabKey])
+                          .filter(([_, value]) => value !== null && value !== undefined && value !== '')
+                          .map(([key, value]) => (
+                            <Box key={key} sx={{ py: 0.5, display: 'flex', alignItems: 'flex-start' }}>
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  minWidth: 120, 
+                                  fontWeight: 600, 
+                                  color: 'text.secondary',
+                                  mr: 1
+                                }}
+                              >
+                                {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
+                              </Typography>
+                              <Typography variant="body2" sx={{ flex: 1 }}>
+                                {typeof value === 'boolean' 
+                                  ? (value ? 'Yes' : 'No')
+                                  : String(value)
+                                }
+                              </Typography>
+                            </Box>
+                          ))
+                        }
+                      </Box>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            );
+          })()}
           
           {selectedNode.metadata && (
             <Box sx={{ mt: 2 }}>
@@ -905,8 +1159,8 @@ const InfrastructureCloudNative: React.FC = () => {
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ px: 2, py: 1, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h4" sx={{ mb: 0.5 }}>
+      <Box sx={{ px: 2, py: 0.5, borderBottom: 1, borderColor: 'divider' }}>
+        <Typography variant="h4" sx={{ mb: 0, mt: 0 }}>
           Cloud Infrastructure Management
         </Typography>
         <Typography variant="body2" color="text.secondary">
@@ -1302,6 +1556,65 @@ const InfrastructureCloudNative: React.FC = () => {
           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
           <Button onClick={handleSave} variant="contained">
             {editMode ? 'Update' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* JSON Data Modal */}
+      <Dialog 
+        open={jsonModalOpen} 
+        onClose={() => setJsonModalOpen(false)} 
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: { height: '80vh', maxHeight: '80vh' }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', pb: 2 }}>
+          <DataObject sx={{ mr: 1 }} />
+          Raw Data View: {selectedNode?.name}
+          <Typography component="span" variant="h6" color="text.secondary" sx={{ ml: 1 }}>
+            ({selectedNode?.type})
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ height: '100%', overflow: 'auto' }}>
+            <pre style={{ 
+              margin: 0,
+              padding: '16px',
+              backgroundColor: '#f5f5f5',
+              borderRadius: '4px',
+              fontSize: '14px',
+              fontFamily: 'monospace',
+              whiteSpace: 'pre-wrap',
+              wordWrap: 'break-word',
+              overflow: 'auto'
+            }}>
+              {selectedNode?.data ? JSON.stringify(selectedNode.data, null, 2) : 'No data available'}
+            </pre>
+            {selectedNode?.metadata && (
+              <>
+                <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>Metadata:</Typography>
+                <pre style={{ 
+                  margin: 0,
+                  padding: '16px',
+                  backgroundColor: '#f0f0f0',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  fontFamily: 'monospace',
+                  whiteSpace: 'pre-wrap',
+                  wordWrap: 'break-word',
+                  overflow: 'auto'
+                }}>
+                  {JSON.stringify(selectedNode.metadata, null, 2)}
+                </pre>
+              </>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setJsonModalOpen(false)} variant="contained">
+            Close
           </Button>
         </DialogActions>
       </Dialog>

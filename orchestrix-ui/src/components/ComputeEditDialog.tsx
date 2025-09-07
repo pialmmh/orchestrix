@@ -55,7 +55,7 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
             <Tab label="Compliance & Security" />
             <Tab label="Maintenance" />
             <Tab label="Monitoring" />
-            <Tab label="Additional" />
+            <Tab label="Roles & Metadata" />
           </Tabs>
         </Box>
         
@@ -311,45 +311,62 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
           {activeTab === 3 && (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
               <TextField
-                label="MAC Address"
-                value={formData.macAddress || ''}
-                onChange={(e) => setFormData({ ...formData, macAddress: e.target.value })}
+                label="Primary MAC Address"
+                value={formData.primaryMacAddress || ''}
+                onChange={(e) => setFormData({ ...formData, primaryMacAddress: e.target.value })}
+                fullWidth
+                size="small"
+                placeholder="aa:bb:cc:dd:ee:ff"
+              />
+              <TextField
+                label="Management IP"
+                value={formData.managementIp || ''}
+                onChange={(e) => setFormData({ ...formData, managementIp: e.target.value })}
                 fullWidth
                 size="small"
               />
               <TextField
-                label="Gateway"
-                value={formData.gateway || ''}
-                onChange={(e) => setFormData({ ...formData, gateway: e.target.value })}
+                label="Public IP"
+                value={formData.publicIp || ''}
+                onChange={(e) => setFormData({ ...formData, publicIp: e.target.value })}
                 fullWidth
                 size="small"
               />
               <TextField
-                label="DNS Server"
-                value={formData.dnsServer || ''}
-                onChange={(e) => setFormData({ ...formData, dnsServer: e.target.value })}
+                label="Private IP"
+                value={formData.privateIp || ''}
+                onChange={(e) => setFormData({ ...formData, privateIp: e.target.value })}
                 fullWidth
                 size="small"
               />
               <TextField
-                label="Domain"
-                value={formData.domain || ''}
-                onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
+                label="IPMI IP"
+                value={formData.ipmiIp || ''}
+                onChange={(e) => setFormData({ ...formData, ipmiIp: e.target.value })}
                 fullWidth
                 size="small"
               />
               <TextField
-                label="VLAN ID"
+                label="VLAN IDs"
+                value={formData.vlanIds || ''}
+                onChange={(e) => setFormData({ ...formData, vlanIds: e.target.value })}
+                fullWidth
+                size="small"
+                placeholder="JSON array: [100, 200, 300]"
+              />
+              <TextField
+                label="Network Interfaces Count"
                 type="number"
-                value={formData.vlanId || ''}
-                onChange={(e) => setFormData({ ...formData, vlanId: parseInt(e.target.value) || null })}
+                value={formData.networkInterfacesCount || ''}
+                onChange={(e) => setFormData({ ...formData, networkInterfacesCount: parseInt(e.target.value) || 1 })}
                 fullWidth
                 size="small"
               />
               <TextField
-                label="Network Speed"
-                value={formData.networkSpeed || ''}
-                onChange={(e) => setFormData({ ...formData, networkSpeed: e.target.value })}
+                label="Network Speed (Gbps)"
+                type="number"
+                value={formData.networkSpeedGbps || ''}
+                onChange={(e) => setFormData({ ...formData, networkSpeedGbps: parseInt(e.target.value) || null })}
                 fullWidth
                 size="small"
               />
@@ -359,45 +376,53 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
           {/* Storage Tab */}
           {activeTab === 4 && (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Storage Type</InputLabel>
+                <Select
+                  value={formData.storageType || ''}
+                  onChange={(e) => setFormData({ ...formData, storageType: e.target.value })}
+                  label="Storage Type"
+                >
+                  <MenuItem value="SSD">SSD</MenuItem>
+                  <MenuItem value="HDD">HDD</MenuItem>
+                  <MenuItem value="NVME">NVMe</MenuItem>
+                  <MenuItem value="HYBRID">Hybrid</MenuItem>
+                  <MenuItem value="SAN">SAN</MenuItem>
+                  <MenuItem value="NAS">NAS</MenuItem>
+                  <MenuItem value="DAS">DAS</MenuItem>
+                </Select>
+              </FormControl>
               <TextField
-                label="Storage (GB)"
+                label="Storage RAID Level"
+                value={formData.storageRaidLevel || ''}
+                onChange={(e) => setFormData({ ...formData, storageRaidLevel: e.target.value })}
+                fullWidth
+                size="small"
+                placeholder="RAID0, RAID1, RAID5, RAID10, etc."
+              />
+              <TextField
+                label="Total Storage (GB)"
                 type="number"
-                value={formData.storageGb || ''}
-                onChange={(e) => setFormData({ ...formData, storageGb: parseInt(e.target.value) || 0 })}
+                value={formData.totalStorageGb || ''}
+                onChange={(e) => setFormData({ ...formData, totalStorageGb: parseInt(e.target.value) || null })}
                 fullWidth
                 size="small"
               />
               <TextField
-                label="Storage Type"
-                value={formData.storageType || ''}
-                onChange={(e) => setFormData({ ...formData, storageType: e.target.value })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Available Storage (GB)"
+                label="Used Storage (GB)"
                 type="number"
-                value={formData.availableStorageGb || ''}
-                onChange={(e) => setFormData({ ...formData, availableStorageGb: parseInt(e.target.value) || 0 })}
+                value={formData.usedStorageGb || ''}
+                onChange={(e) => setFormData({ ...formData, usedStorageGb: parseInt(e.target.value) || 0 })}
                 fullWidth
                 size="small"
               />
               <TextField
-                label="Disk Count"
+                label="Storage IOPS"
                 type="number"
-                value={formData.diskCount || ''}
-                onChange={(e) => setFormData({ ...formData, diskCount: parseInt(e.target.value) || 0 })}
+                value={formData.storageIops || ''}
+                onChange={(e) => setFormData({ ...formData, storageIops: parseInt(e.target.value) || null })}
                 fullWidth
                 size="small"
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.raidConfig || false}
-                    onChange={(e) => setFormData({ ...formData, raidConfig: e.target.checked })}
-                  />
-                }
-                label="RAID Configured"
               />
             </Box>
           )}
@@ -406,53 +431,47 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
           {activeTab === 5 && (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
               <TextField
-                label="CPU Usage (%)"
+                label="CPU Benchmark Score"
                 type="number"
-                value={formData.cpuUsagePercent || ''}
-                onChange={(e) => setFormData({ ...formData, cpuUsagePercent: parseFloat(e.target.value) || 0 })}
+                value={formData.cpuBenchmarkScore || ''}
+                onChange={(e) => setFormData({ ...formData, cpuBenchmarkScore: parseInt(e.target.value) || null })}
                 fullWidth
                 size="small"
               />
               <TextField
-                label="Memory Usage (%)"
-                type="number"
-                value={formData.memoryUsagePercent || ''}
-                onChange={(e) => setFormData({ ...formData, memoryUsagePercent: parseFloat(e.target.value) || 0 })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Disk Usage (%)"
-                type="number"
-                value={formData.diskUsagePercent || ''}
-                onChange={(e) => setFormData({ ...formData, diskUsagePercent: parseFloat(e.target.value) || 0 })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Load Average"
+                label="Memory Bandwidth (Gbps)"
                 type="number"
                 inputProps={{ step: "0.01" }}
-                value={formData.loadAverage || ''}
-                onChange={(e) => setFormData({ ...formData, loadAverage: parseFloat(e.target.value) || 0 })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Uptime (hours)"
-                type="number"
-                value={formData.uptimeHours || ''}
-                onChange={(e) => setFormData({ ...formData, uptimeHours: parseInt(e.target.value) || 0 })}
+                value={formData.memoryBandwidthGbps || ''}
+                onChange={(e) => setFormData({ ...formData, memoryBandwidthGbps: parseFloat(e.target.value) || null })}
                 fullWidth
                 size="small"
               />
               <TextField
                 label="Network Latency (ms)"
                 type="number"
-                value={formData.networkLatency || ''}
-                onChange={(e) => setFormData({ ...formData, networkLatency: parseInt(e.target.value) || 0 })}
+                inputProps={{ step: "0.01" }}
+                value={formData.networkLatencyMs || ''}
+                onChange={(e) => setFormData({ ...formData, networkLatencyMs: parseFloat(e.target.value) || null })}
                 fullWidth
                 size="small"
+              />
+              <TextField
+                label="Uptime (days)"
+                type="number"
+                value={formData.uptimeDays || ''}
+                onChange={(e) => setFormData({ ...formData, uptimeDays: parseInt(e.target.value) || 0 })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Last Reboot Date"
+                type="datetime-local"
+                value={formData.lastRebootDate || ''}
+                onChange={(e) => setFormData({ ...formData, lastRebootDate: e.target.value })}
+                fullWidth
+                size="small"
+                InputLabelProps={{ shrink: true }}
               />
             </Box>
           )}
@@ -460,49 +479,63 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
           {/* Compliance & Security Tab */}
           {activeTab === 6 && (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
-              <TextField
-                label="Security Patch Level"
-                value={formData.securityPatchLevel || ''}
-                onChange={(e) => setFormData({ ...formData, securityPatchLevel: e.target.value })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Compliance Status"
-                value={formData.complianceStatus || ''}
-                onChange={(e) => setFormData({ ...formData, complianceStatus: e.target.value })}
-                fullWidth
-                size="small"
-              />
+              <FormControl fullWidth size="small">
+                <InputLabel>Compliance Status</InputLabel>
+                <Select
+                  value={formData.complianceStatus || ''}
+                  onChange={(e) => setFormData({ ...formData, complianceStatus: e.target.value })}
+                  label="Compliance Status"
+                >
+                  <MenuItem value="COMPLIANT">Compliant</MenuItem>
+                  <MenuItem value="NON_COMPLIANT">Non-Compliant</MenuItem>
+                  <MenuItem value="PENDING_REVIEW">Pending Review</MenuItem>
+                  <MenuItem value="EXEMPT">Exempt</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl fullWidth size="small">
+                <InputLabel>Security Zone</InputLabel>
+                <Select
+                  value={formData.securityZone || ''}
+                  onChange={(e) => setFormData({ ...formData, securityZone: e.target.value })}
+                  label="Security Zone"
+                >
+                  <MenuItem value="DMZ">DMZ</MenuItem>
+                  <MenuItem value="INTERNAL">Internal</MenuItem>
+                  <MenuItem value="EXTERNAL">External</MenuItem>
+                  <MenuItem value="RESTRICTED">Restricted</MenuItem>
+                  <MenuItem value="PUBLIC">Public</MenuItem>
+                  <MenuItem value="PRIVATE">Private</MenuItem>
+                </Select>
+              </FormControl>
               <FormControlLabel
                 control={
                   <Checkbox
-                    checked={formData.firewallEnabled || false}
-                    onChange={(e) => setFormData({ ...formData, firewallEnabled: e.target.checked })}
+                    checked={formData.encryptionEnabled || false}
+                    onChange={(e) => setFormData({ ...formData, encryptionEnabled: e.target.checked })}
                   />
                 }
-                label="Firewall Enabled"
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.antivirusInstalled || false}
-                    onChange={(e) => setFormData({ ...formData, antivirusInstalled: e.target.checked })}
-                  />
-                }
-                label="Antivirus Installed"
+                label="Encryption Enabled"
               />
               <TextField
-                label="Backup Status"
-                value={formData.backupStatus || ''}
-                onChange={(e) => setFormData({ ...formData, backupStatus: e.target.value })}
+                label="Last Security Scan Date"
+                type="date"
+                value={formData.lastSecurityScanDate || ''}
+                onChange={(e) => setFormData({ ...formData, lastSecurityScanDate: e.target.value })}
+                fullWidth
+                size="small"
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                label="Patch Level"
+                value={formData.patchLevel || ''}
+                onChange={(e) => setFormData({ ...formData, patchLevel: e.target.value })}
                 fullWidth
                 size="small"
               />
               <TextField
-                label="Encryption Level"
-                value={formData.encryptionLevel || ''}
-                onChange={(e) => setFormData({ ...formData, encryptionLevel: e.target.value })}
+                label="Antivirus Status"
+                value={formData.antivirusStatus || ''}
+                onChange={(e) => setFormData({ ...formData, antivirusStatus: e.target.value })}
                 fullWidth
                 size="small"
               />
@@ -512,6 +545,30 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
           {/* Maintenance Tab */}
           {activeTab === 7 && (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
+              <TextField
+                label="Warranty Expiry Date"
+                type="date"
+                value={formData.warrantyExpiryDate || ''}
+                onChange={(e) => setFormData({ ...formData, warrantyExpiryDate: e.target.value })}
+                fullWidth
+                size="small"
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                label="Support Contract ID"
+                value={formData.supportContractId || ''}
+                onChange={(e) => setFormData({ ...formData, supportContractId: e.target.value })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Maintenance Window"
+                value={formData.maintenanceWindow || ''}
+                onChange={(e) => setFormData({ ...formData, maintenanceWindow: e.target.value })}
+                fullWidth
+                size="small"
+                placeholder="e.g., Sunday 02:00-04:00"
+              />
               <TextField
                 label="Last Maintenance Date"
                 type="date"
@@ -530,99 +587,120 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
                 size="small"
                 InputLabelProps={{ shrink: true }}
               />
-              <TextField
-                label="Warranty Expiry Date"
-                type="date"
-                value={formData.warrantyExpiryDate || ''}
-                onChange={(e) => setFormData({ ...formData, warrantyExpiryDate: e.target.value })}
-                fullWidth
-                size="small"
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                label="Support Contract"
-                value={formData.supportContract || ''}
-                onChange={(e) => setFormData({ ...formData, supportContract: e.target.value })}
-                fullWidth
-                size="small"
-              />
-              <Box sx={{ gridColumn: 'span 2' }}>
-                <TextField
-                  label="Maintenance Notes"
-                  value={formData.maintenanceNotes || ''}
-                  onChange={(e) => setFormData({ ...formData, maintenanceNotes: e.target.value })}
-                  fullWidth
-                  multiline
-                  rows={3}
-                  size="small"
-                />
-              </Box>
             </Box>
           )}
 
           {/* Monitoring Tab */}
           {activeTab === 8 && (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.monitoringEnabled !== false}
+                    onChange={(e) => setFormData({ ...formData, monitoringEnabled: e.target.checked })}
+                  />
+                }
+                label="Monitoring Enabled"
+              />
               <TextField
                 label="Monitoring Agent"
                 value={formData.monitoringAgent || ''}
                 onChange={(e) => setFormData({ ...formData, monitoringAgent: e.target.value })}
                 fullWidth
                 size="small"
+                placeholder="Prometheus, Nagios, Zabbix, etc."
               />
               <TextField
-                label="Alert Threshold"
-                value={formData.alertThreshold || ''}
-                onChange={(e) => setFormData({ ...formData, alertThreshold: e.target.value })}
+                label="Management Tool"
+                value={formData.managementTool || ''}
+                onChange={(e) => setFormData({ ...formData, managementTool: e.target.value })}
                 fullWidth
                 size="small"
+                placeholder="Ansible, Puppet, Chef, etc."
               />
               <FormControlLabel
                 control={
                   <Checkbox
-                    checked={formData.loggingEnabled || false}
-                    onChange={(e) => setFormData({ ...formData, loggingEnabled: e.target.checked })}
+                    checked={formData.backupEnabled || false}
+                    onChange={(e) => setFormData({ ...formData, backupEnabled: e.target.checked })}
                   />
                 }
-                label="Logging Enabled"
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.metricsCollection || false}
-                    onChange={(e) => setFormData({ ...formData, metricsCollection: e.target.checked })}
-                  />
-                }
-                label="Metrics Collection"
+                label="Backup Enabled"
               />
               <TextField
-                label="Log Retention (days)"
-                type="number"
-                value={formData.logRetentionDays || ''}
-                onChange={(e) => setFormData({ ...formData, logRetentionDays: parseInt(e.target.value) || 0 })}
+                label="Backup Schedule"
+                value={formData.backupSchedule || ''}
+                onChange={(e) => setFormData({ ...formData, backupSchedule: e.target.value })}
                 fullWidth
                 size="small"
+                placeholder="0 2 * * * (daily at 2 AM)"
               />
               <TextField
-                label="Health Check Interval"
-                value={formData.healthCheckInterval || ''}
-                onChange={(e) => setFormData({ ...formData, healthCheckInterval: e.target.value })}
+                label="Last Backup Date"
+                type="datetime-local"
+                value={formData.lastBackupDate || ''}
+                onChange={(e) => setFormData({ ...formData, lastBackupDate: e.target.value })}
                 fullWidth
                 size="small"
+                InputLabelProps={{ shrink: true }}
               />
             </Box>
           )}
 
-          {/* Additional Tab */}
+          {/* Roles & Metadata Tab */}
           {activeTab === 9 && (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
-              <TextField
-                label="Owner"
-                value={formData.owner || ''}
-                onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-                fullWidth
-                size="small"
-              />
+              <FormControl fullWidth size="small">
+                <InputLabel>Compute Role</InputLabel>
+                <Select
+                  value={formData.computeRole || ''}
+                  onChange={(e) => setFormData({ ...formData, computeRole: e.target.value })}
+                  label="Compute Role"
+                >
+                  <MenuItem value="DATABASE">Database</MenuItem>
+                  <MenuItem value="APPLICATION">Application</MenuItem>
+                  <MenuItem value="WEB">Web Server</MenuItem>
+                  <MenuItem value="CACHE">Cache</MenuItem>
+                  <MenuItem value="QUEUE">Queue/Message Broker</MenuItem>
+                  <MenuItem value="LOAD_BALANCER">Load Balancer</MenuItem>
+                  <MenuItem value="PROXY">Proxy</MenuItem>
+                  <MenuItem value="STORAGE">Storage</MenuItem>
+                  <MenuItem value="COMPUTE">Compute</MenuItem>
+                  <MenuItem value="MONITORING">Monitoring</MenuItem>
+                  <MenuItem value="BACKUP">Backup</MenuItem>
+                  <MenuItem value="MANAGEMENT">Management</MenuItem>
+                  <MenuItem value="OTHER">Other</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl fullWidth size="small">
+                <InputLabel>Environment Type</InputLabel>
+                <Select
+                  value={formData.environmentType || ''}
+                  onChange={(e) => setFormData({ ...formData, environmentType: e.target.value })}
+                  label="Environment Type"
+                >
+                  <MenuItem value="PRODUCTION">Production</MenuItem>
+                  <MenuItem value="STAGING">Staging</MenuItem>
+                  <MenuItem value="DEVELOPMENT">Development</MenuItem>
+                  <MenuItem value="TEST">Test</MenuItem>
+                  <MenuItem value="QA">QA</MenuItem>
+                  <MenuItem value="UAT">UAT</MenuItem>
+                  <MenuItem value="DR">Disaster Recovery</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl fullWidth size="small">
+                <InputLabel>Service Tier</InputLabel>
+                <Select
+                  value={formData.serviceTier || ''}
+                  onChange={(e) => setFormData({ ...formData, serviceTier: e.target.value })}
+                  label="Service Tier"
+                >
+                  <MenuItem value="CRITICAL">Critical</MenuItem>
+                  <MenuItem value="HIGH">High</MenuItem>
+                  <MenuItem value="MEDIUM">Medium</MenuItem>
+                  <MenuItem value="LOW">Low</MenuItem>
+                </Select>
+              </FormControl>
               <TextField
                 label="Business Unit"
                 value={formData.businessUnit || ''}
@@ -637,30 +715,57 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
                 fullWidth
                 size="small"
               />
-              <TextField
-                label="Purchase Date"
-                type="date"
-                value={formData.purchaseDate || ''}
-                onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
-                fullWidth
-                size="small"
-                InputLabelProps={{ shrink: true }}
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.supportsContainers || false}
+                    onChange={(e) => setFormData({ ...formData, supportsContainers: e.target.checked })}
+                  />
+                }
+                label="Supports Containers"
               />
-              <TextField
-                label="Purchase Price"
-                type="number"
-                value={formData.purchasePrice || ''}
-                onChange={(e) => setFormData({ ...formData, purchasePrice: parseFloat(e.target.value) || 0 })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Location"
-                value={formData.location || ''}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                fullWidth
-                size="small"
-              />
+              <FormControl fullWidth size="small">
+                <InputLabel>Container Runtime</InputLabel>
+                <Select
+                  value={formData.containerRuntime || ''}
+                  onChange={(e) => setFormData({ ...formData, containerRuntime: e.target.value })}
+                  label="Container Runtime"
+                >
+                  <MenuItem value="DOCKER">Docker</MenuItem>
+                  <MenuItem value="CONTAINERD">containerd</MenuItem>
+                  <MenuItem value="CRIO">CRI-O</MenuItem>
+                  <MenuItem value="PODMAN">Podman</MenuItem>
+                  <MenuItem value="LXC">LXC</MenuItem>
+                  <MenuItem value="NONE">None</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl fullWidth size="small">
+                <InputLabel>Orchestration Platform</InputLabel>
+                <Select
+                  value={formData.orchestrationPlatform || ''}
+                  onChange={(e) => setFormData({ ...formData, orchestrationPlatform: e.target.value })}
+                  label="Orchestration Platform"
+                >
+                  <MenuItem value="KUBERNETES">Kubernetes</MenuItem>
+                  <MenuItem value="OPENSHIFT">OpenShift</MenuItem>
+                  <MenuItem value="SWARM">Docker Swarm</MenuItem>
+                  <MenuItem value="NOMAD">Nomad</MenuItem>
+                  <MenuItem value="RANCHER">Rancher</MenuItem>
+                  <MenuItem value="NONE">None</MenuItem>
+                </Select>
+              </FormControl>
+              <Box sx={{ gridColumn: 'span 2' }}>
+                <TextField
+                  label="Purpose"
+                  value={formData.purpose || ''}
+                  onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
+                  fullWidth
+                  multiline
+                  rows={2}
+                  size="small"
+                  placeholder="Describe the purpose and role of this compute node..."
+                />
+              </Box>
               <Box sx={{ gridColumn: 'span 2' }}>
                 <TextField
                   label="Tags"
@@ -668,18 +773,31 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
                   onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
                   fullWidth
                   size="small"
-                  placeholder="Comma-separated tags"
+                  placeholder="JSON array: ['web-server', 'production', 'critical']"
                 />
               </Box>
               <Box sx={{ gridColumn: 'span 2' }}>
                 <TextField
-                  label="Additional Notes"
-                  value={formData.additionalNotes || ''}
-                  onChange={(e) => setFormData({ ...formData, additionalNotes: e.target.value })}
+                  label="Notes"
+                  value={formData.notes || ''}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   fullWidth
                   multiline
                   rows={3}
                   size="small"
+                  placeholder="Additional notes and comments..."
+                />
+              </Box>
+              <Box sx={{ gridColumn: 'span 2' }}>
+                <TextField
+                  label="Custom Attributes"
+                  value={formData.customAttributes || ''}
+                  onChange={(e) => setFormData({ ...formData, customAttributes: e.target.value })}
+                  fullWidth
+                  multiline
+                  rows={2}
+                  size="small"
+                  placeholder="JSON object: {'department': 'IT', 'project': 'WebApp'}"
                 />
               </Box>
             </Box>

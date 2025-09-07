@@ -1,7 +1,7 @@
 package com.telcobright.orchestrix.service;
 
-import com.telcobright.orchestrix.device.SshDevice;
-import com.telcobright.orchestrix.device.TerminalDevice;
+import com.telcobright.orchestrix.device.MikroTikRouter;
+import com.telcobright.orchestrix.device.NetworkingDevice;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -18,16 +18,26 @@ import java.util.stream.Collectors;
 @Service
 public class DeviceManager {
     
-    private final Map<String, TerminalDevice> devices = new ConcurrentHashMap<>();
+    private final Map<String, NetworkingDevice> devices = new ConcurrentHashMap<>();
     
     public CompletableFuture<String> connectToDevice(String deviceId, String hostname, int port, String username, String password) {
+        return connectToDevice(deviceId, hostname, port, username, password, "MIKROTIK");
+    }
+    
+    public CompletableFuture<String> connectToDevice(String deviceId, String hostname, int port, String username, String password, String deviceType) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                log.info("Attempting to connect to device: {} at {}:{}", deviceId, hostname, port);
+                log.info("Attempting to connect to {} device: {} at {}:{}", deviceType, deviceId, hostname, port);
                 
-                SshDevice device = new SshDevice(deviceId);
+                NetworkingDevice device = createDevice(deviceId, deviceType);
                 
-                CompletableFuture<Boolean> connectionResult = device.connect(hostname, port, username, password);
+                CompletableFuture<Boolean> connectionResult;
+                try {
+                    connectionResult = device.connect(hostname, port, username, password);
+                } catch (IOException e) {
+                    log.error("IOException during connection to device {}: {}", deviceId, e.getMessage());
+                    return "IOException during connection to device " + deviceId + ": " + e.getMessage();
+                }
                 Boolean connected = connectionResult.get(30, TimeUnit.SECONDS);
                 
                 if (connected) {
@@ -46,9 +56,17 @@ public class DeviceManager {
         });
     }
     
+    private NetworkingDevice createDevice(String deviceId, String deviceType) {
+        return switch (deviceType.toUpperCase()) {
+            case "MIKROTIK" -> new MikroTikRouter(deviceId);
+            default -> new MikroTikRouter(deviceId); // Default to MikroTik for now
+        };
+    }
+    
     public CompletableFuture<List<String>> connectToMultipleDevices(List<DeviceConnectionInfo> deviceInfos) {
         List<CompletableFuture<String>> connectionTasks = deviceInfos.stream()
-            .map(info -> connectToDevice(info.getDeviceId(), info.getHostname(), info.getPort(), info.getUsername(), info.getPassword()))
+            .map(info -> connectToDevice(info.getDeviceId(), info.getHostname(), info.getPort(), 
+                                       info.getUsername(), info.getPassword(), info.getDeviceType()))
             .collect(Collectors.toList());
         
         return CompletableFuture.allOf(connectionTasks.toArray(new CompletableFuture[0]))
@@ -58,7 +76,7 @@ public class DeviceManager {
     }
     
     public CompletableFuture<String> sendCommand(String deviceId, String command) {
-        TerminalDevice device = devices.get(deviceId);
+        NetworkingDevice device = devices.get(deviceId);
         if (device == null) {
             return CompletableFuture.completedFuture("Device not found: " + deviceId);
         }
@@ -67,14 +85,18 @@ public class DeviceManager {
             return CompletableFuture.completedFuture("Device not connected: " + deviceId);
         }
         
-        return device.sendAndReceive(command)
-            .handle((response, throwable) -> {
-                if (throwable != null) {
-                    log.error("Error executing command '{}' on device {}: {}", command, deviceId, throwable.getMessage());
-                    return "Error executing command: " + throwable.getMessage();
-                }
-                return response;
-            });
+        try {
+            return device.sendAndReceive(command)
+                .handle((response, throwable) -> {
+                    if (throwable != null) {
+                        log.error("Error executing command '{}' on device {}: {}", command, deviceId, throwable.getMessage());
+                        return "Error executing command: " + throwable.getMessage();
+                    }
+                    return response;
+                });
+        } catch (Exception e) {
+            return CompletableFuture.completedFuture("Exception: " + e.getMessage());
+        }
     }
     
     public CompletableFuture<List<String>> broadcastCommand(String command) {
@@ -121,6 +143,7 @@ public class DeviceManager {
                 .deviceId(entry.getKey())
                 .hostname(entry.getValue().getHostname())
                 .deviceType(entry.getValue().getDeviceType().name())
+                .vendor(entry.getValue().getVendor())
                 .status(entry.getValue().getStatus().name())
                 .connected(entry.getValue().isConnected())
                 .build())
@@ -128,7 +151,7 @@ public class DeviceManager {
     }
     
     public void disconnectDevice(String deviceId) {
-        TerminalDevice device = devices.get(deviceId);
+        NetworkingDevice device = devices.get(deviceId);
         if (device != null) {
             try {
                 device.disconnect();
@@ -147,14 +170,18 @@ public class DeviceManager {
     }
     
     public boolean isDeviceConnected(String deviceId) {
-        TerminalDevice device = devices.get(deviceId);
+        NetworkingDevice device = devices.get(deviceId);
         return device != null && device.isConnected();
     }
     
     public int getConnectedDeviceCount() {
         return (int) devices.values().stream()
-            .filter(TerminalDevice::isConnected)
+            .filter(NetworkingDevice::isConnected)
             .count();
+    }
+    
+    public NetworkingDevice getDevice(String deviceId) {
+        return devices.get(deviceId);
     }
     
     public static class DeviceConnectionInfo {
@@ -163,6 +190,7 @@ public class DeviceManager {
         private int port;
         private String username;
         private String password;
+        private String deviceType = "MIKROTIK";
         
         public DeviceConnectionInfo(String deviceId, String hostname, int port, String username, String password) {
             this.deviceId = deviceId;
@@ -172,17 +200,28 @@ public class DeviceManager {
             this.password = password;
         }
         
+        public DeviceConnectionInfo(String deviceId, String hostname, int port, String username, String password, String deviceType) {
+            this.deviceId = deviceId;
+            this.hostname = hostname;
+            this.port = port;
+            this.username = username;
+            this.password = password;
+            this.deviceType = deviceType;
+        }
+        
         public String getDeviceId() { return deviceId; }
         public String getHostname() { return hostname; }
         public int getPort() { return port; }
         public String getUsername() { return username; }
         public String getPassword() { return password; }
+        public String getDeviceType() { return deviceType; }
     }
     
     public static class DeviceStatus {
         private String deviceId;
         private String hostname;
         private String deviceType;
+        private String vendor;
         private String status;
         private boolean connected;
         
@@ -194,6 +233,7 @@ public class DeviceManager {
             private String deviceId;
             private String hostname;
             private String deviceType;
+            private String vendor;
             private String status;
             private boolean connected;
             
@@ -212,6 +252,11 @@ public class DeviceManager {
                 return this;
             }
             
+            public DeviceStatusBuilder vendor(String vendor) {
+                this.vendor = vendor;
+                return this;
+            }
+            
             public DeviceStatusBuilder status(String status) {
                 this.status = status;
                 return this;
@@ -227,6 +272,7 @@ public class DeviceManager {
                 deviceStatus.deviceId = this.deviceId;
                 deviceStatus.hostname = this.hostname;
                 deviceStatus.deviceType = this.deviceType;
+                deviceStatus.vendor = this.vendor;
                 deviceStatus.status = this.status;
                 deviceStatus.connected = this.connected;
                 return deviceStatus;
@@ -236,6 +282,7 @@ public class DeviceManager {
         public String getDeviceId() { return deviceId; }
         public String getHostname() { return hostname; }
         public String getDeviceType() { return deviceType; }
+        public String getVendor() { return vendor; }
         public String getStatus() { return status; }
         public boolean isConnected() { return connected; }
     }
