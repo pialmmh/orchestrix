@@ -115,7 +115,8 @@ public interface NetworkDeviceRepository extends JpaRepository<NetworkDevice, Lo
     List<NetworkDevice> findByVlanId(@Param("vlanId") Integer vlanId);
     
     // Capacity and resource queries  
-    List<NetworkDevice> findByResourcePool(ResourcePool resourcePool);
+    @Query("SELECT nd FROM NetworkDevice nd WHERE nd.resourcePool = :resourcePool")
+    List<NetworkDevice> findByResourcePool(@Param("resourcePool") ResourcePool resourcePool);
     
     @Query("SELECT SUM(nd.powerConsumptionWatts) FROM NetworkDevice nd WHERE nd.status = 'ACTIVE' AND nd.datacenter.id = :datacenterId")
     Long getTotalPowerConsumptionByDatacenter(@Param("datacenterId") Integer datacenterId);

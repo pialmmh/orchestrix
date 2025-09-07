@@ -28,13 +28,15 @@ import {
   Settings as SettingsIcon,
   AccountTree as AccountTreeIcon,
   DataObject,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import axios from 'axios';
-import config from '../config';
 import ComputeEditDialog from '../components/ComputeEditDialog';
 import NetworkDeviceEditDialog from '../components/NetworkDeviceEditDialog';
+import config from '../config';
 
 interface TreeNode {
   id: string;
@@ -251,6 +253,43 @@ const InfrastructureCloudNative: React.FC = () => {
     } else {
       // Show other partners' infrastructure (partners without 'self' role)
       const otherPartners = partners.filter(p => !p.roles.includes('self'));
+      
+      if (otherPartners.length === 0) {
+        // No partners available - show infrastructure directly
+        console.log('⚠️ No partners found, showing infrastructure directly');
+        
+        // Create a generic partner structure to hold the infrastructure
+        return [{
+          id: 'partners-root',
+          name: 'Partners Infrastructure',
+          type: 'organization' as const,
+          data: { type: 'partners-root' },
+          children: [
+            {
+              id: 'env-prod',
+              name: 'Production Environment',
+              type: 'environment' as const,
+              data: { type: 'PRODUCTION' },
+              children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, networkDevices, resourceGroups, 'PRODUCTION')
+            },
+            {
+              id: 'env-dev',
+              name: 'Development Environment',
+              type: 'environment' as const,
+              data: { type: 'DEVELOPMENT' },
+              children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, networkDevices, resourceGroups, 'DEVELOPMENT')
+            },
+            {
+              id: 'env-staging',
+              name: 'Staging Environment',
+              type: 'environment' as const,
+              data: { type: 'STAGING' },
+              children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, networkDevices, resourceGroups, 'STAGING')
+            }
+          ]
+        }];
+      }
+      
       return otherPartners.map(partner => ({
         id: `partner-${partner.id}`,
         name: `${partner.displayName}${partner.roles.includes('customer') ? ' (Customer)' : partner.roles.includes('vendor') ? ' (Vendor)' : ''}`,
@@ -365,15 +404,15 @@ const InfrastructureCloudNative: React.FC = () => {
     networkDevices: any[],
     resourceGroups: any[],
     envType: string,
-    partnerId: number
+    partnerId?: number | null
   ): TreeNode[] => {
-    const partnerClouds = clouds.filter(cloud => 
-      cloud.partner && cloud.partner.id === partnerId
-    );
+    const partnerClouds = partnerId 
+      ? clouds.filter(cloud => cloud.partner && cloud.partner.id === partnerId)
+      : clouds;
     
     const envDatacenters = datacenters.filter(dc => 
       (!dc.environment || dc.environment.type === envType) &&
-      dc.partner && dc.partner.id === partnerId
+      (!partnerId || (dc.partner && dc.partner.id === partnerId))
     );
     
     return partnerClouds.map((cloud: any, cloudIndex: number) => ({
@@ -557,20 +596,21 @@ const InfrastructureCloudNative: React.FC = () => {
   };
 
   const handleEdit = () => {
-    if (!selectedNode || !selectedNode.data) return;
+    if (!selectedNode) return;
     
-    const type = selectedNode.type as 'cloud' | 'datacenter' | 'compute' | 'network-device';
+    const type = selectedNode.type;
     
     if (type === 'compute') {
-      setComputeEditData(selectedNode.data);
+      setComputeEditData(selectedNode.data || {});
       setOpenComputeEditDialog(true);
     } else if (type === 'network-device') {
-      setNetworkDeviceEditData(selectedNode.data);
+      setNetworkDeviceEditData(selectedNode.data || {});
       setOpenNetworkDeviceEditDialog(true);
     } else {
+      // For other types (cloud, region, az, datacenter, service), use generic form dialog
       setDialogType(type);
       setEditMode(true);
-      setFormData(selectedNode.data);
+      setFormData(selectedNode.data || {});
       setOpenDialog(true);
     }
   };
@@ -989,21 +1029,22 @@ const InfrastructureCloudNative: React.FC = () => {
                   </Typography>
                   {selectedNode && (['cloud', 'region', 'az', 'datacenter', 'service', 'compute', 'network-device'].includes(selectedNode.type)) && (
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Button
-                        variant="contained"
+                      <IconButton
+                        color="primary"
                         size="small"
                         onClick={handleEdit}
+                        title="Edit"
                       >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="contained"
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
                         color="error"
                         size="small"
                         onClick={handleDelete}
+                        title="Delete"
                       >
-                        Delete
-                      </Button>
+                        <DeleteIcon />
+                      </IconButton>
                     </Box>
                   )}
                 </Box>

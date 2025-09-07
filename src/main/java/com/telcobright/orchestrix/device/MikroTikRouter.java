@@ -11,13 +11,7 @@ import java.util.concurrent.Executors;
 
 @Slf4j
 @Component
-public class MikroTikRouter extends Router {
-    
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
-    private Session routerOSSession;
-    private ChannelShell routerOSShell;
-    private PrintWriter routerOSWriter;
-    private BufferedReader routerOSReader;
+public class MikroTikRouter extends UniversalSshDevice {
     
     public MikroTikRouter() {
         super();
@@ -109,209 +103,61 @@ public class MikroTikRouter extends Router {
         }
     }
     
-    @Override
-    public CompletableFuture<Boolean> connect(String hostname, int port, String username, String password) throws IOException {
-        this.hostname = hostname;
-        this.port = port;
-        this.username = username;
-        this.password = password;
-        this.status = DeviceStatus.CONNECTING;
-        
-        log.info("Connecting to MikroTik RouterOS at {}:{}", hostname, port);
-        
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                // Create RouterOS-specific SSH session
-                JSch jsch = new JSch();
-                routerOSSession = jsch.getSession(username, hostname, port);
-                routerOSSession.setPassword(password);
-                
-                // RouterOS SSH configuration
-                routerOSSession.setConfig("StrictHostKeyChecking", "no");
-                routerOSSession.setConfig("UserKnownHostsFile", "/dev/null");
-                routerOSSession.setConfig("CheckHostIP", "no");
-                routerOSSession.setConfig("LogLevel", "ERROR");
-                
-                routerOSSession.connect(30000);
-                
-                // Open RouterOS shell
-                routerOSShell = (ChannelShell) routerOSSession.openChannel("shell");
-                routerOSShell.setPtyType("vt100");
-                routerOSShell.connect();
-                
-                routerOSWriter = new PrintWriter(routerOSShell.getOutputStream(), true);
-                routerOSReader = new BufferedReader(new InputStreamReader(routerOSShell.getInputStream()));
-                
-                // Wait for RouterOS to be ready (banner + prompt)
-                if (waitForRouterOSPrompt()) {
-                    this.status = DeviceStatus.CONNECTED;
-                    log.info("Successfully connected to MikroTik RouterOS: {}", deviceId);
-                    return true;
-                } else {
-                    this.status = DeviceStatus.ERROR;
-                    log.error("Failed to get RouterOS prompt for: {}", deviceId);
-                    return false;
-                }
-                
-            } catch (Exception e) {
-                log.error("Failed to connect to MikroTik router {}: {}", deviceId, e.getMessage());
-                this.status = DeviceStatus.ERROR;
-                return false;
-            }
-        }, executorService);
-    }
-    
-    @Override
-    public void disconnect() throws IOException {
-        log.info("Disconnecting from MikroTik router {}", deviceId);
-        
+    public CompletableFuture<String> getIpAddresses() {
         try {
-            if (routerOSWriter != null) routerOSWriter.close();
-            if (routerOSReader != null) routerOSReader.close();
-            if (routerOSShell != null && routerOSShell.isConnected()) routerOSShell.disconnect();
-            if (routerOSSession != null && routerOSSession.isConnected()) routerOSSession.disconnect();
+            return sendSshCommand("/ip address print");
         } catch (Exception e) {
-            log.error("Error disconnecting RouterOS session: {}", e.getMessage());
-        }
-        
-        this.status = DeviceStatus.DISCONNECTED;
-    }
-    
-    @Override
-    public CompletableFuture<String> sendAndReceive(String command) throws IOException {
-        return executeRouterOSCommand(command);
-    }
-    
-    private CompletableFuture<String> executeRouterOSCommand(String command) {
-        return CompletableFuture.supplyAsync(() -> {
-            if (!isRouterOSConnected()) {
-                throw new RuntimeException("RouterOS not connected");
-            }
-            
-            try {
-                log.debug("Executing RouterOS command: {}", command);
-                
-                // Send command
-                routerOSWriter.println(command);
-                routerOSWriter.flush();
-                
-                // Give RouterOS time to process command
-                Thread.sleep(2500);
-                
-                // Collect response with timeout-based approach
-                StringBuilder response = new StringBuilder();
-                String line;
-                int emptyReadCount = 0;
-                int maxEmptyReads = 20; // 2 seconds of empty reads = done
-                boolean foundCommandOutput = false;
-                
-                while (emptyReadCount < maxEmptyReads) {
-                    if (routerOSReader.ready()) {
-                        line = routerOSReader.readLine();
-                        emptyReadCount = 0; // Reset counter when we get data
-                        
-                        if (line == null) break;
-                        
-                        log.trace("RouterOS line: '{}'", line);
-                        
-                        // Skip command echo
-                        if (line.trim().equals(command)) {
-                            continue;
-                        }
-                        
-                        // Check for prompt return - command is complete
-                        if (line.contains("[admin@") && line.contains("] >")) {
-                            log.debug("Found RouterOS prompt return, command complete");
-                            break;
-                        }
-                        
-                        // Skip RouterOS help/banner content  
-                        if (line.contains("Gives the list of available commands") ||
-                            line.contains("Gives help on the command") ||
-                            line.contains("MikroTik RouterOS") ||
-                            line.contains("MMM") || line.contains("KKK")) {
-                            continue;
-                        }
-                        
-                        // Collect ALL output (including empty lines for formatting)
-                        response.append(line).append("\n");
-                        
-                        // Mark that we found some output (even if line is empty)
-                        if (!line.trim().isEmpty()) {
-                            foundCommandOutput = true;
-                        }
-                        
-                    } else {
-                        // No data available, wait a bit
-                        Thread.sleep(100);
-                        emptyReadCount++;
-                    }
-                }
-                
-                String result = response.toString().trim();
-                
-                if (emptyReadCount >= maxEmptyReads && !foundCommandOutput) {
-                    log.warn("RouterOS command '{}' timed out without output", command);
-                    return "Command timeout - no output received";
-                }
-                
-                log.debug("RouterOS command '{}' completed: {} characters, {} empty reads", 
-                         command, result.length(), emptyReadCount);
-                
-                return result;
-                
-            } catch (Exception e) {
-                log.error("Error executing RouterOS command '{}': {}", command, e.getMessage());
-                throw new RuntimeException("RouterOS command failed: " + e.getMessage());
-            }
-        }, executorService);
-    }
-    
-    private boolean waitForRouterOSPrompt() {
-        try {
-            log.debug("Waiting for RouterOS prompt...");
-            
-            StringBuilder buffer = new StringBuilder();
-            String line;
-            int timeout = 0;
-            int maxTimeout = 200; // 20 seconds
-            
-            while (timeout < maxTimeout) {
-                if (routerOSReader.ready()) {
-                    line = routerOSReader.readLine();
-                    if (line != null) {
-                        buffer.append(line).append("\n");
-                        log.trace("RouterOS output: {}", line);
-                        
-                        // Look for the RouterOS prompt pattern: [admin@RouterName] >
-                        if (line.contains("[admin@") && line.contains("] >")) {
-                            log.debug("Found RouterOS prompt, ready for commands");
-                            return true;
-                        }
-                    }
-                } else {
-                    Thread.sleep(100);
-                    timeout++;
-                }
-            }
-            
-            log.error("Timeout waiting for RouterOS prompt. Buffer content:\n{}", buffer.toString());
-            return false;
-            
-        } catch (Exception e) {
-            log.error("Error waiting for RouterOS prompt: {}", e.getMessage());
-            return false;
+            return CompletableFuture.failedFuture(e);
         }
     }
     
-    private boolean isRouterOSConnected() {
-        return routerOSSession != null && routerOSSession.isConnected() && 
-               routerOSShell != null && routerOSShell.isConnected() &&
-               status == DeviceStatus.CONNECTED;
+    // MikroTik RouterOS uses universal SSH implementation from UniversalSshDevice
+    
+    // Implementation of remaining abstract methods from NetworkingDevice
+    @Override
+    public CompletableFuture<String> send(String command) throws IOException {
+        return sendSshCommand(command);
     }
     
     @Override
-    public boolean isConnected() {
-        return isRouterOSConnected();
+    public CompletableFuture<String> receive() throws IOException {
+        return receiveSshResponse();
+    }
+    
+    @Override
+    public CompletableFuture<String> getInterfaces() {
+        try {
+            return sendSshCommand("/interface print");
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+    
+    @Override
+    public CompletableFuture<String> getRoutes() {
+        try {
+            return sendSshCommand("/ip route print");
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+    
+    @Override
+    public CompletableFuture<String> backup(String backupName) {
+        try {
+            String command = String.format("/system backup save name=%s", backupName);
+            return sendSshCommand(command);
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+    
+    @Override
+    public CompletableFuture<String> reboot() {
+        try {
+            return sendSshCommand("/system reboot");
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 }
