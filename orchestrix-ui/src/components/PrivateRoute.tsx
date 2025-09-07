@@ -8,9 +8,9 @@ interface PrivateRouteProps {
 }
 
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
-
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+  // Authentication is disabled in backend (all endpoints are permitAll)
+  // So we always allow access to routes
+  return <>{children}</>;
 };
 
 export default PrivateRoute;

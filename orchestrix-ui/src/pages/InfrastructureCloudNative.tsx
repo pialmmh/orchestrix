@@ -53,6 +53,7 @@ import {
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import axios from 'axios';
+import config from '../config';
 
 interface TreeNode {
   id: string;
@@ -109,6 +110,9 @@ const InfrastructureCloudNative: React.FC = () => {
   } | null>(null);
 
   useEffect(() => {
+    // Print configuration in development
+    config.printConfiguration();
+    
     fetchInfrastructureData();
     fetchPartners();
     fetchEnvironments();
@@ -116,7 +120,7 @@ const InfrastructureCloudNative: React.FC = () => {
 
   const fetchPartners = async () => {
     try {
-      const response = await axios.get('/api/partners');
+      const response = await axios.get(config.getApiEndpoint('/partners'));
       const filtered = response.data.partners.filter((p: Partner) => 
         p.roles && (p.roles.includes('customer') || p.roles.includes('self'))
       );
@@ -128,7 +132,7 @@ const InfrastructureCloudNative: React.FC = () => {
 
   const fetchEnvironments = async () => {
     try {
-      const response = await axios.get('/api/environments');
+      const response = await axios.get(config.getApiEndpoint('/environments'));
       setEnvironments(response.data || []);
     } catch (error) {
       // If environments endpoint doesn't exist yet, create default ones
@@ -145,13 +149,13 @@ const InfrastructureCloudNative: React.FC = () => {
     try {
       // Fetch all data in parallel
       const [cloudsRes, regionsRes, azsRes, datacentersRes, poolsRes, computesRes, resourceGroupsRes] = await Promise.allSettled([
-        axios.get('/api/clouds'),
-        axios.get('/api/regions').catch(() => ({ data: [] })),
-        axios.get('/api/availability-zones').catch(() => ({ data: [] })),
-        axios.get('/api/datacenters'),
-        axios.get('/api/resource-pools').catch(() => ({ data: [] })),
-        axios.get('/api/computes').catch(() => ({ data: [] })),
-        axios.get('/api/resource-groups').catch(() => ({ data: [] }))
+        axios.get(config.getApiEndpoint('/clouds')),
+        axios.get(config.getApiEndpoint('/regions')).catch(() => ({ data: [] })),
+        axios.get(config.getApiEndpoint('/availability-zones')).catch(() => ({ data: [] })),
+        axios.get(config.getApiEndpoint('/datacenters')),
+        axios.get(config.getApiEndpoint('/resource-pools')).catch(() => ({ data: [] })),
+        axios.get(config.getApiEndpoint('/computes')).catch(() => ({ data: [] })),
+        axios.get(config.getApiEndpoint('/resource-groups')).catch(() => ({ data: [] }))
       ]);
 
       const clouds = cloudsRes.status === 'fulfilled' ? cloudsRes.value.data : [];
@@ -771,34 +775,8 @@ const InfrastructureCloudNative: React.FC = () => {
                 })()})
               </Typography>
             </Typography>
-            <Stack direction="row" spacing={1}>
-              {/* Add button for nodes that can have children */}
-              {(selectedNode.type === 'service' || getChildTypeForNode(selectedNode.type)) && (
-                <Button 
-                  size="small" 
-                  variant="contained"
-                  startIcon={<Add />}
-                  onClick={() => {
-                    if (selectedNode.type === 'service') {
-                      // For service nodes, determine what type to add based on service name
-                      if (selectedNode.name === 'Compute') {
-                        handleAdd('compute', selectedNode);
-                      } else {
-                        // For other services, we might need specific handling
-                        handleAdd('compute', selectedNode); // Default to compute for now
-                      }
-                    } else {
-                      const childType = getChildTypeForNode(selectedNode.type);
-                      if (childType) {
-                        handleAdd(childType, selectedNode);
-                      }
-                    }
-                  }}
-                  title={getAddButtonLabel(selectedNode.type, selectedNode.name)}
-                >
-                  {getAddButtonLabel(selectedNode.type, selectedNode.name)}
-                </Button>
-              )}
+            {/* CRUD action buttons for the selected item */}
+            <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
               <IconButton 
                 size="small" 
                 onClick={() => {
@@ -807,11 +785,11 @@ const InfrastructureCloudNative: React.FC = () => {
                   setFormData(selectedNode.data);
                   setOpenDialog(true);
                 }}
-                title="Edit"
+                title="Edit this item"
               >
                 <Edit />
               </IconButton>
-              <IconButton size="small" onClick={handleDelete} title="Delete">
+              <IconButton size="small" onClick={handleDelete} title="Delete this item">
                 <Delete />
               </IconButton>
             </Stack>
@@ -852,6 +830,72 @@ const InfrastructureCloudNative: React.FC = () => {
                   </Typography>
                 </Box>
               )}
+            </Box>
+          )}
+          
+          {/* Create Child Resource Section */}
+          {(selectedNode.type === 'service' || getChildTypeForNode(selectedNode.type)) && (
+            <Box>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="h6" gutterBottom color="primary">
+                Create Child Resource
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Add a new {(() => {
+                  if (selectedNode.type === 'service' && selectedNode.name === 'Compute') {
+                    return 'compute resource';
+                  } else {
+                    const childType = getChildTypeForNode(selectedNode.type);
+                    const childTypeMap: { [key: string]: string } = {
+                      'cloud': 'cloud provider',
+                      'datacenter': 'datacenter',
+                      'compute': 'compute node',
+                      'container': 'container',
+                      'resource-group': 'resource group'
+                    };
+                    return childTypeMap[childType || ''] || childType;
+                  }
+                })()} under this {(() => {
+                  const typeMap: { [key: string]: string } = {
+                    'organization': 'Organization',
+                    'environment': 'Environment', 
+                    'region': 'Region',
+                    'availability-zone': 'Availability Zone',
+                    'cloud': 'Cloud',
+                    'datacenter': 'Datacenter',
+                    'compute': 'Compute',
+                    'container': 'Container',
+                    'service': 'Service',
+                    'resource-group': 'Resource Group'
+                  };
+                  return (typeMap[selectedNode.type] || selectedNode.type).toLowerCase();
+                })()}.
+              </Typography>
+              <Button 
+                variant="contained" 
+                color="primary"
+                startIcon={<Add />}
+                onClick={() => {
+                  if (selectedNode.type === 'service') {
+                    // For service nodes, determine what type to add based on service name
+                    if (selectedNode.name === 'Compute') {
+                      handleAdd('compute', selectedNode);
+                    } else {
+                      // For other services, we might need specific handling
+                      handleAdd('compute', selectedNode); // Default to compute for now
+                    }
+                  } else {
+                    const childType = getChildTypeForNode(selectedNode.type);
+                    if (childType) {
+                      handleAdd(childType, selectedNode);
+                    }
+                  }
+                }}
+                title={getAddButtonLabel(selectedNode.type, selectedNode.name)}
+                sx={{ mt: 1 }}
+              >
+                {getAddButtonLabel(selectedNode.type, selectedNode.name)}
+              </Button>
             </Box>
           )}
         </CardContent>

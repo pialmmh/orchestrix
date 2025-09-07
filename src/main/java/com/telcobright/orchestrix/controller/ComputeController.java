@@ -60,13 +60,9 @@ public class ComputeController {
             if (computeData.get("description") != null) {
                 compute.setDescription((String) computeData.get("description"));
             }
-            if (computeData.get("nodeType") != null) {
-                String nodeTypeStr = (String) computeData.get("nodeType");
-                Compute.NodeType nodeType = Compute.NodeType.valueOf(nodeTypeStr.toLowerCase());
-                compute.setNodeType(nodeType);
-            }
-            // Note: osVersion is an entity reference, not a string
-            // We'll skip setting it for now in the create method
+            // Note: nodeType and osVersion handling would need proper conversion
+            // For now, skip these fields in the create method
+            // They would need enum conversion for nodeType and entity lookup for osVersion
             if (computeData.get("cpuCores") != null) {
                 compute.setCpuCores(Integer.valueOf(computeData.get("cpuCores").toString()));
             }

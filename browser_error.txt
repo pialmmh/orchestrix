@@ -1,0 +1,96 @@
+Compiled with problems:
+×
+ERROR in src/components/ComputeEditDialog.tsx:342:17
+TS2322: Type '{ label: string; type: "number"; step: string; value: any; onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void; fullWidth: true; size: "small"; }' is not assignable to type 'IntrinsicAttributes & { variant?: TextFieldVariants | undefined; } & Omit<OutlinedTextFieldProps | StandardTextFieldProps | FilledTextFieldProps, "variant">'.
+  Property 'step' does not exist on type 'IntrinsicAttributes & { variant?: TextFieldVariants | undefined; } & Omit<OutlinedTextFieldProps | StandardTextFieldProps | FilledTextFieldProps, "variant">'.
+    340 |                 label="Load Average"
+    341 |                 type="number"
+  > 342 |                 step="0.01"
+        |                 ^^^^
+    343 |                 value={formData.loadAverage || ''}
+    344 |                 onChange={(e) => setFormData({ ...formData, loadAverage: parseFloat(e.target.value) || 0 })}
+    345 |                 fullWidth
+ERROR in src/pages/InfrastructureCloudNative.tsx:540:13
+TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; xs: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; xs: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'xs' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+    538 |         {selectedNode.type === 'cloud' && data && (
+    539 |           <Grid container spacing={3}>
+  > 540 |             <Grid xs={6}>
+        |             ^^^^^^^^^^^^^
+    541 |               <Card>
+    542 |                 <CardContent>
+    543 |                   <Typography variant="h6" gutterBottom>General Information</Typography>
+ERROR in src/pages/InfrastructureCloudNative.tsx:552:13
+TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; xs: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; xs: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'xs' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+    550 |               </Card>
+    551 |             </Grid>
+  > 552 |             <Grid xs={6}>
+        |             ^^^^^^^^^^^^^
+    553 |               <Card>
+    554 |                 <CardContent>
+    555 |                   <Typography variant="h6" gutterBottom>Resources</Typography>
+ERROR in src/pages/InfrastructureCloudNative.tsx:567:13
+TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; xs: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; xs: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'xs' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+    565 |         {selectedNode.type === 'datacenter' && data && (
+    566 |           <Grid container spacing={3}>
+  > 567 |             <Grid xs={6}>
+        |             ^^^^^^^^^^^^^
+    568 |               <Card>
+    569 |                 <CardContent>
+    570 |                   <Typography variant="h6" gutterBottom>General Information</Typography>
+ERROR in src/pages/InfrastructureCloudNative.tsx:585:13
+TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; xs: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; xs: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'xs' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+    583 |         {selectedNode.type === 'compute' && data && (
+    584 |           <Grid container spacing={3}>
+  > 585 |             <Grid xs={6}>
+        |             ^^^^^^^^^^^^^
+    586 |               <Card>
+    587 |                 <CardContent>
+    588 |                   <Typography variant="h6" gutterBottom>General Information</Typography>
+ERROR in src/pages/InfrastructureCloudNative.tsx:597:13
+TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; xs: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; xs: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'xs' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+    595 |               </Card>
+    596 |             </Grid>
+  > 597 |             <Grid xs={6}>
+        |             ^^^^^^^^^^^^^
+    598 |               <Card>
+    599 |                 <CardContent>
+    600 |                   <Typography variant="h6" gutterBottom>Resources</Typography>
+ERROR in src/pages/InfrastructureCloudNative.tsx:612:13
+TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; xs: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; xs: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'xs' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+    610 |         {selectedNode.type === 'container' && data && (
+    611 |           <Grid container spacing={3}>
+  > 612 |             <Grid xs={12}>
+        |             ^^^^^^^^^^^^^^
+    613 |               <Card>
+    614 |                 <CardContent>
+    615 |                   <Typography variant="h6" gutterBottom>Container Information</Typography>

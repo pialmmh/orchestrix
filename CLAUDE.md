@@ -98,3 +98,4 @@ Check these files:
 - Template: `images/lxc/CONTAINER_SCAFFOLD_TEMPLATE.md`
 - Instructions: `AI_AGENT_INSTRUCTIONS.md`
 - Reference: `images/lxc/dev-env/` directory
+- when I ask you to "read browser error", you should look for a file "browser_error.txt", I will paste the latest error from browser before asking you to read.
