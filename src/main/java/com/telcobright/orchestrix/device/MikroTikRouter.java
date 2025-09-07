@@ -191,57 +191,72 @@ public class MikroTikRouter extends Router {
             try {
                 log.debug("Executing RouterOS command: {}", command);
                 
-                // Send command and wait for response
+                // Send command
                 routerOSWriter.println(command);
                 routerOSWriter.flush();
                 
-                // Collect response until we get back to prompt
+                // Give RouterOS time to process command
+                Thread.sleep(2500);
+                
+                // Collect response with timeout-based approach
                 StringBuilder response = new StringBuilder();
                 String line;
-                boolean foundOutput = false;
-                int maxLines = 500; // Prevent infinite loops
-                int lineCount = 0;
+                int emptyReadCount = 0;
+                int maxEmptyReads = 20; // 2 seconds of empty reads = done
+                boolean foundCommandOutput = false;
                 
-                while ((line = routerOSReader.readLine()) != null && lineCount < maxLines) {
-                    lineCount++;
-                    
-                    // Skip command echo
-                    if (line.trim().equals(command)) {
-                        continue;
-                    }
-                    
-                    // Check if we're back to RouterOS prompt - THIS IS KEY!
-                    if (line.contains("[admin@") && line.contains("] >")) {
-                        if (foundOutput) {
-                            // We got output and now back to prompt - done!
-                            break;
-                        } else {
-                            // This might be initial prompt, continue reading
+                while (emptyReadCount < maxEmptyReads) {
+                    if (routerOSReader.ready()) {
+                        line = routerOSReader.readLine();
+                        emptyReadCount = 0; // Reset counter when we get data
+                        
+                        if (line == null) break;
+                        
+                        log.trace("RouterOS line: '{}'", line);
+                        
+                        // Skip command echo
+                        if (line.trim().equals(command)) {
                             continue;
                         }
-                    }
-                    
-                    // Skip empty lines at start
-                    if (!foundOutput && line.trim().isEmpty()) {
-                        continue;
-                    }
-                    
-                    // Skip RouterOS banner/help
-                    if (line.contains("MikroTik RouterOS") || 
-                        line.contains("MMM") || line.contains("KKK") ||
-                        line.contains("Gives the list of available commands")) {
-                        continue;
-                    }
-                    
-                    // This looks like actual command output
-                    if (!line.trim().isEmpty()) {
+                        
+                        // Check for prompt return - command is complete
+                        if (line.contains("[admin@") && line.contains("] >")) {
+                            log.debug("Found RouterOS prompt return, command complete");
+                            break;
+                        }
+                        
+                        // Skip RouterOS help/banner content  
+                        if (line.contains("Gives the list of available commands") ||
+                            line.contains("Gives help on the command") ||
+                            line.contains("MikroTik RouterOS") ||
+                            line.contains("MMM") || line.contains("KKK")) {
+                            continue;
+                        }
+                        
+                        // Collect ALL output (including empty lines for formatting)
                         response.append(line).append("\n");
-                        foundOutput = true;
+                        
+                        // Mark that we found some output (even if line is empty)
+                        if (!line.trim().isEmpty()) {
+                            foundCommandOutput = true;
+                        }
+                        
+                    } else {
+                        // No data available, wait a bit
+                        Thread.sleep(100);
+                        emptyReadCount++;
                     }
                 }
                 
                 String result = response.toString().trim();
-                log.debug("RouterOS command '{}' returned {} characters", command, result.length());
+                
+                if (emptyReadCount >= maxEmptyReads && !foundCommandOutput) {
+                    log.warn("RouterOS command '{}' timed out without output", command);
+                    return "Command timeout - no output received";
+                }
+                
+                log.debug("RouterOS command '{}' completed: {} characters, {} empty reads", 
+                         command, result.length(), emptyReadCount);
                 
                 return result;
                 
