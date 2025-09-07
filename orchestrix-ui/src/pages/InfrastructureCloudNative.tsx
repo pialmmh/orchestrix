@@ -905,8 +905,8 @@ const InfrastructureCloudNative: React.FC = () => {
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h4" gutterBottom>
+      <Box sx={{ px: 2, py: 1, borderBottom: 1, borderColor: 'divider' }}>
+        <Typography variant="h4" sx={{ mb: 0.5 }}>
           Cloud Infrastructure Management
         </Typography>
         <Typography variant="body2" color="text.secondary">

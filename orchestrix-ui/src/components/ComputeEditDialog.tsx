@@ -68,6 +68,7 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
                 value={formData.name || ''}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 fullWidth
+                required
                 size="small"
               />
               <TextField
@@ -85,6 +86,17 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
                 size="small"
               />
               <FormControl fullWidth size="small">
+                <InputLabel>Node Type</InputLabel>
+                <Select
+                  value={formData.nodeType || ''}
+                  onChange={(e) => setFormData({ ...formData, nodeType: e.target.value })}
+                  label="Node Type"
+                >
+                  <MenuItem value="dedicated_server">Dedicated Server</MenuItem>
+                  <MenuItem value="vm">Virtual Machine</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl fullWidth size="small">
                 <InputLabel>Status</InputLabel>
                 <Select
                   value={formData.status || ''}
@@ -100,7 +112,7 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
                 label="CPU Cores"
                 type="number"
                 value={formData.cpuCores || ''}
-                onChange={(e) => setFormData({ ...formData, cpuCores: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setFormData({ ...formData, cpuCores: parseInt(e.target.value) || null })}
                 fullWidth
                 size="small"
               />
@@ -108,7 +120,15 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
                 label="Memory (GB)"
                 type="number"
                 value={formData.memoryGb || ''}
-                onChange={(e) => setFormData({ ...formData, memoryGb: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setFormData({ ...formData, memoryGb: parseInt(e.target.value) || null })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Disk (GB)"
+                type="number"
+                value={formData.diskGb || ''}
+                onChange={(e) => setFormData({ ...formData, diskGb: parseInt(e.target.value) || null })}
                 fullWidth
                 size="small"
               />
@@ -157,6 +177,37 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
                 fullWidth
                 size="small"
               />
+              <TextField
+                label="Rack Location"
+                value={formData.rackLocation || ''}
+                onChange={(e) => setFormData({ ...formData, rackLocation: e.target.value })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Rack Unit"
+                type="number"
+                value={formData.rackUnit || ''}
+                onChange={(e) => setFormData({ ...formData, rackUnit: parseInt(e.target.value) || null })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Power Consumption (Watts)"
+                type="number"
+                value={formData.powerConsumptionWatts || ''}
+                onChange={(e) => setFormData({ ...formData, powerConsumptionWatts: parseInt(e.target.value) || null })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Thermal Output (BTU)"
+                type="number"
+                value={formData.thermalOutputBtu || ''}
+                onChange={(e) => setFormData({ ...formData, thermalOutputBtu: parseInt(e.target.value) || null })}
+                fullWidth
+                size="small"
+              />
               <FormControlLabel
                 control={
                   <Checkbox
@@ -165,6 +216,7 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
                   />
                 }
                 label="Is Physical Server"
+                sx={{ gridColumn: 'span 2' }}
               />
             </Box>
           )}
@@ -172,17 +224,31 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
           {/* OS & Software Tab */}
           {activeTab === 2 && (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>OS Type</InputLabel>
+                <Select
+                  value={formData.osType || ''}
+                  onChange={(e) => setFormData({ ...formData, osType: e.target.value })}
+                  label="OS Type"
+                >
+                  <MenuItem value="LINUX">Linux</MenuItem>
+                  <MenuItem value="WINDOWS">Windows</MenuItem>
+                  <MenuItem value="UNIX">Unix</MenuItem>
+                  <MenuItem value="MACOS">macOS</MenuItem>
+                </Select>
+              </FormControl>
               <TextField
-                label="Operating System"
-                value={formData.operatingSystem || ''}
-                onChange={(e) => setFormData({ ...formData, operatingSystem: e.target.value })}
+                label="OS Distribution"
+                value={formData.osDistribution || ''}
+                onChange={(e) => setFormData({ ...formData, osDistribution: e.target.value })}
                 fullWidth
                 size="small"
+                placeholder="Ubuntu, RHEL, CentOS, Windows Server, etc."
               />
               <TextField
                 label="OS Version"
-                value={formData.osVersion || ''}
-                onChange={(e) => setFormData({ ...formData, osVersion: e.target.value })}
+                value={formData.osVersionString || ''}
+                onChange={(e) => setFormData({ ...formData, osVersionString: e.target.value })}
                 fullWidth
                 size="small"
               />
@@ -194,23 +260,50 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
                 size="small"
               />
               <TextField
-                label="Hypervisor"
-                value={formData.hypervisor || ''}
-                onChange={(e) => setFormData({ ...formData, hypervisor: e.target.value })}
+                label="Firmware Version"
+                value={formData.firmwareVersion || ''}
+                onChange={(e) => setFormData({ ...formData, firmwareVersion: e.target.value })}
                 fullWidth
                 size="small"
               />
-              <Box sx={{ gridColumn: 'span 2' }}>
-                <TextField
-                  label="Installed Software"
-                  value={formData.installedSoftware || ''}
-                  onChange={(e) => setFormData({ ...formData, installedSoftware: e.target.value })}
-                  fullWidth
-                  multiline
-                  rows={2}
-                  size="small"
-                />
-              </Box>
+              <TextField
+                label="BIOS Version"
+                value={formData.biosVersion || ''}
+                onChange={(e) => setFormData({ ...formData, biosVersion: e.target.value })}
+                fullWidth
+                size="small"
+              />
+              <FormControl fullWidth size="small">
+                <InputLabel>Hypervisor</InputLabel>
+                <Select
+                  value={formData.hypervisor || ''}
+                  onChange={(e) => setFormData({ ...formData, hypervisor: e.target.value })}
+                  label="Hypervisor"
+                >
+                  <MenuItem value="VMWARE">VMware</MenuItem>
+                  <MenuItem value="KVM">KVM</MenuItem>
+                  <MenuItem value="HYPERV">Hyper-V</MenuItem>
+                  <MenuItem value="XEN">Xen</MenuItem>
+                  <MenuItem value="">None</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl fullWidth size="small">
+                <InputLabel>Virtualization Type</InputLabel>
+                <Select
+                  value={formData.virtualizationType || ''}
+                  onChange={(e) => setFormData({ ...formData, virtualizationType: e.target.value })}
+                  label="Virtualization Type"
+                >
+                  <MenuItem value="KVM">KVM</MenuItem>
+                  <MenuItem value="VMWARE">VMware</MenuItem>
+                  <MenuItem value="HYPERV">Hyper-V</MenuItem>
+                  <MenuItem value="XEN">Xen</MenuItem>
+                  <MenuItem value="DOCKER">Docker</MenuItem>
+                  <MenuItem value="LXC">LXC</MenuItem>
+                  <MenuItem value="LXD">LXD</MenuItem>
+                  <MenuItem value="NONE">None</MenuItem>
+                </Select>
+              </FormControl>
             </Box>
           )}
 
