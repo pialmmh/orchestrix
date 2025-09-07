@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ReactElement } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -6,48 +6,24 @@ import {
   Button,
   IconButton,
   Chip,
-  Divider,
   Card,
   CardContent,
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   Alert,
-  Menu,
-  ListItemIcon,
-  ListItemText,
-  FormControlLabel,
-  Checkbox,
-  Stack,
-  Tooltip,
   Breadcrumbs,
   Link,
   Tabs,
   Tab,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
-import Grid from '@mui/material/Grid';
 import {
-  Add,
-  Edit,
-  Delete,
   Refresh,
-  ExpandMore,
-  ChevronRight,
   NavigateNext,
   Cloud as CloudIcon,
   Business,
   Computer,
-  Storage as StorageIcon,
   Public as PublicIcon,
-  LanOutlined as LanIcon,
-  HubOutlined as HubIcon,
-  Domain,
+  RouterOutlined as RouterIcon,
   Domain as DataCenterIcon,
   Settings as SettingsIcon,
   AccountTree as AccountTreeIcon,
@@ -57,11 +33,13 @@ import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import axios from 'axios';
 import config from '../config';
+import ComputeEditDialog from '../components/ComputeEditDialog';
+import NetworkDeviceEditDialog from '../components/NetworkDeviceEditDialog';
 
 interface TreeNode {
   id: string;
   name: string;
-  type: 'organization' | 'environment' | 'cloud' | 'region' | 'az' | 'datacenter' | 'pool' | 'compute' | 'container' | 'resource-group' | 'service';
+  type: 'organization' | 'environment' | 'cloud' | 'region' | 'az' | 'datacenter' | 'pool' | 'compute' | 'container' | 'resource-group' | 'service' | 'network-device';
   data?: any;
   children?: TreeNode[];
   metadata?: {
@@ -95,6 +73,9 @@ const InfrastructureCloudNative: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string[]>(['org-root', 'environments']);
   
+  // Tenant state
+  const [tenant, setTenant] = useState<'organization' | 'partners'>('partners');
+  
   // Dialog states
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogType, setDialogType] = useState<string | null>(null);
@@ -107,6 +88,12 @@ const InfrastructureCloudNative: React.FC = () => {
   const [viewerTabIndex, setViewerTabIndex] = useState(0);
   const [jsonModalOpen, setJsonModalOpen] = useState(false);
   
+  // Compute and Network Device Edit Dialog states
+  const [openComputeEditDialog, setOpenComputeEditDialog] = useState(false);
+  const [computeEditData, setComputeEditData] = useState<any>(null);
+  const [openNetworkDeviceEditDialog, setOpenNetworkDeviceEditDialog] = useState(false);
+  const [networkDeviceEditData, setNetworkDeviceEditData] = useState<any>(null);
+  
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
     mouseX: number;
@@ -115,15 +102,12 @@ const InfrastructureCloudNative: React.FC = () => {
   } | null>(null);
 
   useEffect(() => {
-    // Print configuration in development
     config.printConfiguration();
-    
     fetchInfrastructureData();
     fetchPartners();
     fetchEnvironments();
-  }, []);
+  }, [tenant]);
 
-  // Reset viewer tab when node selection changes
   useEffect(() => {
     setViewerTabIndex(0);
   }, [selectedNodeId]);
@@ -132,7 +116,7 @@ const InfrastructureCloudNative: React.FC = () => {
     try {
       const response = await axios.get(config.getApiEndpoint('/partners'));
       const filtered = response.data.partners.filter((p: Partner) => 
-        p.roles && (p.roles.includes('customer') || p.roles.includes('self'))
+        p.roles && (p.roles.includes('customer') || p.roles.includes('self') || p.roles.includes('vendor'))
       );
       setPartners(filtered);
     } catch (error) {
@@ -145,7 +129,6 @@ const InfrastructureCloudNative: React.FC = () => {
       const response = await axios.get(config.getApiEndpoint('/environments'));
       setEnvironments(response.data || []);
     } catch (error) {
-      // If environments endpoint doesn't exist yet, create default ones
       setEnvironments([
         { id: 1, name: 'Production', code: 'PROD', type: 'PRODUCTION' },
         { id: 2, name: 'Development', code: 'DEV', type: 'DEVELOPMENT' },
@@ -157,15 +140,19 @@ const InfrastructureCloudNative: React.FC = () => {
   const fetchInfrastructureData = async () => {
     setLoading(true);
     try {
-      // Fetch all data in parallel
-      const [cloudsRes, regionsRes, azsRes, datacentersRes, poolsRes, computesRes, resourceGroupsRes] = await Promise.allSettled([
-        axios.get(config.getApiEndpoint('/clouds')),
-        axios.get(config.getApiEndpoint('/regions')).catch(() => ({ data: [] })),
-        axios.get(config.getApiEndpoint('/availability-zones')).catch(() => ({ data: [] })),
-        axios.get(config.getApiEndpoint('/datacenters')),
-        axios.get(config.getApiEndpoint('/resource-pools')).catch(() => ({ data: [] })),
-        axios.get(config.getApiEndpoint('/computes')).catch(() => ({ data: [] })),
-        axios.get(config.getApiEndpoint('/resource-groups')).catch(() => ({ data: [] }))
+      const tenantParam = tenant === 'organization' ? 'organization' : 'other';
+      console.log('🔍 fetchInfrastructureData - tenant:', tenant, 'tenantParam:', tenantParam);
+      console.log('🔍 fetchInfrastructureData - partners:', partners);
+      
+      const [cloudsRes, regionsRes, azsRes, datacentersRes, poolsRes, computesRes, networkDevicesRes, resourceGroupsRes] = await Promise.allSettled([
+        axios.get(config.getApiEndpoint(`/clouds?tenant=${tenantParam}`)),
+        axios.get(config.getApiEndpoint(`/regions?tenant=${tenantParam}`)).catch(() => ({ data: [] })),
+        axios.get(config.getApiEndpoint(`/availability-zones?tenant=${tenantParam}`)).catch(() => ({ data: [] })),
+        axios.get(config.getApiEndpoint(`/datacenters?tenant=${tenantParam}`)),
+        axios.get(config.getApiEndpoint(`/resource-pools?tenant=${tenantParam}`)).catch(() => ({ data: [] })),
+        axios.get(config.getApiEndpoint(`/computes?tenant=${tenantParam}`)).catch(() => ({ data: [] })),
+        axios.get(config.getApiEndpoint(`/network-devices?tenant=${tenantParam}`)).catch(() => ({ data: [] })),
+        axios.get(config.getApiEndpoint(`/resource-groups?tenant=${tenantParam}`)).catch(() => ({ data: [] }))
       ]);
 
       const clouds = cloudsRes.status === 'fulfilled' ? cloudsRes.value.data : [];
@@ -174,52 +161,198 @@ const InfrastructureCloudNative: React.FC = () => {
       const datacenters = datacentersRes.status === 'fulfilled' ? datacentersRes.value.data : [];
       const pools = poolsRes.status === 'fulfilled' ? poolsRes.value.data : [];
       const computes = computesRes.status === 'fulfilled' ? computesRes.value.data : [];
+      const networkDevices = networkDevicesRes.status === 'fulfilled' ? networkDevicesRes.value.data : [];
       const resourceGroups = resourceGroupsRes.status === 'fulfilled' ? resourceGroupsRes.value.data : [];
-      const dcResourceGroups: any[] = []; // Will be populated from datacenter data
 
-      // Build the hierarchical tree structure
-      const tree: TreeNode[] = [
-        {
-          id: 'org-root',
-          name: 'Organization',
-          type: 'organization',
-          children: [
-            // Group by environments first
-            {
-              id: 'env-prod',
-              name: 'Production Environment',
-              type: 'environment',
-              data: { type: 'PRODUCTION' },
-              children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, resourceGroups, dcResourceGroups, 'PRODUCTION')
-            },
-            {
-              id: 'env-dev',
-              name: 'Development Environment',
-              type: 'environment',
-              data: { type: 'DEVELOPMENT' },
-              children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, resourceGroups, dcResourceGroups, 'DEVELOPMENT')
-            },
-            {
-              id: 'env-staging',
-              name: 'Staging Environment',
-              type: 'environment',
-              data: { type: 'STAGING' },
-              children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, resourceGroups, dcResourceGroups, 'STAGING')
-            }
-          ]
-        }
-      ];
+      console.log('📊 API Data fetched:');
+      console.log('  - clouds:', clouds);
+      console.log('  - regions:', regions);
+      console.log('  - azs:', azs);
+      console.log('  - datacenters:', datacenters);
+      console.log('  - pools:', pools);
+      console.log('  - computes:', computes);
+      console.log('  - networkDevices:', networkDevices);
+      console.log('  - resourceGroups:', resourceGroups);
+
+      const tree: TreeNode[] = buildTenantTree(tenant, partners, clouds, regions, azs, datacenters, pools, computes, networkDevices, resourceGroups);
+      console.log('🌳 Built tree:', tree);
       
       setTreeData(tree);
       setRegions(regions);
       setAvailabilityZones(azs);
       setError(null);
     } catch (error) {
-      console.error('Error fetching infrastructure data:', error);
+      console.error('❌ Error fetching infrastructure data:', error);
       setTreeData([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const buildTenantTree = (
+    tenantType: 'organization' | 'partners',
+    partners: Partner[],
+    clouds: any[], 
+    regions: any[], 
+    azs: any[], 
+    datacenters: any[], 
+    pools: any[], 
+    computes: any[],
+    networkDevices: any[],
+    resourceGroups: any[]
+  ): TreeNode[] => {
+    console.log('🌳 buildTenantTree called with:');
+    console.log('  - tenantType:', tenantType);
+    console.log('  - partners:', partners);
+    console.log('  - clouds:', clouds.length);
+    console.log('  - regions:', regions.length);
+    console.log('  - azs:', azs.length);
+    console.log('  - datacenters:', datacenters.length);
+    
+    if (tenantType === 'organization') {
+      // Show Telcobright's own infrastructure (partners with 'self' role)
+      const selfPartners = partners.filter(p => p.roles && p.roles.includes('self'));
+      console.log('🏢 Organization mode - selfPartners:', selfPartners);
+      
+      if (selfPartners.length === 0) {
+        console.log('⚠️ No self partners found, returning empty tree');
+        return [];
+      }
+      
+      return selfPartners.map(partner => ({
+        id: `partner-${partner.id}`,
+        name: partner.displayName,
+        type: 'organization' as const,
+        data: partner,
+        children: [
+          {
+            id: `${partner.id}-env-prod`,
+            name: 'Production Environment',
+            type: 'environment' as const,
+            data: { type: 'PRODUCTION', partnerId: partner.id },
+            children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, networkDevices, resourceGroups, 'PRODUCTION', partner.id)
+          },
+          {
+            id: `${partner.id}-env-dev`,
+            name: 'Development Environment', 
+            type: 'environment' as const,
+            data: { type: 'DEVELOPMENT', partnerId: partner.id },
+            children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, networkDevices, resourceGroups, 'DEVELOPMENT', partner.id)
+          },
+          {
+            id: `${partner.id}-env-staging`,
+            name: 'Staging Environment',
+            type: 'environment' as const,
+            data: { type: 'STAGING', partnerId: partner.id },
+            children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, networkDevices, resourceGroups, 'STAGING', partner.id)
+          }
+        ]
+      }));
+    } else {
+      // Show other partners' infrastructure (partners without 'self' role)
+      const otherPartners = partners.filter(p => !p.roles.includes('self'));
+      return otherPartners.map(partner => ({
+        id: `partner-${partner.id}`,
+        name: `${partner.displayName}${partner.roles.includes('customer') ? ' (Customer)' : partner.roles.includes('vendor') ? ' (Vendor)' : ''}`,
+        type: 'organization' as const,
+        data: partner,
+        children: [
+          {
+            id: `${partner.id}-env-prod`,
+            name: 'Production Environment',
+            type: 'environment' as const,
+            data: { type: 'PRODUCTION', partnerId: partner.id },
+            children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, networkDevices, resourceGroups, 'PRODUCTION', partner.id)
+          },
+          {
+            id: `${partner.id}-env-dev`,
+            name: 'Development Environment',
+            type: 'environment' as const,
+            data: { type: 'DEVELOPMENT', partnerId: partner.id },
+            children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, networkDevices, resourceGroups, 'DEVELOPMENT', partner.id)
+          },
+          {
+            id: `${partner.id}-env-staging`,
+            name: 'Staging Environment',
+            type: 'environment' as const,
+            data: { type: 'STAGING', partnerId: partner.id },
+            children: buildEnvironmentTree(clouds, regions, azs, datacenters, pools, computes, networkDevices, resourceGroups, 'STAGING', partner.id)
+          }
+        ]
+      }));
+    }
+  };
+
+  const buildServiceChildren = (
+    serviceName: string, 
+    resourceGroupName: string, 
+    datacenterId: number,
+    computes: any[],
+    networkDevices: any[]
+  ): TreeNode[] => {
+    const children: TreeNode[] = [];
+    
+    if (serviceName === 'Compute') {
+      const dcComputes = computes.filter(c => c.datacenterId === datacenterId);
+      children.push(...dcComputes.map((compute: any) => ({
+        id: `compute-${compute.id}`,
+        name: compute.name || compute.hostname || `Compute-${compute.id}`,
+        type: 'compute' as const,
+        data: compute,
+        metadata: {
+          hostname: compute.hostname,
+          ipAddress: compute.primaryIpAddress
+        },
+        children: []
+      })));
+    }
+    
+    if (serviceName === 'Router' && resourceGroupName === 'network_element') {
+      const dcNetworkDevices = networkDevices.filter(nd => nd.datacenterId === datacenterId && nd.deviceType === 'Router');
+      children.push(...dcNetworkDevices.map((device: any) => ({
+        id: `network-device-${device.id}`,
+        name: device.displayName || device.name || `Router-${device.id}`,
+        type: 'network-device' as const,
+        data: device,
+        metadata: {
+          hostname: device.managementIp,
+          ipAddress: device.managementIp
+        },
+        children: []
+      })));
+    }
+    
+    if (serviceName === 'Switch' && resourceGroupName === 'network_element') {
+      const dcNetworkDevices = networkDevices.filter(nd => nd.datacenterId === datacenterId && nd.deviceType === 'Switch');
+      children.push(...dcNetworkDevices.map((device: any) => ({
+        id: `network-device-${device.id}`,
+        name: device.displayName || device.name || `Switch-${device.id}`,
+        type: 'network-device' as const,
+        data: device,
+        metadata: {
+          hostname: device.managementIp,
+          ipAddress: device.managementIp
+        },
+        children: []
+      })));
+    }
+    
+    if (serviceName === 'Firewall' && resourceGroupName === 'network_element') {
+      const dcNetworkDevices = networkDevices.filter(nd => nd.datacenterId === datacenterId && nd.deviceType === 'Firewall');
+      children.push(...dcNetworkDevices.map((device: any) => ({
+        id: `network-device-${device.id}`,
+        name: device.displayName || device.name || `Firewall-${device.id}`,
+        type: 'network-device' as const,
+        data: device,
+        metadata: {
+          hostname: device.managementIp,
+          ipAddress: device.managementIp
+        },
+        children: []
+      })));
+    }
+    
+    return children;
   };
 
   const buildEnvironmentTree = (
@@ -229,24 +362,29 @@ const InfrastructureCloudNative: React.FC = () => {
     datacenters: any[], 
     pools: any[], 
     computes: any[],
+    networkDevices: any[],
     resourceGroups: any[],
-    dcResourceGroups: any[],
-    envType: string
+    envType: string,
+    partnerId: number
   ): TreeNode[] => {
-    // Filter datacenters by environment
-    const envDatacenters = datacenters.filter(dc => 
-      !dc.environment || dc.environment.type === envType
+    const partnerClouds = clouds.filter(cloud => 
+      cloud.partner && cloud.partner.id === partnerId
     );
     
-    return clouds.map((cloud: any, cloudIndex: number) => ({
-      id: `cloud-${cloud.id}-${envType}-${cloudIndex}`,
+    const envDatacenters = datacenters.filter(dc => 
+      (!dc.environment || dc.environment.type === envType) &&
+      dc.partner && dc.partner.id === partnerId
+    );
+    
+    return partnerClouds.map((cloud: any, cloudIndex: number) => ({
+      id: `cloud-${cloud.id}-${envType}-${cloudIndex}-${partnerId}`,
       name: cloud.name,
       type: 'cloud' as const,
       data: cloud,
       children: regions
         .filter(r => r.cloud?.id === cloud.id || r.cloudId === cloud.id)
         .map((region: any, regionIndex: number) => ({
-          id: `region-${cloud.id}-${region.id}-${envType}-${cloudIndex}`,
+          id: `region-${cloud.id}-${region.id}-${envType}-${cloudIndex}-${partnerId}`,
           name: region.name,
           type: 'region' as const,
           data: region,
@@ -256,7 +394,7 @@ const InfrastructureCloudNative: React.FC = () => {
           children: azs
             .filter(az => az.region?.id === region.id || az.regionId === region.id)
             .map((az: any, azIndex: number) => ({
-              id: `az-${cloud.id}-${region.id}-${az.id}-${envType}-${cloudIndex}`,
+              id: `az-${cloud.id}-${region.id}-${az.id}-${envType}-${cloudIndex}-${partnerId}`,
               name: az.name,
               type: 'az' as const,
               data: az,
@@ -265,371 +403,220 @@ const InfrastructureCloudNative: React.FC = () => {
               },
               children: envDatacenters
                 .filter(dc => dc.availabilityZone?.id === az.id || dc.availabilityZoneId === az.id)
-                .map((dc: any, dcIndex: number) => ({
-                  id: `datacenter-${cloud.id}-${az.id}-${dc.id}-${envType}-${cloudIndex}`,
-                  name: dc.name,
-                  type: 'datacenter' as const,
-                  data: dc,
-                  metadata: {
-                    tier: dc.tier || 3,
-                    drPaired: dc.drPairedDatacenter != null,
-                    utilization: dc.utilization || 0
-                  },
-                  children: (() => {
-                    // Use resource groups assigned to this datacenter
-                    // If datacenter has assigned resource groups, use them
-                    // Otherwise show active resource groups (for new datacenters)
-                    const dcAssignedGroups = dc.datacenterResourceGroups || [];
+                .map((dc: any, dcIndex: number) => {
+                  const dcAssignedGroups = dc.datacenterResourceGroups || [];
+                  
+                  let resourceGroupNodes: TreeNode[] = [];
+                  
+                  if (dcAssignedGroups.length > 0) {
+                    const uniqueRgs = new Map();
+                    dcAssignedGroups.forEach((dcRg: any) => {
+                      const rg = dcRg.resourceGroup;
+                      if (!uniqueRgs.has(rg.id)) {
+                        uniqueRgs.set(rg.id, rg);
+                      }
+                    });
                     
-                    if (dcAssignedGroups.length > 0) {
-                      // Use the assigned resource groups from the datacenter
-                      return dcAssignedGroups.map((dcRg: any, rgIndex: number) => {
-                        const rg = dcRg.resourceGroup;
-                        return {
-                          id: `resource-group-${dc.id}-${rg.id}-${envType}-${rgIndex}-${dcIndex}`,
-                          name: rg.displayName || rg.name,
-                          type: 'resource-group' as const,
-                          data: rg,
-                          metadata: {
-                            category: rg.category,
-                            icon: rg.icon,
-                            color: rg.color
-                          },
-                          children: (rg.serviceTypes || []).map((service: string, serviceIndex: number) => ({
-                            id: `service-${dc.id}-${rg.id}-${serviceIndex}-${envType}-${rgIndex}-${dcIndex}`,
-                            name: service,
-                            type: 'service' as const,
-                            data: { name: service, resourceGroupId: rg.id, datacenterId: dc.id },
-                            metadata: {
-                              resourceGroup: rg.name
-                            },
-                            children: []
-                          }))
-                        };
-                      });
-                    } else {
-                      // For datacenters without assigned groups, show active resource groups
-                      const activeResourceGroups = resourceGroups.filter((rg: any) => 
-                        rg.isActive !== false
-                      );
-                      
-                      return activeResourceGroups.map((rg: any, rgIndex: number) => ({
-                        id: `resource-group-${dc.id}-${rg.id}-${envType}-${rgIndex}-${dcIndex}`,
-                        name: rg.displayName || rg.name,
-                        type: 'resource-group' as const,
-                        data: rg,
+                    resourceGroupNodes = Array.from(uniqueRgs.values()).map((rg: any, rgIndex: number) => ({
+                      id: `resource-group-${dc.id}-${rg.id}-${envType}-${rgIndex}-${dcIndex}-${partnerId}`,
+                      name: rg.displayName || rg.name,
+                      type: 'resource-group' as const,
+                      data: rg,
+                      metadata: {
+                        category: rg.category,
+                        icon: rg.icon,
+                        color: rg.color
+                      },
+                      children: (rg.serviceTypes || []).map((service: string, serviceIndex: number) => ({
+                        id: `service-${dc.id}-${rg.id}-${serviceIndex}-${envType}-${rgIndex}-${dcIndex}-${partnerId}`,
+                        name: service,
+                        type: 'service' as const,
+                        data: { name: service, resourceGroupId: rg.id, datacenterId: dc.id },
                         metadata: {
-                          category: rg.category,
-                          icon: rg.icon,
-                          color: rg.color
+                          resourceGroup: rg.name
                         },
-                        children: (rg.serviceTypes || []).map((service: string, serviceIndex: number) => ({
-                          id: `service-${dc.id}-${rg.id}-${serviceIndex}-${envType}-${rgIndex}-${dcIndex}`,
-                          name: service,
-                          type: 'service' as const,
-                          data: { name: service, resourceGroupId: rg.id, datacenterId: dc.id },
-                          metadata: {
-                            resourceGroup: rg.name
-                          },
-                          children: []
-                        }))
-                      }));
-                    }
-                  })()
-                }))
+                        children: buildServiceChildren(service, rg.name, dc.id, computes, networkDevices)
+                      }))
+                    }));
+                  } else {
+                    const activeResourceGroups = resourceGroups.filter((rg: any) => 
+                      rg.isActive !== false
+                    );
+                    
+                    resourceGroupNodes = activeResourceGroups.map((rg: any, rgIndex: number) => ({
+                      id: `resource-group-${dc.id}-${rg.id}-${envType}-${rgIndex}-${dcIndex}-${partnerId}`,
+                      name: rg.displayName || rg.name,
+                      type: 'resource-group' as const,
+                      data: rg,
+                      metadata: {
+                        category: rg.category,
+                        icon: rg.icon,
+                        color: rg.color
+                      },
+                      children: (rg.serviceTypes || []).map((service: string, serviceIndex: number) => ({
+                        id: `service-${dc.id}-${rg.id}-${serviceIndex}-${envType}-${rgIndex}-${dcIndex}-${partnerId}`,
+                        name: service,
+                        type: 'service' as const,
+                        data: { name: service, resourceGroupId: rg.id, datacenterId: dc.id },
+                        metadata: {
+                          resourceGroup: rg.name
+                        },
+                        children: buildServiceChildren(service, rg.name, dc.id, computes, networkDevices)
+                      }))
+                    }));
+                  }
+                  
+                  return {
+                    id: `datacenter-${cloud.id}-${az.id}-${dc.id}-${envType}-${cloudIndex}-${partnerId}`,
+                    name: dc.name,
+                    type: 'datacenter' as const,
+                    data: dc,
+                    metadata: {
+                      tier: dc.tier || 3,
+                      drPaired: dc.drPairedDatacenter != null,
+                      utilization: dc.utilization || 0
+                    },
+                    children: resourceGroupNodes
+                  };
+                })
             }))
         }))
     }));
   };
 
-  const getChildTypeForNode = (nodeType: string): string | null => {
-    const childTypeMap: { [key: string]: string } = {
-      'organization': 'environment',
-      'environment': 'cloud',
-      'cloud': 'region',
-      'region': 'availability-zone',
-      'az': 'datacenter',
-      'datacenter': 'resource-pool',
-      'pool': 'compute',
-      'service': 'compute', // Service nodes can have compute children
-      'compute': 'container'
-    };
-    return childTypeMap[nodeType] || null;
-  };
-  
-  const getAddButtonLabel = (nodeType: string, nodeName?: string): string => {
-    // For service nodes, provide specific labels based on the service type
-    if (nodeType === 'service' && nodeName) {
-      const serviceLabels: { [key: string]: string } = {
-        'Compute': 'Add Compute Node',
-        'Storage': 'Add Storage',
-        'Block Storage': 'Add Block Storage',
-        'Object Storage': 'Add Object Storage',
-        'Network': 'Add Network',
-        'Load Balancer': 'Add Load Balancer',
-        'Container Registry': 'Add Container Registry',
-        'Kubernetes Engine': 'Add Kubernetes Cluster'
-      };
-      return serviceLabels[nodeName] || 'Add Resource';
+  const findNodeById = (nodes: TreeNode[], id: string): TreeNode | null => {
+    for (const node of nodes) {
+      if (node.id === id) {
+        return node;
+      }
+      if (node.children) {
+        const found = findNodeById(node.children, id);
+        if (found) {
+          return found;
+        }
+      }
     }
-    
-    const labelMap: { [key: string]: string } = {
-      'environment': 'Add Cloud Provider',
-      'cloud': 'Add Region',
-      'region': 'Add Availability Zone',
-      'az': 'Add Datacenter',
-      'datacenter': 'Add Resource Pool',
-      'pool': 'Add Compute Node',
-      'compute': 'Add Container',
-    };
-    return labelMap[nodeType] || 'Add Child';
+    return null;
   };
 
   const buildNodePath = (nodes: TreeNode[], targetId: string, path: TreeNode[] = []): TreeNode[] | null => {
     for (const node of nodes) {
+      const newPath = [...path, node];
       if (node.id === targetId) {
-        return [...path, node];
+        return newPath;
       }
       if (node.children) {
-        const result = buildNodePath(node.children, targetId, [...path, node]);
-        if (result) return result;
+        const result = buildNodePath(node.children, targetId, newPath);
+        if (result) {
+          return result;
+        }
       }
     }
     return null;
   };
 
-  const handleNodeSelect = (event: React.SyntheticEvent | null, nodeIds: string | string[] | null) => {
-    const nodeId = Array.isArray(nodeIds) ? nodeIds[0] : nodeIds;
+  const handleNodeSelect = (event: React.SyntheticEvent | null, nodeId: string | null) => {
     if (nodeId) {
       setSelectedNodeId(nodeId);
       const node = findNodeById(treeData, nodeId);
       setSelectedNode(node);
-      
-      // Build the path to the selected node
       const path = buildNodePath(treeData, nodeId);
       setSelectedNodePath(path || []);
     }
-  };
-
-  const findNodeById = (nodes: TreeNode[], id: string): TreeNode | null => {
-    for (const node of nodes) {
-      if (node.id === id) return node;
-      if (node.children) {
-        const found = findNodeById(node.children, id);
-        if (found) return found;
-      }
-    }
-    return null;
   };
 
   const handleToggle = (event: React.SyntheticEvent | null, nodeIds: string[]) => {
     setExpanded(nodeIds);
   };
 
+  const handleTenantChange = (event: React.MouseEvent<HTMLElement>, newTenant: 'organization' | 'partners' | null) => {
+    if (newTenant !== null) {
+      setTenant(newTenant);
+    }
+  };
+
+  const handleAdd = (type: 'cloud' | 'datacenter' | 'compute' | 'network-device', parentNode?: TreeNode) => {
+    if (type === 'compute') {
+      setComputeEditData({});
+      setOpenComputeEditDialog(true);
+    } else if (type === 'network-device') {
+      setNetworkDeviceEditData({});
+      setOpenNetworkDeviceEditDialog(true);
+    } else {
+      setDialogType(type);
+      setEditMode(false);
+      
+      if (parentNode) {
+        setSelectedNode(parentNode);
+        setSelectedNodeId(parentNode.id);
+      }
+      
+      setFormData(getDefaultFormData(type));
+      setOpenDialog(true);
+    }
+  };
+
+  const handleEdit = () => {
+    if (!selectedNode || !selectedNode.data) return;
+    
+    const type = selectedNode.type as 'cloud' | 'datacenter' | 'compute' | 'network-device';
+    
+    if (type === 'compute') {
+      setComputeEditData(selectedNode.data);
+      setOpenComputeEditDialog(true);
+    } else if (type === 'network-device') {
+      setNetworkDeviceEditData(selectedNode.data);
+      setOpenNetworkDeviceEditDialog(true);
+    } else {
+      setDialogType(type);
+      setEditMode(true);
+      setFormData(selectedNode.data);
+      setOpenDialog(true);
+    }
+  };
+
+  const handleComputeSave = async (updatedData: any) => {
+    try {
+      await axios.put(config.getApiEndpoint(`/computes/${updatedData.id}`), updatedData);
+      setOpenComputeEditDialog(false);
+      await fetchInfrastructureData();
+    } catch (error) {
+      console.error('Error saving compute:', error);
+      alert('Failed to save compute');
+    }
+  };
+
+  const handleNetworkDeviceSave = async (updatedData: any) => {
+    try {
+      if (updatedData.id) {
+        await axios.put(config.getApiEndpoint(`/network-devices/${updatedData.id}`), updatedData);
+      } else {
+        await axios.post(config.getApiEndpoint('/network-devices'), updatedData);
+      }
+      setOpenNetworkDeviceEditDialog(false);
+      await fetchInfrastructureData();
+    } catch (error) {
+      console.error('Error saving network device:', error);
+      alert('Failed to save network device');
+    }
+  };
+
   const handleContextMenu = (event: React.MouseEvent, node: TreeNode) => {
     event.preventDefault();
     event.stopPropagation();
-    setContextMenu({
-      mouseX: event.clientX + 2,
-      mouseY: event.clientY - 6,
-      node,
-    });
+    setContextMenu(
+      contextMenu === null
+        ? {
+            mouseX: event.clientX + 2,
+            mouseY: event.clientY - 6,
+            node: node,
+          }
+        : null
+    );
   };
 
   const handleCloseContextMenu = () => {
     setContextMenu(null);
-  };
-
-  // Helper function to organize data into logical tabs
-  const organizeDataIntoTabs = (data: any, entityType: string) => {
-    if (!data) return {};
-
-    const tabs: { [key: string]: { [key: string]: any } } = {};
-
-    switch (entityType) {
-      case 'compute':
-        tabs['Basic Info'] = {
-          name: data.name,
-          hostname: data.hostname,
-          ipAddress: data.ipAddress,
-          nodeType: data.nodeType,
-          status: data.status,
-          description: data.description
-        };
-        tabs['Hardware'] = {
-          brand: data.brand,
-          model: data.model,
-          serialNumber: data.serialNumber,
-          assetTag: data.assetTag,
-          rackLocation: data.rackLocation,
-          rackUnit: data.rackUnit,
-          cpuCores: data.cpuCores,
-          memoryGb: data.memoryGb,
-          diskGb: data.diskGb,
-          powerConsumptionWatts: data.powerConsumptionWatts,
-          thermalOutputBtu: data.thermalOutputBtu,
-          isPhysical: data.isPhysical
-        };
-        tabs['Network'] = {
-          primaryMacAddress: data.primaryMacAddress,
-          managementIp: data.managementIp,
-          publicIp: data.publicIp,
-          privateIp: data.privateIp,
-          ipmiIp: data.ipmiIp,
-          vlanIds: data.vlanIds,
-          networkInterfacesCount: data.networkInterfacesCount,
-          networkSpeedGbps: data.networkSpeedGbps
-        };
-        tabs['OS & Software'] = {
-          osType: data.osType,
-          osDistribution: data.osDistribution,
-          osVersionString: data.osVersionString,
-          kernelVersion: data.kernelVersion,
-          firmwareVersion: data.firmwareVersion,
-          biosVersion: data.biosVersion,
-          hypervisor: data.hypervisor,
-          virtualizationType: data.virtualizationType
-        };
-        tabs['Storage'] = {
-          storageType: data.storageType,
-          storageRaidLevel: data.storageRaidLevel,
-          totalStorageGb: data.totalStorageGb,
-          usedStorageGb: data.usedStorageGb,
-          storageIops: data.storageIops
-        };
-        tabs['Performance'] = {
-          cpuBenchmarkScore: data.cpuBenchmarkScore,
-          memoryBandwidthGbps: data.memoryBandwidthGbps,
-          networkLatencyMs: data.networkLatencyMs,
-          uptimeDays: data.uptimeDays,
-          lastRebootDate: data.lastRebootDate
-        };
-        tabs['Compliance & Security'] = {
-          complianceStatus: data.complianceStatus,
-          securityZone: data.securityZone,
-          encryptionEnabled: data.encryptionEnabled,
-          lastSecurityScanDate: data.lastSecurityScanDate,
-          patchLevel: data.patchLevel,
-          antivirusStatus: data.antivirusStatus
-        };
-        tabs['Maintenance'] = {
-          warrantyExpiryDate: data.warrantyExpiryDate,
-          supportContractId: data.supportContractId,
-          maintenanceWindow: data.maintenanceWindow,
-          lastMaintenanceDate: data.lastMaintenanceDate,
-          nextMaintenanceDate: data.nextMaintenanceDate
-        };
-        tabs['Monitoring'] = {
-          monitoringEnabled: data.monitoringEnabled,
-          monitoringAgent: data.monitoringAgent,
-          managementTool: data.managementTool,
-          backupEnabled: data.backupEnabled,
-          backupSchedule: data.backupSchedule,
-          lastBackupDate: data.lastBackupDate
-        };
-        tabs['Roles & Metadata'] = {
-          computeRole: data.computeRole,
-          purpose: data.purpose,
-          environmentType: data.environmentType,
-          serviceTier: data.serviceTier,
-          businessUnit: data.businessUnit,
-          costCenter: data.costCenter,
-          supportsContainers: data.supportsContainers,
-          containerRuntime: data.containerRuntime,
-          orchestrationPlatform: data.orchestrationPlatform,
-          maxContainers: data.maxContainers,
-          currentContainers: data.currentContainers,
-          tags: data.tags,
-          notes: data.notes,
-          customAttributes: data.customAttributes
-        };
-        break;
-      
-      case 'datacenter':
-        tabs['Basic Info'] = {
-          name: data.name,
-          type: data.type,
-          status: data.status,
-          provider: data.provider,
-          tier: data.tier,
-          isDrSite: data.isDrSite
-        };
-        tabs['Location'] = {
-          country: data.country?.name,
-          state: data.state?.name,
-          city: data.city?.name,
-          locationOther: data.locationOther,
-          latitude: data.latitude,
-          longitude: data.longitude
-        };
-        tabs['Capacity'] = {
-          servers: data.servers,
-          storageTb: data.storageTb,
-          utilization: data.utilization
-        };
-        break;
-      
-      case 'cloud':
-        tabs['Basic Info'] = {
-          name: data.name,
-          description: data.description,
-          clientName: data.clientName,
-          status: data.status
-        };
-        tabs['Configuration'] = {
-          deploymentRegion: data.deploymentRegion,
-          partner: data.partner?.name
-        };
-        break;
-      
-      default:
-        // For other entity types, organize into Basic Info and Details
-        const basicFields = ['name', 'description', 'status', 'type', 'code'];
-        const basicInfo: { [key: string]: any } = {};
-        const details: { [key: string]: any } = {};
-        
-        Object.entries(data).forEach(([key, value]) => {
-          if (basicFields.includes(key)) {
-            basicInfo[key] = value;
-          } else if (value !== null && value !== undefined && value !== '') {
-            details[key] = value;
-          }
-        });
-        
-        if (Object.keys(basicInfo).length > 0) {
-          tabs['Basic Info'] = basicInfo;
-        }
-        if (Object.keys(details).length > 0) {
-          tabs['Details'] = details;
-        }
-        break;
-    }
-
-    // Filter out empty tabs
-    Object.keys(tabs).forEach(tabKey => {
-      const tabData = tabs[tabKey];
-      const hasData = Object.values(tabData).some(value => 
-        value !== null && value !== undefined && value !== ''
-      );
-      if (!hasData) {
-        delete tabs[tabKey];
-      }
-    });
-
-    return tabs;
-  };
-
-  const handleAdd = (type: string, parentNode?: TreeNode) => {
-    setDialogType(type);
-    setEditMode(false);
-    
-    if (parentNode) {
-      setSelectedNode(parentNode);
-      setSelectedNodeId(parentNode.id);
-    }
-    
-    setFormData(getDefaultFormData(type));
-    setOpenDialog(true);
   };
 
   const handleContextMenuAction = (action: string) => {
@@ -639,33 +626,27 @@ const InfrastructureCloudNative: React.FC = () => {
     setSelectedNode(node);
     setSelectedNodeId(node.id);
     
-    const actionMap: { [key: string]: () => void } = {
-      'add-cloud': () => handleAdd('cloud'),
-      'add-region': () => handleAdd('region', node),
-      'add-az': () => handleAdd('availability-zone', node),
-      'add-datacenter': () => handleAdd('datacenter', node),
-      'add-pool': () => handleAdd('resource-pool', node),
-      'add-compute': () => handleAdd('compute', node),
-      'edit': () => {
-        setDialogType(node.type);
-        setEditMode(true);
-        setFormData(node.data);
-        setOpenDialog(true);
-      },
-      'delete': () => handleDelete(),
-      'set-dr': () => handleSetDRPairing(node),
-    };
-    
-    if (actionMap[action]) {
-      actionMap[action]();
+    switch (action) {
+      case 'add-cloud':
+        handleAdd('cloud', node);
+        break;
+      case 'add-datacenter':
+        handleAdd('datacenter', node);
+        break;
+      case 'add-compute':
+        handleAdd('compute', node);
+        break;
+      case 'edit':
+        setSelectedNode(node);
+        handleEdit();
+        break;
+      case 'delete':
+        setSelectedNode(node);
+        handleDelete();
+        break;
     }
     
     handleCloseContextMenu();
-  };
-
-  const handleSetDRPairing = (node: TreeNode) => {
-    // TODO: Implement DR pairing dialog
-    console.log('Setting DR pairing for', node);
   };
 
   const handleDelete = async () => {
@@ -676,22 +657,25 @@ const InfrastructureCloudNative: React.FC = () => {
     }
 
     try {
-      const endpointMap: { [key: string]: string } = {
-        'cloud': `/api/clouds/${selectedNode.data.id}`,
-        'region': `/api/regions/${selectedNode.data.id}`,
-        'az': `/api/availability-zones/${selectedNode.data.id}`,
-        'datacenter': `/api/datacenters/${selectedNode.data.id}`,
-        'pool': `/api/resource-pools/${selectedNode.data.id}`,
-        'compute': `/api/computes/${selectedNode.data.id}`,
-      };
-      
-      const endpoint = endpointMap[selectedNode.type];
-      if (endpoint) {
-        await axios.delete(endpoint);
-        await fetchInfrastructureData();
-        setSelectedNode(null);
-        setSelectedNodeId('');
+      let endpoint = '';
+      switch (selectedNode.type) {
+        case 'cloud':
+          endpoint = config.getApiEndpoint(`/clouds/${selectedNode.data.id}`);
+          break;
+        case 'datacenter':
+          endpoint = config.getApiEndpoint(`/datacenters/${selectedNode.data.id}`);
+          break;
+        case 'compute':
+          endpoint = config.getApiEndpoint(`/computes/${selectedNode.data.id}`);
+          break;
+        default:
+          return;
       }
+      
+      await axios.delete(endpoint);
+      await fetchInfrastructureData();
+      setSelectedNode(null);
+      setSelectedNodeId('');
     } catch (error) {
       console.error('Error deleting:', error);
       alert('Failed to delete item');
@@ -703,212 +687,163 @@ const InfrastructureCloudNative: React.FC = () => {
       let endpoint = '';
       let payload = { ...formData };
       
-      // Map dialog type to API endpoint and prepare payload
-      const saveConfig: { [key: string]: any } = {
-        'cloud': {
-          endpoint: editMode ? `/api/clouds/${formData.id}` : '/api/clouds',
-          prepare: () => payload
-        },
-        'region': {
-          endpoint: editMode ? `/api/regions/${formData.id}` : '/api/regions',
-          prepare: () => {
-            if (!editMode && selectedNode?.type === 'cloud') {
-              payload.cloudId = selectedNode.data.id;
-            }
-            return payload;
+      switch (dialogType) {
+        case 'cloud':
+          endpoint = editMode ? config.getApiEndpoint(`/clouds/${formData.id}`) : config.getApiEndpoint('/clouds');
+          break;
+        case 'datacenter':
+          endpoint = editMode ? config.getApiEndpoint(`/datacenters/${formData.id}`) : config.getApiEndpoint('/datacenters');
+          // Add cloud reference if creating datacenter under a cloud
+          if (!editMode && selectedNode?.type === 'cloud') {
+            payload.cloudId = selectedNode.data.id;
           }
-        },
-        'availability-zone': {
-          endpoint: editMode ? `/api/availability-zones/${formData.id}` : '/api/availability-zones',
-          prepare: () => {
-            if (!editMode && selectedNode?.type === 'region') {
-              payload.regionId = selectedNode.data.id;
-            }
-            return payload;
+          break;
+        case 'compute':
+          endpoint = editMode ? config.getApiEndpoint(`/computes/${formData.id}`) : config.getApiEndpoint('/computes');
+          // Add datacenter reference if creating compute under a datacenter
+          if (!editMode && selectedNode?.type === 'datacenter') {
+            payload.datacenterId = selectedNode.data.id;
+            payload.cloudId = selectedNode.data.cloud?.id;
           }
-        },
-        'datacenter': {
-          endpoint: editMode ? `/api/datacenters/${formData.id}` : '/api/datacenters',
-          prepare: () => {
-            if (!editMode && selectedNode?.type === 'az') {
-              payload.availabilityZoneId = selectedNode.data.id;
-            }
-            return payload;
-          }
-        },
-        'resource-pool': {
-          endpoint: editMode ? `/api/resource-pools/${formData.id}` : '/api/resource-pools',
-          prepare: () => {
-            if (!editMode && selectedNode?.type === 'datacenter') {
-              payload.datacenterId = selectedNode.data.id;
-            }
-            return payload;
-          }
-        },
-        'compute': {
-          endpoint: editMode ? `/api/computes/${formData.id}` : '/api/computes',
-          prepare: () => {
-            if (!editMode) {
-              if (selectedNode?.type === 'pool') {
-                payload.resourcePoolId = selectedNode.data.id;
-              } else if (selectedNode?.type === 'service') {
-                // For service nodes, we need to get the datacenter ID from the node data
-                // Service nodes have datacenterId in their data
-                if (selectedNode.data?.datacenterId) {
-                  // We'll create the compute under the datacenter
-                  // The backend should handle assigning it properly
-                  payload.datacenterId = selectedNode.data.datacenterId;
-                }
-              }
-            }
-            return payload;
-          }
-        }
-      };
-      
-      const config = saveConfig[dialogType || ''];
-      if (!config) {
-        console.error('No save config for type:', dialogType);
-        return;
+          break;
       }
       
-      payload = config.prepare();
-      console.log('Saving with payload:', payload);
-      console.log('Endpoint:', config.endpoint);
-      
       if (editMode) {
-        await axios.put(config.endpoint, payload);
+        await axios.put(endpoint, payload);
       } else {
-        await axios.post(config.endpoint, payload);
+        await axios.post(endpoint, payload);
       }
       
       setOpenDialog(false);
       await fetchInfrastructureData();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving:', error);
-      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to save item';
-      alert(`Failed to save: ${errorMessage}`);
+      alert('Failed to save item');
     }
   };
 
   const getDefaultFormData = (type: string) => {
-    const defaults: { [key: string]: any } = {
-      'cloud': {
-        name: '',
-        description: '',
-        partnerId: null,
-        deploymentRegion: '',
-        status: 'ACTIVE'
-      },
-      'region': {
-        name: '',
-        code: '',
-        geographicArea: '',
-        complianceZones: '',
-        description: '',
-        status: 'ACTIVE'
-      },
-      'availability-zone': {
-        name: '',
-        code: '',
-        zoneType: 'STANDARD',
-        isDefault: false,
-        capabilities: '',
-        status: 'ACTIVE'
-      },
-      'datacenter': {
-        name: '',
-        type: 'PRIMARY',
-        tier: 3,
-        provider: '',
-        isDrSite: false,
-        environmentId: null,
-        status: 'ACTIVE'
-      },
-      'resource-pool': {
-        name: '',
-        type: 'COMPUTE',
-        hypervisor: '',
-        orchestrator: '',
-        totalCpuCores: 0,
-        totalMemoryGb: 0,
-        totalStorageTb: 0,
-        status: 'ACTIVE'
-      },
-      'compute': {
-        name: '',
-        hostname: '',
-        ipAddress: '',
-        nodeType: 'DEDICATED',
-        hypervisor: '',
-        isPhysical: false,
-        cpuCores: 0,
-        memoryGb: 0,
-        diskGb: 0,
-        status: 'ACTIVE'
-      }
-    };
-    
-    return defaults[type] || {};
-  };
-  const renderTreeItem = (node: TreeNode) => {
-    const iconMap: { [key: string]: ReactElement } = {
-      'organization': <Business />,
-      'environment': <AccountTreeIcon />,
-      'cloud': <CloudIcon />,
-      'region': <PublicIcon />,
-      'az': <LanIcon />,
-      'datacenter': <DataCenterIcon />,
-      'pool': <HubIcon />,
-      'compute': <Computer />,
-      'container': <StorageIcon />
-    };
-    
-    const icon = iconMap[node.type] || <ChevronRight />;
-    
-    return (
-      <TreeItem
-        key={node.id}
-        itemId={node.id}
-        label={
-          <Box 
-            sx={{ display: 'flex', alignItems: 'center', py: 0.5, gap: 1 }}
-            onContextMenu={(e) => handleContextMenu(e, node)}
-          >
-            {icon}
-            <Typography sx={{ flexGrow: 1 }}>{node.name}</Typography>
-            {node.metadata?.tier && (
-              <Chip label={`Tier ${node.metadata.tier}`} size="small" />
-            )}
-            {node.metadata?.drPaired && (
-              <Chip label="DR" size="small" color="warning" />
-            )}
-            {node.metadata?.utilization !== undefined && (
-              <Chip 
-                label={`${node.metadata.utilization}%`} 
-                size="small" 
-                color={node.metadata.utilization > 80 ? 'error' : 'success'}
-              />
-            )}
-          </Box>
-        }
-      >
-        {node.children?.map(child => renderTreeItem(child))}
-      </TreeItem>
-    );
+    switch (type) {
+      case 'cloud':
+        return { name: '', description: '', status: 'ACTIVE', deploymentRegion: '', clientName: '' };
+      case 'datacenter':
+        return { name: '', provider: '', type: 'PRIMARY', status: 'ACTIVE', tier: 3, utilization: 0 };
+      case 'compute':
+        return { name: '', hostname: '', status: 'ACTIVE', osType: 'Linux' };
+      case 'network-device':
+        return { name: '', deviceType: 'Router', status: 'ACTIVE', operationalStatus: 'UP' };
+      default:
+        return {};
+    }
   };
 
-  const renderDetailView = () => {
+  const getDisplayNameForType = (type: string): string => {
+    switch (type) {
+      case 'organization':
+        return 'Organization';
+      case 'environment':
+        return 'Environment';
+      case 'cloud':
+        return 'Cloud';
+      case 'region':
+        return 'Region';
+      case 'az':
+        return 'Availability Zone';
+      case 'datacenter':
+        return 'Datacenter';
+      case 'resource-group':
+        return 'Resource Group';
+      case 'service':
+        return 'Service';
+      case 'compute':
+        return 'Compute';
+      case 'network-device':
+        return 'Network Device';
+      case 'pool':
+        return 'Resource Pool';
+      case 'container':
+        return 'Container';
+      default:
+        return type;
+    }
+  };
+
+  const getIconForNodeType = (type: string, metadata?: any) => {
+    switch (type) {
+      case 'organization':
+        return <Business />;
+      case 'environment':
+        return <PublicIcon />;
+      case 'cloud':
+        return <CloudIcon />;
+      case 'region':
+        return <PublicIcon />;
+      case 'az':
+        return <DataCenterIcon />;
+      case 'datacenter':
+        return <DataCenterIcon />;
+      case 'resource-group':
+        return metadata?.icon === 'cloud' ? <CloudIcon /> : 
+               metadata?.icon === 'router' ? <RouterIcon /> : <AccountTreeIcon />;
+      case 'service':
+        return <SettingsIcon />;
+      case 'compute':
+        return <Computer />;
+      case 'network-device':
+        return <RouterIcon />;
+      default:
+        return <DataObject />;
+    }
+  };
+
+  const renderTreeItems = (nodes: TreeNode[]): React.ReactNode => {
+    console.log('📊 renderTreeItems called with', nodes.length, 'nodes:', nodes);
+    if (nodes.length === 0) {
+      console.log('⚠️ renderTreeItems: No nodes to render!');
+      return null;
+    }
+    return nodes.map((node) => {
+      console.log('🌲 Rendering node:', node.id, node.name, node.type);
+      return (
+        <TreeItem
+          key={node.id}
+          itemId={node.id}
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', py: 0.5 }}>
+              {getIconForNodeType(node.type, node.metadata)}
+              <Typography variant="body2" sx={{ ml: 1 }}>
+                {node.name}
+              </Typography>
+              {node.metadata?.tier && (
+                <Chip 
+                  label={`Tier ${node.metadata.tier}`} 
+                  size="small" 
+                  sx={{ ml: 1 }} 
+                />
+              )}
+              {node.metadata?.utilization !== undefined && (
+                <Chip 
+                  label={`${node.metadata.utilization}%`} 
+                  size="small" 
+                  color={node.metadata.utilization > 80 ? 'error' : 'default'}
+                  sx={{ ml: 1 }} 
+                />
+              )}
+            </Box>
+          }
+        >
+          {node.children && node.children.length > 0 && renderTreeItems(node.children)}
+        </TreeItem>
+      );
+    });
+  };
+
+  const renderNodeViewer = () => {
     if (!selectedNode) {
       return (
         <Card>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Select an item from the tree
-            </Typography>
-            <Typography color="text.secondary">
-              Click on any node in the tree to view details, or right-click to see available actions.
-            </Typography>
+            <Typography variant="h6">Select a node to view details</Typography>
           </CardContent>
         </Card>
       );
@@ -917,238 +852,50 @@ const InfrastructureCloudNative: React.FC = () => {
     return (
       <Card>
         <CardContent>
-          {/* Breadcrumb navigation */}
-          <Breadcrumbs 
-            separator={<NavigateNext fontSize="small" />} 
-            sx={{ mb: 2 }}
-          >
-            {selectedNodePath.map((pathNode, index) => (
-              <Link
-                key={pathNode.id}
-                component="button"
-                variant="body2"
-                onClick={() => {
-                  setSelectedNodeId(pathNode.id);
-                  setSelectedNode(pathNode);
-                  const newPath = selectedNodePath.slice(0, index + 1);
-                  setSelectedNodePath(newPath);
-                }}
-                underline="hover"
-                color={index === selectedNodePath.length - 1 ? 'text.primary' : 'inherit'}
-                sx={{ fontWeight: index === selectedNodePath.length - 1 ? 'bold' : 'normal' }}
-              >
-                {pathNode.name}
-              </Link>
-            ))}
-          </Breadcrumbs>
-          
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-              <Typography variant="h5" sx={{ mr: 1 }}>
-                {selectedNode.name}
-                <Typography component="span" variant="h6" color="text.secondary" sx={{ ml: 1 }}>
-                  ({(() => {
-                    const typeMap: { [key: string]: string } = {
-                      'organization': 'Organization',
-                      'environment': 'Environment',
-                      'cloud': 'Cloud',
-                      'region': 'Region',
-                      'az': 'Availability Zone',
-                      'datacenter': 'Datacenter',
-                      'pool': 'Resource Pool',
-                      'compute': 'Compute Node',
-                      'container': 'Container',
-                      'service': 'Service',
-                      'resource-group': 'Resource Group'
-                    };
-                    return typeMap[selectedNode.type] || selectedNode.type.charAt(0).toUpperCase() + selectedNode.type.slice(1);
-                  })()})
-                </Typography>
-              </Typography>
-              <Tooltip title="View as Data">
-                <IconButton
-                  size="small"
-                  onClick={() => setJsonModalOpen(true)}
-                  sx={{ ml: 1 }}
-                >
-                  <DataObject />
-                </IconButton>
-              </Tooltip>
-            </Box>
-            {/* CRUD action buttons for the selected item */}
-            <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-              <IconButton 
-                size="small" 
-                onClick={() => {
-                  setDialogType(selectedNode.type);
-                  setEditMode(true);
-                  setFormData(selectedNode.data);
-                  setOpenDialog(true);
-                }}
-                title="Edit this item"
-              >
-                <Edit />
-              </IconButton>
-              <IconButton size="small" onClick={handleDelete} title="Delete this item">
-                <Delete />
-              </IconButton>
-            </Stack>
-          </Box>
-          
-          <Divider sx={{ my: 2 }} />
-          
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Path: {selectedNodePath.map(n => n.name).join(' / ')}
-          </Typography>
-          
-          {selectedNode.data && (() => {
-            const organizedTabs = organizeDataIntoTabs(selectedNode.data, selectedNode.type);
-            const tabKeys = Object.keys(organizedTabs);
-            
-            if (tabKeys.length === 0) return null;
-            
-            // Reset tab index if it exceeds available tabs
-            if (viewerTabIndex >= tabKeys.length) {
-              setViewerTabIndex(0);
-            }
-            
-            return (
-              <Box sx={{ mt: 2 }}>
-                <Tabs
-                  value={viewerTabIndex}
-                  onChange={(_, newValue) => setViewerTabIndex(newValue)}
-                  variant="scrollable"
-                  scrollButtons="auto"
-                  sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
-                >
-                  {tabKeys.map((tabKey, index) => (
-                    <Tab key={tabKey} label={tabKey} />
-                  ))}
-                </Tabs>
-                
-                {tabKeys.map((tabKey, index) => (
-                  <Box
-                    key={tabKey}
-                    role="tabpanel"
-                    hidden={viewerTabIndex !== index}
-                    sx={{ display: viewerTabIndex === index ? 'block' : 'none' }}
-                  >
-                    {viewerTabIndex === index && (
-                      <Box>
-                        {Object.entries(organizedTabs[tabKey])
-                          .filter(([_, value]) => value !== null && value !== undefined && value !== '')
-                          .map(([key, value]) => (
-                            <Box key={key} sx={{ py: 0.5, display: 'flex', alignItems: 'flex-start' }}>
-                              <Typography 
-                                variant="body2" 
-                                sx={{ 
-                                  minWidth: 120, 
-                                  fontWeight: 600, 
-                                  color: 'text.secondary',
-                                  mr: 1
-                                }}
-                              >
-                                {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
-                              </Typography>
-                              <Typography variant="body2" sx={{ flex: 1 }}>
-                                {typeof value === 'boolean' 
-                                  ? (value ? 'Yes' : 'No')
-                                  : String(value)
-                                }
-                              </Typography>
-                            </Box>
-                          ))
-                        }
-                      </Box>
-                    )}
-                  </Box>
-                ))}
-              </Box>
-            );
-          })()}
-          
-          {selectedNode.metadata && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle2" gutterBottom>Metadata</Typography>
-              {selectedNode.metadata.compliance && (
-                <Box sx={{ py: 0.5 }}>
-                  <Typography variant="body2">
-                    <strong>Compliance:</strong> {selectedNode.metadata.compliance.join(', ')}
-                  </Typography>
-                </Box>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+            <Tabs value={viewerTabIndex} onChange={(e, v) => setViewerTabIndex(v)}>
+              <Tab label="Overview" />
+              <Tab label="Properties" />
+              {(selectedNode.type === 'compute' || selectedNode.type === 'network-device') && (
+                <Tab label="Edit" />
               )}
-              {selectedNode.metadata.capabilities && (
-                <Box sx={{ py: 0.5 }}>
-                  <Typography variant="body2">
-                    <strong>Capabilities:</strong> {selectedNode.metadata.capabilities.join(', ')}
-                  </Typography>
+            </Tabs>
+          </Box>
+
+          {viewerTabIndex === 0 && (
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                {selectedNode.name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Type: {getDisplayNameForType(selectedNode.type)}
+              </Typography>
+              {selectedNode.metadata && (
+                <Box sx={{ mt: 2 }}>
+                  {Object.entries(selectedNode.metadata).map(([key, value]) => (
+                    <Typography key={key} variant="body2">
+                      <strong>{key}:</strong> {Array.isArray(value) ? value.join(', ') : String(value)}
+                    </Typography>
+                  ))}
                 </Box>
               )}
             </Box>
           )}
-          
-          {/* Create Child Resource Section */}
-          {(selectedNode.type === 'service' || getChildTypeForNode(selectedNode.type)) && (
+
+          {viewerTabIndex === 1 && (
             <Box>
-              <Divider sx={{ my: 2 }} />
-              <Typography variant="h6" gutterBottom color="primary">
-                Create Child Resource
-              </Typography>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Add a new {(() => {
-                  if (selectedNode.type === 'service' && selectedNode.name === 'Compute') {
-                    return 'compute resource';
-                  } else {
-                    const childType = getChildTypeForNode(selectedNode.type);
-                    const childTypeMap: { [key: string]: string } = {
-                      'cloud': 'cloud provider',
-                      'datacenter': 'datacenter',
-                      'compute': 'compute node',
-                      'container': 'container',
-                      'resource-group': 'resource group'
-                    };
-                    return childTypeMap[childType || ''] || childType;
-                  }
-                })()} under this {(() => {
-                  const typeMap: { [key: string]: string } = {
-                    'organization': 'Organization',
-                    'environment': 'Environment', 
-                    'region': 'Region',
-                    'availability-zone': 'Availability Zone',
-                    'cloud': 'Cloud',
-                    'datacenter': 'Datacenter',
-                    'compute': 'Compute',
-                    'container': 'Container',
-                    'service': 'Service',
-                    'resource-group': 'Resource Group'
-                  };
-                  return (typeMap[selectedNode.type] || selectedNode.type).toLowerCase();
-                })()}.
-              </Typography>
-              <Button 
-                variant="contained" 
-                color="primary"
-                startIcon={<Add />}
-                onClick={() => {
-                  if (selectedNode.type === 'service') {
-                    // For service nodes, determine what type to add based on service name
-                    if (selectedNode.name === 'Compute') {
-                      handleAdd('compute', selectedNode);
-                    } else {
-                      // For other services, we might need specific handling
-                      handleAdd('compute', selectedNode); // Default to compute for now
-                    }
-                  } else {
-                    const childType = getChildTypeForNode(selectedNode.type);
-                    if (childType) {
-                      handleAdd(childType, selectedNode);
-                    }
-                  }
-                }}
-                title={getAddButtonLabel(selectedNode.type, selectedNode.name)}
-                sx={{ mt: 1 }}
-              >
-                {getAddButtonLabel(selectedNode.type, selectedNode.name)}
+              <Typography variant="h6" gutterBottom>Properties</Typography>
+              <pre style={{ fontSize: '12px', overflow: 'auto' }}>
+                {JSON.stringify(selectedNode.data || {}, null, 2)}
+              </pre>
+            </Box>
+          )}
+
+          {viewerTabIndex === 2 && (selectedNode.type === 'compute' || selectedNode.type === 'network-device') && (
+            <Box>
+              <Typography variant="h6" gutterBottom>Edit {selectedNode.type}</Typography>
+              <Button variant="contained" onClick={handleEdit}>
+                Open Editor
               </Button>
             </Box>
           )}
@@ -1158,466 +905,201 @@ const InfrastructureCloudNative: React.FC = () => {
   };
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ px: 2, py: 0.5, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h4" sx={{ mb: 0, mt: 0 }}>
-          Cloud Infrastructure Management
+    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <Paper sx={{ px: 3, py: 1.5, marginTop: 0 }}>
+        <Typography variant="h4" gutterBottom>
+          Manage Infrastructure
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body1" color="text.secondary" gutterBottom>
           Hierarchical view of your cloud-native infrastructure across environments, regions, and availability zones
         </Typography>
+      </Paper>
+
+      {/* Main Content */}
+      <Box sx={{ flexGrow: 1, display: 'flex', mt: 2, gap: 2 }}>
+        {/* Tree View */}
+        <Box sx={{ width: '50%', height: '100%' }}>
+          <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                {/* Tenant Toggle */}
+                <ToggleButtonGroup
+                  value={tenant}
+                  exclusive
+                  onChange={handleTenantChange}
+                  aria-label="tenant selection"
+                  size="small"
+                >
+                  <ToggleButton value="organization" aria-label="organization">
+                    Organization
+                  </ToggleButton>
+                  <ToggleButton value="partners" aria-label="partners">
+                    Partners
+                  </ToggleButton>
+                </ToggleButtonGroup>
+                <IconButton onClick={fetchInfrastructureData} size="small">
+                  <Refresh />
+                </IconButton>
+              </Box>
+
+              {error && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {error}
+                </Alert>
+              )}
+
+              {loading && (
+                <Typography variant="body2" color="text.secondary">
+                  Loading infrastructure data...
+                </Typography>
+              )}
+              
+              {!loading && treeData.length === 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  No infrastructure data available. Check the console for debugging information.
+                </Typography>
+              )}
+              
+              {!loading && treeData.length > 0 && (
+                <SimpleTreeView
+                  selectedItems={selectedNodeId}
+                  onSelectedItemsChange={handleNodeSelect}
+                  expandedItems={expanded}
+                  onExpandedItemsChange={handleToggle}
+                  sx={{ flexGrow: 1 }}
+                >
+                  {renderTreeItems(treeData)}
+                </SimpleTreeView>
+              )}
+          </Paper>
+        </Box>
+
+        {/* Details View */}
+        <Box sx={{ width: '50%', height: '100%' }}>
+          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              {/* Action Buttons */}
+              <Paper sx={{ p: 2, mb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6">
+                    {selectedNode ? (
+                      <strong>{selectedNode.name} ({getDisplayNameForType(selectedNode.type)})</strong>
+                    ) : (
+                      'Actions'
+                    )}
+                  </Typography>
+                  {selectedNode && (['cloud', 'region', 'az', 'datacenter', 'service', 'compute', 'network-device'].includes(selectedNode.type)) && (
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={handleEdit}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color="error"
+                        size="small"
+                        onClick={handleDelete}
+                      >
+                        Delete
+                      </Button>
+                    </Box>
+                  )}
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {selectedNode && (
+                    <>
+                      {/* Add buttons based on node type */}
+                      {selectedNode.type === 'environment' && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => handleAdd('cloud', selectedNode)}
+                        >
+                          Add Cloud
+                        </Button>
+                      )}
+                      {selectedNode.type === 'cloud' && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => handleAdd('datacenter', selectedNode)}
+                        >
+                          Add Datacenter
+                        </Button>
+                      )}
+                      {(selectedNode.type === 'datacenter' || selectedNode.type === 'service') && (
+                        <>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleAdd('compute', selectedNode)}
+                          >
+                            Add Compute
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleAdd('network-device', selectedNode)}
+                          >
+                            Add Network Device
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  )}
+                  {!selectedNode && (
+                    <Typography variant="body2" color="text.secondary">
+                      Select a node to see available actions
+                    </Typography>
+                  )}
+                </Box>
+              </Paper>
+              
+              {selectedNodePath.length > 0 && (
+                <Paper sx={{ p: 2, mb: 2 }}>
+                  <Breadcrumbs separator={<NavigateNext fontSize="small" />}>
+                    {selectedNodePath.map((node, index) => (
+                      <Link
+                        key={node.id}
+                        component="button"
+                        variant="body2"
+                        onClick={() => handleNodeSelect(null, node.id)}
+                        sx={{ textDecoration: 'none' }}
+                      >
+                        {node.name}
+                      </Link>
+                    ))}
+                  </Breadcrumbs>
+                </Paper>
+              )}
+
+              <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
+                {renderNodeViewer()}
+              </Box>
+          </Box>
+        </Box>
       </Box>
 
-      <Grid container sx={{ flexGrow: 1, overflow: 'hidden' }}>
-        <Grid size={{ xs: 12, md: 4 }} sx={{ borderRight: 1, borderColor: 'divider', overflow: 'auto', height: '100%' }}>
-          <Box sx={{ p: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Infrastructure Tree</Typography>
-              <IconButton size="small" onClick={fetchInfrastructureData}>
-                <Refresh />
-              </IconButton>
-            </Box>
-            
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-            
-            <SimpleTreeView
-              onSelectedItemsChange={handleNodeSelect}
-              expandedItems={expanded}
-              onExpandedItemsChange={handleToggle}
-            >
-              {treeData.map(node => renderTreeItem(node))}
-            </SimpleTreeView>
-          </Box>
-        </Grid>
-        
-        <Grid size={{ xs: 12, md: 8 }} sx={{ overflow: 'auto', height: '100%' }}>
-          <Box sx={{ p: 2 }}>
-            {renderDetailView()}
-          </Box>
-        </Grid>
-      </Grid>
+      {/* Dialogs */}
+      <ComputeEditDialog
+        open={openComputeEditDialog}
+        onClose={() => setOpenComputeEditDialog(false)}
+        formData={computeEditData || {}}
+        setFormData={setComputeEditData}
+        onSave={handleComputeSave}
+        editMode={true}
+      />
 
-      {/* Context Menu */}
-      <Menu
-        open={contextMenu !== null}
-        onClose={handleCloseContextMenu}
-        anchorReference="anchorPosition"
-        anchorPosition={
-          contextMenu !== null
-            ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
-            : undefined
-        }
-      >
-        {contextMenu?.node?.type === 'environment' && (
-          <MenuItem onClick={() => handleContextMenuAction('add-cloud')}>
-            <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-            <ListItemText>Add Cloud Provider</ListItemText>
-          </MenuItem>
-        )}
-        
-        {contextMenu?.node?.type === 'cloud' && (
-          <>
-            <MenuItem onClick={() => handleContextMenuAction('add-region')}>
-              <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-              <ListItemText>Add Region</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={() => handleContextMenuAction('edit')}>
-              <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
-              <ListItemText>Edit Cloud</ListItemText>
-            </MenuItem>
-            <Divider />
-            <MenuItem onClick={() => handleContextMenuAction('delete')}>
-              <ListItemIcon><Delete fontSize="small" /></ListItemIcon>
-              <ListItemText>Delete Cloud</ListItemText>
-            </MenuItem>
-          </>
-        )}
-        
-        {contextMenu?.node?.type === 'region' && (
-          <>
-            <MenuItem onClick={() => handleContextMenuAction('add-az')}>
-              <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-              <ListItemText>Add Availability Zone</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={() => handleContextMenuAction('edit')}>
-              <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
-              <ListItemText>Edit Region</ListItemText>
-            </MenuItem>
-            <Divider />
-            <MenuItem onClick={() => handleContextMenuAction('delete')}>
-              <ListItemIcon><Delete fontSize="small" /></ListItemIcon>
-              <ListItemText>Delete Region</ListItemText>
-            </MenuItem>
-          </>
-        )}
-        
-        {contextMenu?.node?.type === 'az' && (
-          <>
-            <MenuItem onClick={() => handleContextMenuAction('add-datacenter')}>
-              <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-              <ListItemText>Add Datacenter</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={() => handleContextMenuAction('edit')}>
-              <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
-              <ListItemText>Edit Availability Zone</ListItemText>
-            </MenuItem>
-            <Divider />
-            <MenuItem onClick={() => handleContextMenuAction('delete')}>
-              <ListItemIcon><Delete fontSize="small" /></ListItemIcon>
-              <ListItemText>Delete Availability Zone</ListItemText>
-            </MenuItem>
-          </>
-        )}
-        
-        {contextMenu?.node?.type === 'datacenter' && (
-          <>
-            <MenuItem onClick={() => handleContextMenuAction('add-pool')}>
-              <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-              <ListItemText>Add Resource Pool</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={() => handleContextMenuAction('set-dr')}>
-              <ListItemIcon><SettingsIcon fontSize="small" /></ListItemIcon>
-              <ListItemText>Set DR Pairing</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={() => handleContextMenuAction('edit')}>
-              <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
-              <ListItemText>Edit Datacenter</ListItemText>
-            </MenuItem>
-            <Divider />
-            <MenuItem onClick={() => handleContextMenuAction('delete')}>
-              <ListItemIcon><Delete fontSize="small" /></ListItemIcon>
-              <ListItemText>Delete Datacenter</ListItemText>
-            </MenuItem>
-          </>
-        )}
-        
-        {contextMenu?.node?.type === 'pool' && (
-          <>
-            <MenuItem onClick={() => handleContextMenuAction('add-compute')}>
-              <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-              <ListItemText>Add Compute Node</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={() => handleContextMenuAction('edit')}>
-              <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
-              <ListItemText>Edit Resource Pool</ListItemText>
-            </MenuItem>
-            <Divider />
-            <MenuItem onClick={() => handleContextMenuAction('delete')}>
-              <ListItemIcon><Delete fontSize="small" /></ListItemIcon>
-              <ListItemText>Delete Resource Pool</ListItemText>
-            </MenuItem>
-          </>
-        )}
-        
-        {contextMenu?.node?.type === 'service' && (
-          <>
-            {contextMenu.node.name === 'Compute' && (
-              <MenuItem onClick={() => handleContextMenuAction('add-compute')}>
-                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-                <ListItemText>Add Compute Node</ListItemText>
-              </MenuItem>
-            )}
-            {contextMenu.node.name === 'Storage' && (
-              <MenuItem onClick={() => handleContextMenuAction('add-storage')}>
-                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-                <ListItemText>Add Storage</ListItemText>
-              </MenuItem>
-            )}
-            {contextMenu.node.name === 'Block Storage' && (
-              <MenuItem onClick={() => handleContextMenuAction('add-block-storage')}>
-                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-                <ListItemText>Add Block Storage</ListItemText>
-              </MenuItem>
-            )}
-            {contextMenu.node.name === 'Network' && (
-              <MenuItem onClick={() => handleContextMenuAction('add-network')}>
-                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-                <ListItemText>Add Network</ListItemText>
-              </MenuItem>
-            )}
-            {contextMenu.node.name === 'Load Balancer' && (
-              <MenuItem onClick={() => handleContextMenuAction('add-load-balancer')}>
-                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-                <ListItemText>Add Load Balancer</ListItemText>
-              </MenuItem>
-            )}
-            {contextMenu.node.name === 'Container Registry' && (
-              <MenuItem onClick={() => handleContextMenuAction('add-container-registry')}>
-                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-                <ListItemText>Add Container Registry</ListItemText>
-              </MenuItem>
-            )}
-            {contextMenu.node.name === 'Kubernetes Engine' && (
-              <MenuItem onClick={() => handleContextMenuAction('add-kubernetes-cluster')}>
-                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-                <ListItemText>Add Kubernetes Cluster</ListItemText>
-              </MenuItem>
-            )}
-            {contextMenu.node.name === 'Object Storage' && (
-              <MenuItem onClick={() => handleContextMenuAction('add-object-storage')}>
-                <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-                <ListItemText>Add Object Storage</ListItemText>
-              </MenuItem>
-            )}
-          </>
-        )}
-        
-        {contextMenu?.node?.type === 'resource-group' && (
-          <>
-            <MenuItem onClick={() => handleContextMenuAction('add-pool')}>
-              <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-              <ListItemText>Add Resource Pool</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={() => handleContextMenuAction('edit')}>
-              <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
-              <ListItemText>Edit Resource Group</ListItemText>
-            </MenuItem>
-            <Divider />
-            <MenuItem onClick={() => handleContextMenuAction('delete')}>
-              <ListItemIcon><Delete fontSize="small" /></ListItemIcon>
-              <ListItemText>Delete Resource Group</ListItemText>
-            </MenuItem>
-          </>
-        )}
-        
-        {contextMenu?.node?.type === 'compute' && (
-          <>
-            <MenuItem onClick={() => handleContextMenuAction('add-container')}>
-              <ListItemIcon><Add fontSize="small" /></ListItemIcon>
-              <ListItemText>Add Container</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={() => handleContextMenuAction('edit')}>
-              <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
-              <ListItemText>Edit Compute Node</ListItemText>
-            </MenuItem>
-            <Divider />
-            <MenuItem onClick={() => handleContextMenuAction('delete')}>
-              <ListItemIcon><Delete fontSize="small" /></ListItemIcon>
-              <ListItemText>Delete Compute Node</ListItemText>
-            </MenuItem>
-          </>
-        )}
-      </Menu>
-
-      {/* Dialog for Add/Edit - Simplified for brevity */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm">
-        <DialogTitle>
-          {editMode ? 'Edit' : 'Add'} {dialogType?.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2, px: 2, minWidth: 400 }}>
-            <TextField
-              label="Name"
-              value={formData.name || ''}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
-            
-            {/* Add type-specific fields here based on dialogType */}
-            {dialogType === 'region' && (
-              <>
-                <TextField
-                  label="Code"
-                  value={formData.code || ''}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                      required
-                />
-                <TextField
-                  label="Geographic Area"
-                  value={formData.geographicArea || ''}
-                  onChange={(e) => setFormData({ ...formData, geographicArea: e.target.value })}
-                    />
-                <TextField
-                  label="Compliance Zones (comma-separated)"
-                  value={formData.complianceZones || ''}
-                  onChange={(e) => setFormData({ ...formData, complianceZones: e.target.value })}
-                      placeholder="GDPR, HIPAA, SOC2"
-                />
-              </>
-            )}
-            
-            {dialogType === 'datacenter' && (
-              <>
-                <FormControl>
-                  <InputLabel>Type</InputLabel>
-                  <Select
-                    value={formData.type || 'PRIMARY'}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    label="Type"
-                    sx={{ minWidth: 200 }}
-                  >
-                    <MenuItem value="PRIMARY">Primary</MenuItem>
-                    <MenuItem value="SECONDARY">Secondary</MenuItem>
-                    <MenuItem value="DR">Disaster Recovery</MenuItem>
-                    <MenuItem value="EDGE">Edge</MenuItem>
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <InputLabel>Tier</InputLabel>
-                  <Select
-                    value={formData.tier || 3}
-                    onChange={(e) => setFormData({ ...formData, tier: e.target.value })}
-                    label="Tier"
-                    sx={{ minWidth: 200 }}
-                  >
-                    <MenuItem value={1}>Tier 1 (99.995% uptime)</MenuItem>
-                    <MenuItem value={2}>Tier 2 (99.982% uptime)</MenuItem>
-                    <MenuItem value={3}>Tier 3 (99.982% uptime)</MenuItem>
-                    <MenuItem value={4}>Tier 4 (99.671% uptime)</MenuItem>
-                  </Select>
-                </FormControl>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={formData.isDrSite || false}
-                      onChange={(e) => setFormData({ ...formData, isDrSite: e.target.checked })}
-                    />
-                  }
-                  label="Is DR Site"
-                />
-              </>
-            )}
-            
-            {dialogType === 'compute' && (
-              <>
-                <TextField
-                  label="Hostname"
-                  value={formData.hostname || ''}
-                  onChange={(e) => setFormData({ ...formData, hostname: e.target.value })}
-                  required
-                />
-                <TextField
-                  label="IP Address"
-                  value={formData.ipAddress || ''}
-                  onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
-                />
-                <FormControl>
-                  <InputLabel>Type</InputLabel>
-                  <Select
-                    value={formData.computeType || 'DEDICATED'}
-                    onChange={(e) => setFormData({ ...formData, computeType: e.target.value })}
-                    label="Type"
-                  >
-                    <MenuItem value="DEDICATED">Dedicated</MenuItem>
-                    <MenuItem value="VM">Virtual Machine</MenuItem>
-                    <MenuItem value="BLADE">Blade Server</MenuItem>
-                    <MenuItem value="CLOUD">Cloud Instance</MenuItem>
-                  </Select>
-                </FormControl>
-                <TextField
-                  label="CPU Cores"
-                  type="number"
-                  value={formData.cpuCores || ''}
-                  onChange={(e) => setFormData({ ...formData, cpuCores: parseInt(e.target.value) || 0 })}
-                />
-                <TextField
-                  label="Memory (GB)"
-                  type="number"
-                  value={formData.memoryGb || ''}
-                  onChange={(e) => setFormData({ ...formData, memoryGb: parseInt(e.target.value) || 0 })}
-                />
-                <TextField
-                  label="Storage (GB)"
-                  type="number"
-                  value={formData.storageGb || ''}
-                  onChange={(e) => setFormData({ ...formData, storageGb: parseInt(e.target.value) || 0 })}
-                />
-                <FormControl>
-                  <InputLabel>Operating System</InputLabel>
-                  <Select
-                    value={formData.operatingSystem || 'LINUX'}
-                    onChange={(e) => setFormData({ ...formData, operatingSystem: e.target.value })}
-                    label="Operating System"
-                  >
-                    <MenuItem value="LINUX">Linux</MenuItem>
-                    <MenuItem value="WINDOWS">Windows</MenuItem>
-                    <MenuItem value="UNIX">Unix</MenuItem>
-                    <MenuItem value="MACOS">macOS</MenuItem>
-                    <MenuItem value="OTHER">Other</MenuItem>
-                  </Select>
-                </FormControl>
-              </>
-            )}
-            
-            <TextField
-              label="Description"
-              value={formData.description || ''}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              multiline
-              rows={2}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained">
-            {editMode ? 'Update' : 'Create'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* JSON Data Modal */}
-      <Dialog 
-        open={jsonModalOpen} 
-        onClose={() => setJsonModalOpen(false)} 
-        maxWidth="lg"
-        fullWidth
-        PaperProps={{
-          sx: { height: '80vh', maxHeight: '80vh' }
-        }}
-      >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', pb: 2 }}>
-          <DataObject sx={{ mr: 1 }} />
-          Raw Data View: {selectedNode?.name}
-          <Typography component="span" variant="h6" color="text.secondary" sx={{ ml: 1 }}>
-            ({selectedNode?.type})
-          </Typography>
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ height: '100%', overflow: 'auto' }}>
-            <pre style={{ 
-              margin: 0,
-              padding: '16px',
-              backgroundColor: '#f5f5f5',
-              borderRadius: '4px',
-              fontSize: '14px',
-              fontFamily: 'monospace',
-              whiteSpace: 'pre-wrap',
-              wordWrap: 'break-word',
-              overflow: 'auto'
-            }}>
-              {selectedNode?.data ? JSON.stringify(selectedNode.data, null, 2) : 'No data available'}
-            </pre>
-            {selectedNode?.metadata && (
-              <>
-                <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>Metadata:</Typography>
-                <pre style={{ 
-                  margin: 0,
-                  padding: '16px',
-                  backgroundColor: '#f0f0f0',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  fontFamily: 'monospace',
-                  whiteSpace: 'pre-wrap',
-                  wordWrap: 'break-word',
-                  overflow: 'auto'
-                }}>
-                  {JSON.stringify(selectedNode.metadata, null, 2)}
-                </pre>
-              </>
-            )}
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setJsonModalOpen(false)} variant="contained">
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <NetworkDeviceEditDialog
+        open={openNetworkDeviceEditDialog}
+        onClose={() => setOpenNetworkDeviceEditDialog(false)}
+        formData={networkDeviceEditData || {}}
+        setFormData={setNetworkDeviceEditData}
+        onSave={handleNetworkDeviceSave}
+        editMode={true}
+      />
     </Box>
   );
 };

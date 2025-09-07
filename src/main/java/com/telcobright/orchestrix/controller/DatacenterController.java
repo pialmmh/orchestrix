@@ -40,7 +40,12 @@ public class DatacenterController {
     
     // Get all datacenters
     @GetMapping
-    public List<Datacenter> getAllDatacenters() {
+    public List<Datacenter> getAllDatacenters(@RequestParam(value = "tenant", required = false) String tenant) {
+        if ("organization".equals(tenant)) {
+            return datacenterRepository.findAllByOrganizationTenant();
+        } else if ("other".equals(tenant)) {
+            return datacenterRepository.findAllByOtherTenant();
+        }
         return datacenterRepository.findAll();
     }
     

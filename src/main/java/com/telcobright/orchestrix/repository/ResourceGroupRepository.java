@@ -16,7 +16,7 @@ public interface ResourceGroupRepository extends JpaRepository<ResourceGroup, Lo
     
     List<ResourceGroup> findByCategoryOrderBySortOrder(String category);
     
-    @Query("SELECT rg FROM ResourceGroup rg LEFT JOIN FETCH rg.serviceTypes WHERE rg.isActive = true ORDER BY rg.sortOrder")
+    @Query("SELECT DISTINCT rg FROM ResourceGroup rg LEFT JOIN FETCH rg.serviceTypes WHERE rg.isActive = true ORDER BY rg.sortOrder")
     List<ResourceGroup> findAllActiveWithServices();
     
     @Query("SELECT rg FROM ResourceGroup rg LEFT JOIN FETCH rg.serviceTypes WHERE rg.id = ?1")

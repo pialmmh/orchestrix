@@ -32,4 +32,11 @@ public interface ResourcePoolRepository extends JpaRepository<ResourcePool, Long
     
     @Query("SELECT rp FROM ResourcePool rp WHERE (rp.totalMemoryGb - rp.usedMemoryGb) >= :minMemory")
     List<ResourcePool> findByAvailableMemory(@Param("minMemory") Integer minMemory);
+    
+    // Tenant-based queries
+    @Query("SELECT rp FROM ResourcePool rp WHERE rp.datacenter.cloud.partner.roles LIKE '%self%'")
+    List<ResourcePool> findAllByOrganizationTenant();
+    
+    @Query("SELECT rp FROM ResourcePool rp WHERE rp.datacenter.cloud.partner.roles NOT LIKE '%self%'")
+    List<ResourcePool> findAllByOtherTenant();
 }

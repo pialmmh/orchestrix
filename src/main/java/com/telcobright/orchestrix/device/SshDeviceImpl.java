@@ -82,25 +82,114 @@ public class SshDeviceImpl implements SshDevice {
             try {
                 StringBuilder response = new StringBuilder();
                 String line;
+                boolean foundCommandOutput = false;
+                int emptyLineCount = 0;
+                int timeoutCount = 0;
                 
-                while ((line = reader.readLine()) != null) {
+                // Wait a bit for command to execute
+                Thread.sleep(1000);
+                
+                while ((line = reader.readLine()) != null && timeoutCount < 50) {
                     response.append(line).append("\n");
                     
-                    if (line.contains(">") || line.contains("#") || line.contains("$")) {
-                        break;
+                    // Skip initial empty lines and prompts
+                    if (line.trim().isEmpty()) {
+                        emptyLineCount++;
+                        if (emptyLineCount > 3 && foundCommandOutput) {
+                            break; // Too many empty lines after output, likely done
+                        }
+                        continue;
+                    }
+                    
+                    emptyLineCount = 0;
+                    
+                    // Look for MikroTik prompt patterns
+                    if (line.contains("[admin@") && line.contains("] >")) {
+                        if (foundCommandOutput) {
+                            break; // Found prompt after output, we're done
+                        } else {
+                            continue; // Initial prompt, keep reading
+                        }
+                    }
+                    
+                    // If we see actual content (not just prompts), mark as found
+                    if (!line.contains("[admin@") && !line.trim().isEmpty() && 
+                        !line.contains("MMM") && !line.contains("KKK") && 
+                        !line.contains("MikroTik RouterOS")) {
+                        foundCommandOutput = true;
+                    }
+                    
+                    // Fallback timeout
+                    if (!reader.ready()) {
+                        timeoutCount++;
+                        Thread.sleep(100);
                     }
                 }
                 
                 String result = response.toString();
                 log.debug("Received SSH response length: {}", result.length());
                 
-                return result;
+                // Clean up the response by removing excessive whitespace and prompts
+                String cleanResult = cleanMikroTikResponse(result);
+                
+                return cleanResult;
                 
             } catch (Exception e) {
                 log.error("Failed to receive SSH response", e);
                 throw new RuntimeException("Failed to receive SSH response", e);
             }
         }, executorService);
+    }
+    
+    private String cleanMikroTikResponse(String response) {
+        if (response == null || response.trim().isEmpty()) {
+            return response;
+        }
+        
+        // Split into lines for processing
+        String[] lines = response.split("\n");
+        StringBuilder cleaned = new StringBuilder();
+        boolean inBanner = false;
+        boolean foundData = false;
+        
+        for (String line : lines) {
+            String trimmed = line.trim();
+            
+            // Skip MikroTik banner lines
+            if (trimmed.contains("MMM") || trimmed.contains("KKK") || 
+                trimmed.contains("MikroTik RouterOS") || trimmed.contains("http://www.mikrotik.com")) {
+                inBanner = true;
+                continue;
+            }
+            
+            // Skip empty lines in banner
+            if (inBanner && trimmed.isEmpty()) {
+                continue;
+            }
+            
+            // End of banner
+            if (inBanner && !trimmed.isEmpty() && !trimmed.contains("MMM") && !trimmed.contains("KKK")) {
+                inBanner = false;
+            }
+            
+            // Skip prompt lines
+            if (trimmed.contains("[admin@") && trimmed.contains("] >")) {
+                continue;
+            }
+            
+            // Skip command echo
+            if (trimmed.startsWith("/") && !foundData) {
+                continue;
+            }
+            
+            // Keep actual data lines
+            if (!trimmed.isEmpty() && !inBanner) {
+                cleaned.append(line).append("\n");
+                foundData = true;
+            }
+        }
+        
+        return cleaned.toString().trim();
     }
     
     @Override

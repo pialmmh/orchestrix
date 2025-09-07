@@ -25,7 +25,12 @@ public class ResourcePoolController {
     
     // Get all resource pools
     @GetMapping
-    public List<ResourcePool> getAllResourcePools() {
+    public List<ResourcePool> getAllResourcePools(@RequestParam(value = "tenant", required = false) String tenant) {
+        if ("organization".equals(tenant)) {
+            return resourcePoolRepository.findAllByOrganizationTenant();
+        } else if ("other".equals(tenant)) {
+            return resourcePoolRepository.findAllByOtherTenant();
+        }
         return resourcePoolRepository.findAll();
     }
     

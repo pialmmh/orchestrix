@@ -25,7 +25,12 @@ public class ComputeController {
     private ResourcePoolRepository resourcePoolRepository;
 
     @GetMapping
-    public List<Compute> getAllComputes() {
+    public List<Compute> getAllComputes(@RequestParam(value = "tenant", required = false) String tenant) {
+        if ("organization".equals(tenant)) {
+            return computeRepository.findAllByOrganizationTenant();
+        } else if ("other".equals(tenant)) {
+            return computeRepository.findAllByOtherTenant();
+        }
         return computeRepository.findAll();
     }
 

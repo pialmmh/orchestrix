@@ -30,7 +30,9 @@ public class ResourceGroupController {
     
     // Get all resource groups
     @GetMapping
-    public List<ResourceGroup> getAllResourceGroups() {
+    public List<ResourceGroup> getAllResourceGroups(@RequestParam(value = "tenant", required = false) String tenant) {
+        // Resource groups are shared across tenants, but we can filter by the tenant parameter if needed
+        // For now, return all active resource groups regardless of tenant
         return resourceGroupRepository.findAllActiveWithServices();
     }
     

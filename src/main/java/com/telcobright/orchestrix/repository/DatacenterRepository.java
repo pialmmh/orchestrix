@@ -22,4 +22,11 @@ public interface DatacenterRepository extends JpaRepository<Datacenter, Integer>
     List<Datacenter> findByCityId(@Param("cityId") Integer cityId);
     
     List<Datacenter> findByNameContainingIgnoreCase(String name);
+    
+    // Tenant-based queries
+    @Query("SELECT d FROM Datacenter d WHERE d.cloud.partner.roles LIKE '%self%'")
+    List<Datacenter> findAllByOrganizationTenant();
+    
+    @Query("SELECT d FROM Datacenter d WHERE d.cloud.partner.roles NOT LIKE '%self%'")
+    List<Datacenter> findAllByOtherTenant();
 }

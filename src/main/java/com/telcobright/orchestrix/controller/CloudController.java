@@ -24,7 +24,12 @@ public class CloudController {
     private PartnerRepository partnerRepository;
 
     @GetMapping
-    public List<Cloud> getAllClouds() {
+    public List<Cloud> getAllClouds(@RequestParam(value = "tenant", required = false) String tenant) {
+        if ("organization".equals(tenant)) {
+            return cloudRepository.findAllByOrganizationTenant();
+        } else if ("other".equals(tenant)) {
+            return cloudRepository.findAllByOtherTenant();
+        }
         return cloudRepository.findAllWithDatacenters();
     }
 
