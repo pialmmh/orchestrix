@@ -16,6 +16,7 @@ import {
   FormControlLabel,
   Checkbox,
 } from '@mui/material';
+import RemoteAccessTab from './RemoteAccessTab';
 
 interface ComputeEditDialogProps {
   open: boolean;
@@ -56,6 +57,7 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
             <Tab label="Maintenance" />
             <Tab label="Monitoring" />
             <Tab label="Roles & Metadata" />
+            <Tab label="Remote Access" />
           </Tabs>
         </Box>
         
@@ -854,6 +856,17 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
                   placeholder="JSON object: {'department': 'IT', 'project': 'WebApp'}"
                 />
               </Box>
+            </Box>
+          )}
+          
+          {/* Remote Access Tab */}
+          {activeTab === 10 && (
+            <Box sx={{ mt: 2 }}>
+              <RemoteAccessTab
+                deviceType="COMPUTE"
+                deviceId={formData.id || 0}
+                deviceName={formData.name || 'New Compute Node'}
+              />
             </Box>
           )}
         </Box>

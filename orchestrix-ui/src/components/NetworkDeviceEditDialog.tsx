@@ -16,6 +16,7 @@ import {
   FormControlLabel,
   Checkbox,
 } from '@mui/material';
+import RemoteAccessTab from './RemoteAccessTab';
 
 interface NetworkDeviceEditDialogProps {
   open: boolean;
@@ -54,6 +55,7 @@ const NetworkDeviceEditDialog: React.FC<NetworkDeviceEditDialogProps> = ({
             <Tab label="Business" />
             <Tab label="Monitoring" />
             <Tab label="Metadata" />
+            <Tab label="Remote Access" />
           </Tabs>
         </Box>
         
@@ -558,6 +560,17 @@ const NetworkDeviceEditDialog: React.FC<NetworkDeviceEditDialogProps> = ({
                   placeholder="Additional notes and comments..."
                 />
               </Box>
+            </Box>
+          )}
+          
+          {/* Remote Access Tab */}
+          {activeTab === 8 && (
+            <Box sx={{ mt: 2 }}>
+              <RemoteAccessTab
+                deviceType="NETWORK_DEVICE"
+                deviceId={formData.id || 0}
+                deviceName={formData.name || 'New Network Device'}
+              />
             </Box>
           )}
         </Box>
