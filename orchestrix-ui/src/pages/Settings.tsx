@@ -156,7 +156,7 @@ const Settings: React.FC = () => {
           {resourceGroups.map((group) => {
             const IconComponent = iconMap[group.icon] || Cloud;
             return (
-              <Grid key={group.id} size={{ xs: 12, md: 6, lg: 4 }}>
+              <Grid key={group.id} item xs={12} md={6} lg={4}>
                 <Card sx={{ 
                   height: '100%',
                   borderLeft: `4px solid ${group.color}`,

@@ -14,13 +14,13 @@ import {
   Typography,
   Tabs,
   Tab,
-  Grid,
   FormControlLabel,
   Switch,
   Chip,
   IconButton,
   InputAdornment
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import { Add, Delete } from '@mui/icons-material';
 import RemoteAccessTab from './RemoteAccessTab';
 

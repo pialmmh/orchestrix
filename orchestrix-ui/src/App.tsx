@@ -13,6 +13,7 @@ import Clients from './pages/Clients';
 import Deployments from './pages/Deployments';
 import Servers from './pages/Servers';
 import Security from './pages/Security';
+import SecretProviders from './pages/SecretProviders';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import ForgotPassword from './pages/ForgotPassword';
@@ -61,6 +62,7 @@ function App() {
               <Route path="deployments" element={<Deployments />} />
               <Route path="servers" element={<Servers />} />
               <Route path="security" element={<Security />} />
+              <Route path="secret-providers" element={<SecretProviders />} />
               <Route path="reports" element={<Reports />} />
               <Route path="settings" element={<Settings />} />
               <Route path="profile" element={<UserProfile />} />

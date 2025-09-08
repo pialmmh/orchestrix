@@ -40,7 +40,7 @@ import {
   Delete as DeleteIcon,
   Add,
 } from '@mui/icons-material';
-import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
+import { TreeView } from '@mui/x-tree-view/TreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import axios from 'axios';
 import ComputeEditDialog from '../components/ComputeEditDialog';
@@ -969,7 +969,7 @@ const InfrastructureCloudNative: React.FC = () => {
       return (
         <TreeItem
           key={node.id}
-          itemId={node.id}
+          nodeId={node.id}
           label={
             <Box 
               sx={{ display: 'flex', alignItems: 'center', py: 0.5 }}
@@ -1126,15 +1126,15 @@ const InfrastructureCloudNative: React.FC = () => {
               )}
               
               {!loading && treeData.length > 0 && (
-                <SimpleTreeView
-                  selectedItems={selectedNodeId}
-                  onSelectedItemsChange={handleNodeSelect}
-                  expandedItems={expanded}
-                  onExpandedItemsChange={handleToggle}
+                <TreeView
+                  selected={selectedNodeId}
+                  onNodeSelect={handleNodeSelect}
+                  expanded={expanded}
+                  onNodeToggle={handleToggle}
                   sx={{ flexGrow: 1 }}
                 >
                   {renderTreeItems(treeData)}
-                </SimpleTreeView>
+                </TreeView>
               )}
           </Paper>
         </Box>

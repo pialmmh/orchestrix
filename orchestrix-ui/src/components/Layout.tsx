@@ -546,6 +546,30 @@ const Layout: React.FC = () => {
 
           <ListItem disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
+              onClick={() => navigate('/secret-providers')}
+              selected={location.pathname === '/secret-providers'}
+              sx={{
+                borderRadius: 1,
+                '&.Mui-selected': {
+                  backgroundColor: alpha('#000', 0.08),
+                  '&:hover': {
+                    backgroundColor: alpha('#000', 0.12),
+                  },
+                },
+                '&:hover': {
+                  backgroundColor: alpha('#000', 0.05),
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
+                <VpnKey />
+              </ListItemIcon>
+              <ListItemText primary="Secret Providers" />
+            </ListItemButton>
+          </ListItem>
+
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton
               onClick={() => navigate('/reports')}
               selected={location.pathname === '/reports'}
               sx={{

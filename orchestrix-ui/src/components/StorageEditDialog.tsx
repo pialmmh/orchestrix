@@ -14,12 +14,12 @@ import {
   Typography,
   Tabs,
   Tab,
-  Grid,
   FormControlLabel,
   Switch,
   Divider,
   InputAdornment
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import RemoteAccessTab from './RemoteAccessTab';
 
 interface StorageEditDialogProps {
