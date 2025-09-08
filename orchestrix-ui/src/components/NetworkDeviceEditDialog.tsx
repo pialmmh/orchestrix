@@ -41,10 +41,10 @@ const NetworkDeviceEditDialog: React.FC<NetworkDeviceEditDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>{editMode ? 'Edit' : 'Add'} Network Device</DialogTitle>
       <DialogContent>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', maxWidth: 800, mx: 'auto' }}>
           <Tabs value={activeTab} onChange={handleTabChange} variant="scrollable">
             <Tab label="Basic Info" />
             <Tab label="Network Config" />
@@ -499,7 +499,7 @@ const NetworkDeviceEditDialog: React.FC<NetworkDeviceEditDialogProps> = ({
 
           {/* Metadata Tab */}
           {activeTab === 7 && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2, px: 3, maxWidth: 800, mx: 'auto' }}>
               <TextField
                 label="Created By"
                 value={formData.createdBy || ''}

@@ -18,6 +18,11 @@ import {
   Menu,
   MenuItem,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
 } from '@mui/material';
 import {
   Refresh,
@@ -819,9 +824,31 @@ const InfrastructureCloudNative: React.FC = () => {
       switch (dialogType) {
         case 'cloud':
           endpoint = editMode ? config.getApiEndpoint(`/clouds/${formData.id}`) : config.getApiEndpoint('/clouds');
+          // Add partner reference if creating cloud under an organization
+          if (!editMode && selectedNode?.type === 'environment') {
+            payload.partnerId = selectedNode.data.partnerId;
+          }
+          break;
+        case 'region':
+          endpoint = editMode ? config.getApiEndpoint(`/regions/${formData.id}`) : config.getApiEndpoint('/regions');
+          // Add cloud reference if creating region under a cloud
+          if (!editMode && selectedNode?.type === 'cloud') {
+            payload.cloudId = selectedNode.data.id;
+          }
+          break;
+        case 'az':
+          endpoint = editMode ? config.getApiEndpoint(`/availability-zones/${formData.id}`) : config.getApiEndpoint('/availability-zones');
+          // Add region reference if creating AZ under a region
+          if (!editMode && selectedNode?.type === 'region') {
+            payload.regionId = selectedNode.data.id;
+          }
           break;
         case 'datacenter':
           endpoint = editMode ? config.getApiEndpoint(`/datacenters/${formData.id}`) : config.getApiEndpoint('/datacenters');
+          // Add AZ reference if creating datacenter under an AZ
+          if (!editMode && selectedNode?.type === 'az') {
+            payload.availabilityZoneId = selectedNode.data.id;
+          }
           // Add cloud reference if creating datacenter under a cloud
           if (!editMode && selectedNode?.type === 'cloud') {
             payload.cloudId = selectedNode.data.id;
@@ -837,10 +864,12 @@ const InfrastructureCloudNative: React.FC = () => {
           break;
       }
       
-      if (editMode) {
-        await axios.put(endpoint, payload);
-      } else {
-        await axios.post(endpoint, payload);
+      if (endpoint) {
+        if (editMode) {
+          await axios.put(endpoint, payload);
+        } else {
+          await axios.post(endpoint, payload);
+        }
       }
       
       setOpenDialog(false);
@@ -855,14 +884,18 @@ const InfrastructureCloudNative: React.FC = () => {
     switch (type) {
       case 'cloud':
         return { name: '', description: '', status: 'ACTIVE', deploymentRegion: '', clientName: '' };
+      case 'region':
+        return { name: '', code: '', geographicArea: '', complianceZones: '', description: '', status: 'ACTIVE' };
+      case 'az':
+        return { name: '', code: '', zoneType: 'STANDARD', isDefault: false, capabilities: '', status: 'ACTIVE' };
       case 'datacenter':
-        return { name: '', provider: '', type: 'PRIMARY', status: 'ACTIVE', tier: 3, utilization: 0 };
+        return { name: '', provider: '', type: 'PRIMARY', status: 'ACTIVE', tier: 3, utilization: 0, country: '', state: '', city: '' };
       case 'compute':
         return { name: '', hostname: '', status: 'ACTIVE', osType: 'Linux' };
       case 'network-device':
         return { name: '', deviceType: 'Router', status: 'ACTIVE', operationalStatus: 'UP' };
       default:
-        return {};
+        return { name: '', status: 'ACTIVE' };
     }
   };
 
@@ -1301,6 +1334,148 @@ const InfrastructureCloudNative: React.FC = () => {
       </Menu>
 
       {/* Dialogs */}
+      {/* Generic Infrastructure Dialog for Cloud, Region, AZ, Datacenter */}
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {editMode ? 'Edit' : 'Add'} {dialogType && getDisplayNameForType(dialogType)}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2, px: 3, display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 600, mx: 'auto' }}>
+            <TextField
+              label="Name"
+              value={formData.name || ''}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              fullWidth
+              required
+            />
+            {dialogType === 'cloud' && (
+              <>
+                <TextField
+                  label="Description"
+                  value={formData.description || ''}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  fullWidth
+                  multiline
+                  rows={3}
+                />
+                <TextField
+                  label="Deployment Region"
+                  value={formData.deploymentRegion || ''}
+                  onChange={(e) => setFormData({ ...formData, deploymentRegion: e.target.value })}
+                  fullWidth
+                />
+              </>
+            )}
+            {dialogType === 'region' && (
+              <>
+                <TextField
+                  label="Code"
+                  value={formData.code || ''}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="Geographic Area"
+                  value={formData.geographicArea || ''}
+                  onChange={(e) => setFormData({ ...formData, geographicArea: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="Compliance Zones"
+                  value={formData.complianceZones || ''}
+                  onChange={(e) => setFormData({ ...formData, complianceZones: e.target.value })}
+                  fullWidth
+                  helperText="Comma-separated values"
+                />
+              </>
+            )}
+            {dialogType === 'az' && (
+              <>
+                <TextField
+                  label="Code"
+                  value={formData.code || ''}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="Zone Type"
+                  value={formData.zoneType || 'STANDARD'}
+                  onChange={(e) => setFormData({ ...formData, zoneType: e.target.value })}
+                  fullWidth
+                  select
+                  SelectProps={{ native: true }}
+                >
+                  <option value="STANDARD">Standard</option>
+                  <option value="HIGH_AVAILABILITY">High Availability</option>
+                  <option value="EDGE">Edge</option>
+                </TextField>
+                <TextField
+                  label="Capabilities"
+                  value={formData.capabilities || ''}
+                  onChange={(e) => setFormData({ ...formData, capabilities: e.target.value })}
+                  fullWidth
+                  helperText="Comma-separated values"
+                />
+              </>
+            )}
+            {dialogType === 'datacenter' && (
+              <>
+                <TextField
+                  label="Country"
+                  value={formData.country || ''}
+                  onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="State"
+                  value={formData.state || ''}
+                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="City"
+                  value={formData.city || ''}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="Provider"
+                  value={formData.provider || ''}
+                  onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="Tier"
+                  value={formData.tier || 3}
+                  onChange={(e) => setFormData({ ...formData, tier: parseInt(e.target.value) })}
+                  fullWidth
+                  type="number"
+                  inputProps={{ min: 1, max: 4 }}
+                />
+              </>
+            )}
+            <TextField
+              label="Status"
+              value={formData.status || 'ACTIVE'}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              fullWidth
+              select
+              SelectProps={{ native: true }}
+            >
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+              <option value="MAINTENANCE">Maintenance</option>
+            </TextField>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={handleSave} variant="contained" color="primary">
+            {editMode ? 'Update' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <ComputeEditDialog
         open={openComputeEditDialog}
         onClose={() => setOpenComputeEditDialog(false)}

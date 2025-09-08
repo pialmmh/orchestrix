@@ -41,14 +41,14 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>{editMode ? 'Edit' : 'Add'} Compute Node</DialogTitle>
       <DialogContent>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', maxWidth: 800, mx: 'auto' }}>
           <Tabs value={activeTab} onChange={handleTabChange} variant="scrollable">
             <Tab label="Basic Info" />
-            <Tab label="Hardware" />
             <Tab label="OS & Software" />
+            <Tab label="Hardware" />
             <Tab label="Network" />
             <Tab label="Storage" />
             <Tab label="Performance" />
@@ -62,7 +62,7 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
         <Box sx={{ px: 4, py: 2, minHeight: 350, maxHeight: '60vh', overflowY: 'auto' }}>
           {/* Basic Info Tab */}
           {activeTab === 0 && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2, px: 3, maxWidth: 800, mx: 'auto' }}>
               <TextField
                 label="Name"
                 value={formData.name || ''}
@@ -146,84 +146,9 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
             </Box>
           )}
           
-          {/* Hardware Tab */}
-          {activeTab === 1 && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
-              <TextField
-                label="Brand"
-                value={formData.brand || ''}
-                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Model"
-                value={formData.model || ''}
-                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Serial Number"
-                value={formData.serialNumber || ''}
-                onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Asset Tag"
-                value={formData.assetTag || ''}
-                onChange={(e) => setFormData({ ...formData, assetTag: e.target.value })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Rack Location"
-                value={formData.rackLocation || ''}
-                onChange={(e) => setFormData({ ...formData, rackLocation: e.target.value })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Rack Unit"
-                type="number"
-                value={formData.rackUnit || ''}
-                onChange={(e) => setFormData({ ...formData, rackUnit: parseInt(e.target.value) || null })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Power Consumption (Watts)"
-                type="number"
-                value={formData.powerConsumptionWatts || ''}
-                onChange={(e) => setFormData({ ...formData, powerConsumptionWatts: parseInt(e.target.value) || null })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Thermal Output (BTU)"
-                type="number"
-                value={formData.thermalOutputBtu || ''}
-                onChange={(e) => setFormData({ ...formData, thermalOutputBtu: parseInt(e.target.value) || null })}
-                fullWidth
-                size="small"
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.isPhysical || false}
-                    onChange={(e) => setFormData({ ...formData, isPhysical: e.target.checked })}
-                  />
-                }
-                label="Is Physical Server"
-                sx={{ gridColumn: 'span 2' }}
-              />
-            </Box>
-          )}
-
           {/* OS & Software Tab */}
-          {activeTab === 2 && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
+          {activeTab === 1 && (
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2, px: 3, maxWidth: 800, mx: 'auto' }}>
               <FormControl fullWidth size="small">
                 <InputLabel>OS Type</InputLabel>
                 <Select
@@ -307,9 +232,138 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
             </Box>
           )}
 
+          {/* Hardware Tab */}
+          {activeTab === 2 && (
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2, px: 3, maxWidth: 800, mx: 'auto' }}>
+              <TextField
+                label="Brand"
+                value={formData.brand || ''}
+                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Model"
+                value={formData.model || ''}
+                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Serial Number"
+                value={formData.serialNumber || ''}
+                onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Asset Tag"
+                value={formData.assetTag || ''}
+                onChange={(e) => setFormData({ ...formData, assetTag: e.target.value })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Rack Location"
+                value={formData.rackLocation || ''}
+                onChange={(e) => setFormData({ ...formData, rackLocation: e.target.value })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Rack Unit"
+                type="number"
+                value={formData.rackUnit || ''}
+                onChange={(e) => setFormData({ ...formData, rackUnit: parseInt(e.target.value) || null })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="CPU Model"
+                value={formData.cpuModel || ''}
+                onChange={(e) => setFormData({ ...formData, cpuModel: e.target.value })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="CPU Cores"
+                type="number"
+                value={formData.cpuCores || ''}
+                onChange={(e) => setFormData({ ...formData, cpuCores: parseInt(e.target.value) || null })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="CPU Speed (GHz)"
+                type="number"
+                value={formData.cpuSpeedGhz || ''}
+                onChange={(e) => setFormData({ ...formData, cpuSpeedGhz: parseFloat(e.target.value) || null })}
+                fullWidth
+                size="small"
+                inputProps={{ step: 0.1 }}
+              />
+              <TextField
+                label="RAM (GB)"
+                type="number"
+                value={formData.ramGb || ''}
+                onChange={(e) => setFormData({ ...formData, ramGb: parseInt(e.target.value) || null })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Storage (GB)"
+                type="number"
+                value={formData.storageGb || ''}
+                onChange={(e) => setFormData({ ...formData, storageGb: parseInt(e.target.value) || null })}
+                fullWidth
+                size="small"
+              />
+              <FormControl fullWidth size="small">
+                <InputLabel>Storage Type</InputLabel>
+                <Select
+                  value={formData.storageType || ''}
+                  onChange={(e) => setFormData({ ...formData, storageType: e.target.value })}
+                  label="Storage Type"
+                >
+                  <MenuItem value="SSD">SSD</MenuItem>
+                  <MenuItem value="HDD">HDD</MenuItem>
+                  <MenuItem value="NVME">NVMe</MenuItem>
+                  <MenuItem value="SAN">SAN</MenuItem>
+                  <MenuItem value="NAS">NAS</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                label="Power Consumption (Watts)"
+                type="number"
+                value={formData.powerConsumptionWatts || ''}
+                onChange={(e) => setFormData({ ...formData, powerConsumptionWatts: parseInt(e.target.value) || null })}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Thermal Output (BTU)"
+                type="number"
+                value={formData.thermalOutputBtu || ''}
+                onChange={(e) => setFormData({ ...formData, thermalOutputBtu: parseInt(e.target.value) || null })}
+                fullWidth
+                size="small"
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.isPhysical || false}
+                    onChange={(e) => setFormData({ ...formData, isPhysical: e.target.checked })}
+                  />
+                }
+                label="Is Physical Server"
+                sx={{ gridColumn: 'span 2' }}
+              />
+            </Box>
+          )}
+
           {/* Network Tab */}
           {activeTab === 3 && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2, px: 3, maxWidth: 800, mx: 'auto' }}>
               <TextField
                 label="Primary MAC Address"
                 value={formData.primaryMacAddress || ''}
@@ -375,7 +429,7 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
 
           {/* Storage Tab */}
           {activeTab === 4 && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2, px: 3, maxWidth: 800, mx: 'auto' }}>
               <FormControl fullWidth size="small">
                 <InputLabel>Storage Type</InputLabel>
                 <Select
