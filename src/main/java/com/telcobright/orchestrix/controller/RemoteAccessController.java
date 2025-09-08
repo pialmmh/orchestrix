@@ -52,7 +52,7 @@ public class RemoteAccessController {
     @GetMapping("/device/{deviceType}/{deviceId}")
     public ResponseEntity<List<RemoteAccess>> getByDevice(
             @PathVariable DeviceType deviceType,
-            @PathVariable Integer deviceId,
+            @PathVariable Long deviceId,
             @RequestParam(required = false) Boolean activeOnly) {
         try {
             List<RemoteAccess> remoteAccesses = Boolean.TRUE.equals(activeOnly) ?
@@ -69,7 +69,7 @@ public class RemoteAccessController {
     @GetMapping("/device/{deviceType}/{deviceId}/primary")
     public ResponseEntity<RemoteAccess> getPrimaryForDevice(
             @PathVariable DeviceType deviceType,
-            @PathVariable Integer deviceId) {
+            @PathVariable Long deviceId) {
         try {
             Optional<RemoteAccess> primary = remoteAccessRepository
                 .findByDeviceTypeAndDeviceIdAndIsPrimary(deviceType, deviceId, true);
@@ -127,7 +127,7 @@ public class RemoteAccessController {
     // Update remote access configuration
     @PutMapping("/{id}")
     public ResponseEntity<RemoteAccess> updateRemoteAccess(
-            @PathVariable Integer id,
+            @PathVariable Long id,
             @RequestBody RemoteAccess remoteAccess) {
         try {
             Optional<RemoteAccess> existing = remoteAccessRepository.findById(id);
@@ -180,7 +180,7 @@ public class RemoteAccessController {
     
     // Delete remote access configuration
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteRemoteAccess(@PathVariable Integer id) {
+    public ResponseEntity<Void> deleteRemoteAccess(@PathVariable Long id) {
         try {
             Optional<RemoteAccess> existing = remoteAccessRepository.findById(id);
             if (!existing.isPresent()) {
@@ -205,7 +205,7 @@ public class RemoteAccessController {
     
     // Test remote access connection
     @PostMapping("/{id}/test")
-    public ResponseEntity<Map<String, Object>> testConnection(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> testConnection(@PathVariable Long id) {
         try {
             Optional<RemoteAccess> optional = remoteAccessRepository.findById(id);
             if (!optional.isPresent()) {
@@ -255,7 +255,7 @@ public class RemoteAccessController {
     
     // Sync with secret provider
     @PostMapping("/{id}/sync")
-    public ResponseEntity<RemoteAccess> syncWithSecretProvider(@PathVariable Integer id) {
+    public ResponseEntity<RemoteAccess> syncWithSecretProvider(@PathVariable Long id) {
         try {
             Optional<RemoteAccess> optional = remoteAccessRepository.findById(id);
             if (!optional.isPresent()) {

@@ -28,7 +28,7 @@ import com.telcobright.orchestrix.service.secret.SecretProvider.SecretProviderTy
 public class RemoteAccess {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Long id;
     
     // Device reference (polymorphic)
     @Column(name = "device_type", nullable = false, length = 50)
@@ -36,7 +36,7 @@ public class RemoteAccess {
     private DeviceType deviceType; // COMPUTE, NETWORK_DEVICE, STORAGE, FIREWALL, LOAD_BALANCER, etc.
     
     @Column(name = "device_id", nullable = false)
-    private Integer deviceId;
+    private Long deviceId;
     
     @Column(name = "device_name", length = 255)
     private String deviceName; // Cached for quick reference
@@ -122,7 +122,7 @@ public class RemoteAccess {
     private Boolean enableModeRequired = false; // For network devices
     
     @Column(name = "jump_host_id")
-    private Integer jumpHostId; // Reference to another RemoteAccess for jump/bastion host
+    private Long jumpHostId; // Reference to another RemoteAccess for jump/bastion host
     
     @Column(name = "proxy_url", length = 255)
     private String proxyUrl; // SOCKS/HTTP proxy if needed

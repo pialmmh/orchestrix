@@ -14,14 +14,14 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface RemoteAccessRepository extends JpaRepository<RemoteAccess, Integer> {
+public interface RemoteAccessRepository extends JpaRepository<RemoteAccess, Long> {
     
     // Find by device
-    List<RemoteAccess> findByDeviceTypeAndDeviceId(DeviceType deviceType, Integer deviceId);
+    List<RemoteAccess> findByDeviceTypeAndDeviceId(DeviceType deviceType, Long deviceId);
     
-    List<RemoteAccess> findByDeviceTypeAndDeviceIdAndIsActive(DeviceType deviceType, Integer deviceId, Boolean isActive);
+    List<RemoteAccess> findByDeviceTypeAndDeviceIdAndIsActive(DeviceType deviceType, Long deviceId, Boolean isActive);
     
-    Optional<RemoteAccess> findByDeviceTypeAndDeviceIdAndIsPrimary(DeviceType deviceType, Integer deviceId, Boolean isPrimary);
+    Optional<RemoteAccess> findByDeviceTypeAndDeviceIdAndIsPrimary(DeviceType deviceType, Long deviceId, Boolean isPrimary);
     
     // Find by Bitwarden
     Optional<RemoteAccess> findByBitwardenItemId(String bitwardenItemId);
@@ -92,8 +92,8 @@ public interface RemoteAccessRepository extends JpaRepository<RemoteAccess, Inte
     
     // Bulk operations
     @Query("UPDATE RemoteAccess ra SET ra.isActive = false WHERE ra.deviceType = :deviceType AND ra.deviceId = :deviceId")
-    void deactivateAllForDevice(@Param("deviceType") DeviceType deviceType, @Param("deviceId") Integer deviceId);
+    void deactivateAllForDevice(@Param("deviceType") DeviceType deviceType, @Param("deviceId") Long deviceId);
     
     @Query("DELETE FROM RemoteAccess ra WHERE ra.deviceType = :deviceType AND ra.deviceId = :deviceId")
-    void deleteAllForDevice(@Param("deviceType") DeviceType deviceType, @Param("deviceId") Integer deviceId);
+    void deleteAllForDevice(@Param("deviceType") DeviceType deviceType, @Param("deviceId") Long deviceId);
 }
