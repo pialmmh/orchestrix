@@ -45,6 +45,7 @@ import {
   Dns,
   Folder,
   Cloud,
+  VpnKey,
 } from '@mui/icons-material';
 import { AppDispatch, RootState } from '../store/store';
 import { logout } from '../store/slices/authSlice';
@@ -443,6 +444,31 @@ const Layout: React.FC = () => {
                 <Public />
               </ListItemIcon>
               <ListItemText primary="Partners" />
+            </ListItemButton>
+          </ListItem>
+
+          {/* Remote Access */}
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton
+              onClick={() => navigate('/remote-access')}
+              selected={location.pathname === '/remote-access'}
+              sx={{
+                borderRadius: 1,
+                '&.Mui-selected': {
+                  backgroundColor: alpha('#000', 0.08),
+                  '&:hover': {
+                    backgroundColor: alpha('#000', 0.12),
+                  },
+                },
+                '&:hover': {
+                  backgroundColor: alpha('#000', 0.05),
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
+                <VpnKey />
+              </ListItemIcon>
+              <ListItemText primary="Remote Access" />
             </ListItemButton>
           </ListItem>
 

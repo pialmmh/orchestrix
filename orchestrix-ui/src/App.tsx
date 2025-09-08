@@ -24,6 +24,7 @@ import Compute from './pages/resources/Compute';
 import Storage from './pages/resources/Storage';
 import Countries from './pages/resources/Countries';
 import Infrastructure from './pages/InfrastructureCloudNative';
+import RemoteAccess from './pages/RemoteAccess';
 import './utils/debugAxios';
 // @ts-ignore
 import { useClaudeBridge } from './hooks/useClaudeBridge';
@@ -56,6 +57,7 @@ function App() {
               <Route path="users/:id" element={<UserProfile />} />
               <Route path="partners" element={<Partners />} />
               <Route path="clients" element={<Clients />} />
+              <Route path="remote-access" element={<RemoteAccess />} />
               <Route path="deployments" element={<Deployments />} />
               <Route path="servers" element={<Servers />} />
               <Route path="security" element={<Security />} />
