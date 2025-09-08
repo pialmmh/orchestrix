@@ -4,9 +4,11 @@ import com.telcobright.orchestrix.entity.RemoteAccess;
 import com.telcobright.orchestrix.entity.RemoteAccess.DeviceType;
 import com.telcobright.orchestrix.entity.RemoteAccess.TestStatus;
 import com.telcobright.orchestrix.repository.RemoteAccessRepository;
-import com.telcobright.orchestrix.service.BitwardenService;
-import com.telcobright.orchestrix.dto.BitwardenCredentialDto;
-import com.telcobright.orchestrix.dto.BitwardenItemDto;
+import com.telcobright.orchestrix.service.secret.SecretProviderFactory;
+import com.telcobright.orchestrix.service.secret.SecretProvider;
+import com.telcobright.orchestrix.service.secret.SecretProvider.SecretProviderType;
+import com.telcobright.orchestrix.dto.SecretCredentialDto;
+import com.telcobright.orchestrix.dto.SecretItemDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -27,7 +29,7 @@ public class RemoteAccessController {
     private RemoteAccessRepository remoteAccessRepository;
     
     @Autowired
-    private BitwardenService bitwardenService;
+    private SecretProviderFactory secretProviderFactory;
     
     // Get all remote access configurations
     @GetMapping
@@ -93,15 +95,22 @@ public class RemoteAccessController {
                 });
             }
             
-            // If Bitwarden integration is enabled and credentials are provided
-            if (Boolean.TRUE.equals(remoteAccess.getBitwardenSyncEnabled())) {
-                BitwardenCredentialDto credential = createBitwardenCredential(remoteAccess);
-                BitwardenItemDto savedItem = bitwardenService.saveCredential(credential);
+            // Save to secret provider if enabled
+            if (remoteAccess.getSecretProviderType() != null) {
+                SecretProvider provider = secretProviderFactory.getProvider(remoteAccess.getSecretProviderType());
+                SecretCredentialDto credential = createSecretCredential(remoteAccess);
+                SecretItemDto savedItem = provider.saveCredential(credential);
                 
                 if (savedItem != null) {
-                    remoteAccess.setBitwardenItemId(savedItem.getId());
-                    remoteAccess.setBitwardenOrganizationId(savedItem.getOrganizationId());
-                    remoteAccess.setBitwardenLastSync(LocalDateTime.now());
+                    remoteAccess.setSecretItemId(savedItem.getId());
+                    remoteAccess.setSecretNamespace(savedItem.getNamespace());
+                    
+                    // Keep backward compatibility with Bitwarden fields
+                    if (remoteAccess.getSecretProviderType() == SecretProviderType.BITWARDEN) {
+                        remoteAccess.setBitwardenItemId(savedItem.getId());
+                        remoteAccess.setBitwardenOrganizationId(savedItem.getNamespace());
+                        remoteAccess.setBitwardenLastSync(LocalDateTime.now());
+                    }
                 }
             }
             
@@ -141,15 +150,22 @@ public class RemoteAccessController {
                     });
             }
             
-            // Sync with Bitwarden if needed
-            if (Boolean.TRUE.equals(remoteAccess.getBitwardenSyncEnabled())) {
-                BitwardenCredentialDto credential = createBitwardenCredential(remoteAccess);
-                credential.setId(remoteAccess.getBitwardenItemId());
-                BitwardenItemDto savedItem = bitwardenService.saveCredential(credential);
+            // Sync with secret provider if needed
+            if (remoteAccess.getSecretProviderType() != null && remoteAccess.getSecretItemId() != null) {
+                SecretProvider provider = secretProviderFactory.getProvider(remoteAccess.getSecretProviderType());
+                SecretCredentialDto credential = createSecretCredential(remoteAccess);
+                credential.setId(remoteAccess.getSecretItemId());
+                SecretItemDto savedItem = provider.saveCredential(credential);
                 
                 if (savedItem != null) {
-                    remoteAccess.setBitwardenItemId(savedItem.getId());
-                    remoteAccess.setBitwardenLastSync(LocalDateTime.now());
+                    remoteAccess.setSecretItemId(savedItem.getId());
+                    remoteAccess.setSecretNamespace(savedItem.getNamespace());
+                    
+                    // Keep backward compatibility
+                    if (remoteAccess.getSecretProviderType() == SecretProviderType.BITWARDEN) {
+                        remoteAccess.setBitwardenItemId(savedItem.getId());
+                        remoteAccess.setBitwardenLastSync(LocalDateTime.now());
+                    }
                 }
             }
             
@@ -171,10 +187,11 @@ public class RemoteAccessController {
                 return ResponseEntity.notFound().build();
             }
             
-            // Delete from Bitwarden if integrated
+            // Delete from secret provider if integrated
             RemoteAccess remoteAccess = existing.get();
-            if (remoteAccess.getBitwardenItemId() != null) {
-                bitwardenService.deleteCredential(remoteAccess.getBitwardenItemId());
+            if (remoteAccess.getSecretProviderType() != null && remoteAccess.getSecretItemId() != null) {
+                SecretProvider provider = secretProviderFactory.getProvider(remoteAccess.getSecretProviderType());
+                provider.deleteCredential(remoteAccess.getSecretItemId());
             }
             
             remoteAccessRepository.deleteById(id);
@@ -201,10 +218,11 @@ public class RemoteAccessController {
             // Update test timestamp
             remoteAccess.setLastTestedAt(LocalDateTime.now());
             
-            // Retrieve credentials from Bitwarden if needed
-            BitwardenCredentialDto credentials = null;
-            if (remoteAccess.getBitwardenItemId() != null) {
-                credentials = bitwardenService.getCredential(remoteAccess.getBitwardenItemId());
+            // Retrieve credentials from secret provider if needed
+            SecretCredentialDto credentials = null;
+            if (remoteAccess.getSecretProviderType() != null && remoteAccess.getSecretItemId() != null) {
+                SecretProvider provider = secretProviderFactory.getProvider(remoteAccess.getSecretProviderType());
+                credentials = provider.getCredential(remoteAccess.getSecretItemId());
             }
             
             // TODO: Implement actual connection testing based on access type
@@ -235,9 +253,9 @@ public class RemoteAccessController {
         }
     }
     
-    // Sync with Bitwarden
+    // Sync with secret provider
     @PostMapping("/{id}/sync")
-    public ResponseEntity<RemoteAccess> syncWithBitwarden(@PathVariable Integer id) {
+    public ResponseEntity<RemoteAccess> syncWithSecretProvider(@PathVariable Integer id) {
         try {
             Optional<RemoteAccess> optional = remoteAccessRepository.findById(id);
             if (!optional.isPresent()) {
@@ -246,20 +264,26 @@ public class RemoteAccessController {
             
             RemoteAccess remoteAccess = optional.get();
             
-            if (remoteAccess.getBitwardenItemId() != null) {
-                BitwardenCredentialDto credential = bitwardenService.getCredential(remoteAccess.getBitwardenItemId());
+            if (remoteAccess.getSecretProviderType() != null && remoteAccess.getSecretItemId() != null) {
+                SecretProvider provider = secretProviderFactory.getProvider(remoteAccess.getSecretProviderType());
+                SecretCredentialDto credential = provider.getCredential(remoteAccess.getSecretItemId());
                 if (credential != null) {
                     // Update cached metadata
                     remoteAccess.setUsername(credential.getUsername());
-                    remoteAccess.setBitwardenLastSync(LocalDateTime.now());
+                    
+                    // Update provider-specific sync time
+                    if (remoteAccess.getSecretProviderType() == SecretProviderType.BITWARDEN) {
+                        remoteAccess.setBitwardenLastSync(LocalDateTime.now());
+                    }
+                    
                     remoteAccessRepository.save(remoteAccess);
-                    log.info("Synced remote access {} with Bitwarden", id);
+                    log.info("Synced remote access {} with {}", id, remoteAccess.getSecretProviderType());
                 }
             }
             
             return ResponseEntity.ok(remoteAccess);
         } catch (Exception e) {
-            log.error("Error syncing with Bitwarden", e);
+            log.error("Error syncing with secret provider", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -337,54 +361,66 @@ public class RemoteAccessController {
         }
     }
     
-    // Test Bitwarden connection
-    @GetMapping("/bitwarden/test")
-    public ResponseEntity<Map<String, Object>> testBitwardenConnection() {
+    // Test secret provider connection
+    @GetMapping("/provider/{providerType}/test")
+    public ResponseEntity<Map<String, Object>> testProviderConnection(
+            @PathVariable SecretProviderType providerType) {
         Map<String, Object> result = new HashMap<>();
         try {
-            boolean connected = bitwardenService.testConnection();
+            SecretProvider provider = secretProviderFactory.getProvider(providerType);
+            boolean connected = provider.testConnection();
             boolean authenticated = false;
             
             if (connected) {
-                authenticated = bitwardenService.authenticate();
+                authenticated = provider.authenticate();
             }
             
+            result.put("provider", providerType.toString());
             result.put("connected", connected);
             result.put("authenticated", authenticated);
             result.put("status", connected && authenticated ? "success" : "failed");
             
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            log.error("Error testing Bitwarden connection", e);
+            log.error("Error testing {} connection", providerType, e);
             result.put("status", "error");
             result.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
         }
     }
     
-    // Helper method to create Bitwarden credential from RemoteAccess
-    private BitwardenCredentialDto createBitwardenCredential(RemoteAccess remoteAccess) {
-        BitwardenCredentialDto credential = new BitwardenCredentialDto();
+    // Get all configured providers status
+    @GetMapping("/providers/status")
+    public ResponseEntity<Map<String, Object>> getAllProvidersStatus() {
+        try {
+            Map<String, Object> result = new HashMap<>();
+            Map<SecretProviderType, SecretProvider.SecretProviderStatus> statuses = 
+                secretProviderFactory.getAllProviderStatuses();
+            result.put("providers", statuses);
+            result.put("defaultProvider", secretProviderFactory.getDefaultProvider().getType());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error getting providers status", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    // Helper method to create secret credential from RemoteAccess
+    private SecretCredentialDto createSecretCredential(RemoteAccess remoteAccess) {
+        SecretCredentialDto credential = new SecretCredentialDto();
         credential.setName(String.format("%s - %s", remoteAccess.getDeviceName(), remoteAccess.getAccessName()));
         credential.setUsername(remoteAccess.getUsername());
-        credential.setHost(remoteAccess.getHost());
-        credential.setPort(remoteAccess.getPort());
-        credential.setProtocol(remoteAccess.getAccessProtocol() != null ? 
-            remoteAccess.getAccessProtocol().toString() : null);
+        credential.setUrl(String.format("%s:%d", remoteAccess.getHost(), 
+            remoteAccess.getPort() != null ? remoteAccess.getPort() : 22));
         credential.setNotes(remoteAccess.getNotes());
-        credential.setOrganizationId(remoteAccess.getBitwardenOrganizationId());
+        credential.setNamespace(remoteAccess.getSecretNamespace() != null ? 
+            remoteAccess.getSecretNamespace() : remoteAccess.getBitwardenOrganizationId());
         
-        // Add URIs
-        if (remoteAccess.getHost() != null) {
-            List<String> uris = new ArrayList<>();
-            String uri = String.format("%s://%s:%d", 
-                remoteAccess.getAccessProtocol() != null ? 
-                    remoteAccess.getAccessProtocol().toString().toLowerCase() : "ssh",
-                remoteAccess.getHost(),
-                remoteAccess.getPort() != null ? remoteAccess.getPort() : 22);
-            uris.add(uri);
-            credential.setUris(uris);
-        }
+        // Add tags based on device and access type
+        List<String> tags = new ArrayList<>();
+        tags.add(remoteAccess.getDeviceType().toString());
+        tags.add(remoteAccess.getAccessType().toString());
+        credential.setTags(tags);
         
         return credential;
     }

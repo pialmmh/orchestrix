@@ -56,6 +56,9 @@ const RemoteAccessDialog: React.FC<RemoteAccessDialogProps> = ({
     port: 22,
     authMethod: 'PASSWORD',
     username: '',
+    secretProviderType: 'LOCAL_ENCRYPTED',
+    secretItemId: '',
+    secretNamespace: '',
     bitwardenSyncEnabled: true,
     bitwardenItemId: '',
     sudoEnabled: false,
@@ -119,7 +122,7 @@ const RemoteAccessDialog: React.FC<RemoteAccessDialogProps> = ({
         <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)} sx={{ mb: 2 }}>
           <Tab label="Connection" />
           <Tab label="Authentication" />
-          <Tab label="Bitwarden" />
+          <Tab label="Secret Provider" />
           <Tab label="Advanced" />
         </Tabs>
 
@@ -280,27 +283,44 @@ const RemoteAccessDialog: React.FC<RemoteAccessDialogProps> = ({
           </Box>
         )}
 
-        {/* Bitwarden Tab */}
+        {/* Secret Provider Tab */}
         {activeTab === 2 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 3, maxWidth: 600, mx: 'auto' }}>
             <Alert severity="info">
-              Credentials are securely stored in your self-hosted Bitwarden/Vaultwarden instance
+              Credentials are securely stored using your configured secret provider
             </Alert>
             
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.bitwardenSyncEnabled}
-                  onChange={(e) => handleChange('bitwardenSyncEnabled', e.target.checked)}
-                />
-              }
-              label="Enable Bitwarden Sync"
-            />
+            <FormControl fullWidth size="small">
+              <InputLabel>Secret Provider</InputLabel>
+              <Select
+                value={formData.secretProviderType}
+                onChange={(e) => handleChange('secretProviderType', e.target.value)}
+                label="Secret Provider"
+              >
+                <MenuItem value="LOCAL_ENCRYPTED">Local Encrypted Storage</MenuItem>
+                <MenuItem value="BITWARDEN">Bitwarden/Vaultwarden</MenuItem>
+                <MenuItem value="HASHICORP_VAULT">HashiCorp Vault</MenuItem>
+                <MenuItem value="AWS_SECRETS_MANAGER">AWS Secrets Manager</MenuItem>
+                <MenuItem value="AZURE_KEY_VAULT">Azure Key Vault</MenuItem>
+                <MenuItem value="GCP_SECRET_MANAGER">Google Cloud Secret Manager</MenuItem>
+              </Select>
+            </FormControl>
             
-            {formData.bitwardenSyncEnabled && existingAccess && (
+            {formData.secretProviderType !== 'LOCAL_ENCRYPTED' && (
               <TextField
-                label="Bitwarden Item ID"
-                value={formData.bitwardenItemId}
+                label="Secret Namespace/Organization"
+                value={formData.secretNamespace}
+                onChange={(e) => handleChange('secretNamespace', e.target.value)}
+                fullWidth
+                size="small"
+                helperText="Organization ID, Collection, or Vault path depending on provider"
+              />
+            )}
+            
+            {existingAccess && formData.secretItemId && (
+              <TextField
+                label="Secret Item ID"
+                value={formData.secretItemId}
                 fullWidth
                 size="small"
                 disabled
@@ -308,9 +328,21 @@ const RemoteAccessDialog: React.FC<RemoteAccessDialogProps> = ({
               />
             )}
             
-            {!existingAccess && formData.bitwardenSyncEnabled && (
+            {!existingAccess && (
               <Alert severity="info">
-                Bitwarden item will be created automatically when you save this configuration.
+                Secret item will be created automatically when you save this configuration.
+              </Alert>
+            )}
+            
+            {formData.secretProviderType === 'BITWARDEN' && (
+              <Alert severity="success">
+                Using Bitwarden/Vaultwarden for credential storage
+              </Alert>
+            )}
+            
+            {formData.secretProviderType === 'LOCAL_ENCRYPTED' && (
+              <Alert severity="warning">
+                Using local encrypted storage. Credentials are stored in the database with AES-256 encryption.
               </Alert>
             )}
           </Box>

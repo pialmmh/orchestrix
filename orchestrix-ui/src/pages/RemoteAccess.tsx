@@ -83,13 +83,13 @@ const RemoteAccess: React.FC = () => {
   const [selectedAccess, setSelectedAccess] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [bitwardenStatus, setBitwardenStatus] = useState<any>(null);
+  const [providersStatus, setProvidersStatus] = useState<any>(null);
   const [statistics, setStatistics] = useState<any>(null);
 
   useEffect(() => {
     fetchRemoteAccesses();
     fetchStatistics();
-    testBitwardenConnection();
+    fetchProvidersStatus();
   }, []);
 
   const fetchRemoteAccesses = async () => {
@@ -119,16 +119,31 @@ const RemoteAccess: React.FC = () => {
     }
   };
 
-  const testBitwardenConnection = async () => {
+  const fetchProvidersStatus = async () => {
     try {
-      const response = await fetch('/api/remote-access/bitwarden/test');
+      const response = await fetch('/api/remote-access/providers/status');
       if (response.ok) {
         const data = await response.json();
-        setBitwardenStatus(data);
+        setProvidersStatus(data);
       }
     } catch (error) {
-      console.error('Error testing Bitwarden connection:', error);
-      setBitwardenStatus({ status: 'error' });
+      console.error('Error fetching providers status:', error);
+      setProvidersStatus({ error: true });
+    }
+  };
+  
+  const testProviderConnection = async (providerType: string) => {
+    try {
+      const response = await fetch(`/api/remote-access/provider/${providerType}/test`);
+      if (response.ok) {
+        const data = await response.json();
+        // Refresh providers status after test
+        fetchProvidersStatus();
+        return data;
+      }
+    } catch (error) {
+      console.error(`Error testing ${providerType} connection:`, error);
+      return { status: 'error' };
     }
   };
 
@@ -245,11 +260,11 @@ const RemoteAccess: React.FC = () => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Remote Access Management</Typography>
         <Box display="flex" gap={2}>
-          {bitwardenStatus && (
+          {providersStatus && providersStatus.defaultProvider && (
             <Chip
-              icon={bitwardenStatus.status === 'success' ? <CheckCircle /> : <Error />}
-              label={bitwardenStatus.status === 'success' ? 'Bitwarden Connected' : 'Bitwarden Disconnected'}
-              color={bitwardenStatus.status === 'success' ? 'success' : 'error'}
+              icon={<Security />}
+              label={`Default: ${providersStatus.defaultProvider}`}
+              color="primary"
             />
           )}
           <Button
@@ -321,7 +336,7 @@ const RemoteAccess: React.FC = () => {
         <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)}>
           <Tab label="All Credentials" />
           <Tab label="By Device Type" />
-          <Tab label="Bitwarden Settings" />
+          <Tab label="Provider Settings" />
         </Tabs>
 
         <TabPanel value={activeTab} index={0}>
@@ -390,7 +405,7 @@ const RemoteAccess: React.FC = () => {
                     <TableCell>Username</TableCell>
                     <TableCell>Auth Method</TableCell>
                     <TableCell>Status</TableCell>
-                    <TableCell>Bitwarden</TableCell>
+                    <TableCell>Provider</TableCell>
                     <TableCell>Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -441,21 +456,13 @@ const RemoteAccess: React.FC = () => {
                         </Box>
                       </TableCell>
                       <TableCell>
-                        {access.bitwardenItemId ? (
-                          <Chip
-                            icon={<VpnKey />}
-                            label="Synced"
-                            size="small"
-                            color="success"
-                            variant="outlined"
-                          />
-                        ) : (
-                          <Chip
-                            label="Not synced"
-                            size="small"
-                            variant="outlined"
-                          />
-                        )}
+                        <Chip
+                          icon={<VpnKey />}
+                          label={access.secretProviderType || 'LOCAL_ENCRYPTED'}
+                          size="small"
+                          color={access.secretItemId ? 'success' : 'default'}
+                          variant="outlined"
+                        />
                       </TableCell>
                       <TableCell>
                         <Box display="flex" gap={0.5}>
@@ -467,8 +474,8 @@ const RemoteAccess: React.FC = () => {
                               <Science fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                          {access.bitwardenSyncEnabled && (
-                            <Tooltip title="Sync with Bitwarden">
+                          {access.secretProviderType && access.secretItemId && (
+                            <Tooltip title={`Sync with ${access.secretProviderType}`}>
                               <IconButton
                                 size="small"
                                 onClick={() => handleSync(access.id)}
@@ -534,22 +541,26 @@ const RemoteAccess: React.FC = () => {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Bitwarden Configuration
+                Secret Providers Configuration
               </Typography>
-              {bitwardenStatus && (
-                <Alert 
-                  severity={bitwardenStatus.status === 'success' ? 'success' : 'error'}
-                  sx={{ mb: 2 }}
-                >
-                  {bitwardenStatus.status === 'success' 
-                    ? 'Successfully connected to Bitwarden'
-                    : 'Failed to connect to Bitwarden. Check your configuration.'}
-                </Alert>
+              {providersStatus && providersStatus.providers && (
+                <Box sx={{ mb: 2 }}>
+                  {Object.entries(providersStatus.providers).map(([provider, status]: [string, any]) => (
+                    <Alert 
+                      key={provider}
+                      severity={status.connected ? 'success' : 'warning'}
+                      sx={{ mb: 1 }}
+                    >
+                      <strong>{provider}:</strong> {status.connected ? 'Connected' : 'Not Connected'}
+                      {status.errorMessage && ` - ${status.errorMessage}`}
+                    </Alert>
+                  ))}
+                </Box>
               )}
               <Box display="flex" flexDirection="column" gap={2}>
                 <TextField
-                  label="Bitwarden API URL"
-                  value="http://localhost:8080"
+                  label="Default Provider"
+                  value={providersStatus?.defaultProvider || 'LOCAL_ENCRYPTED'}
                   disabled
                   fullWidth
                   helperText="Configure in application.properties"
@@ -570,10 +581,10 @@ const RemoteAccess: React.FC = () => {
                 />
                 <Button
                   variant="outlined"
-                  startIcon={<Science />}
-                  onClick={testBitwardenConnection}
+                  startIcon={<Refresh />}
+                  onClick={fetchProvidersStatus}
                 >
-                  Test Connection
+                  Refresh Status
                 </Button>
               </Box>
             </CardContent>

@@ -8,16 +8,17 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.HashMap;
+import com.telcobright.orchestrix.service.secret.SecretProvider.SecretProviderType;
 
 /**
  * Unified remote access configuration for all device types.
- * This entity stores references to credentials in Bitwarden, not the actual credentials.
+ * This entity stores references to credentials in external secret providers, not the actual credentials.
  */
 @Entity
 @Table(name = "remote_access", 
     indexes = {
         @Index(name = "idx_remote_access_device", columnList = "device_type, device_id"),
-        @Index(name = "idx_remote_access_bitwarden", columnList = "bitwarden_item_id"),
+        @Index(name = "idx_remote_access_secret", columnList = "secret_provider_type, secret_item_id"),
         @Index(name = "idx_remote_access_active", columnList = "is_active, is_primary")
     }
 )
@@ -62,7 +63,18 @@ public class RemoteAccess {
     @Column(name = "connection_url", length = 500)
     private String connectionUrl; // Full connection string if applicable
     
-    // Bitwarden Integration
+    // Secret Provider Integration
+    @Column(name = "secret_provider_type", length = 50)
+    @Enumerated(EnumType.STRING)
+    private SecretProviderType secretProviderType = SecretProviderType.LOCAL_ENCRYPTED;
+    
+    @Column(name = "secret_item_id", length = 100)
+    private String secretItemId; // Generic secret item identifier
+    
+    @Column(name = "secret_namespace", length = 100)
+    private String secretNamespace; // Organization/Collection/Vault/Path depending on provider
+    
+    // Bitwarden-specific fields (kept for backward compatibility)
     @Column(name = "bitwarden_item_id", length = 100)
     private String bitwardenItemId; // Bitwarden item UUID
     
