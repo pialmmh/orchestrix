@@ -15,6 +15,9 @@ import {
   Tab,
   ToggleButton,
   ToggleButtonGroup,
+  Menu,
+  MenuItem,
+  Divider,
 } from '@mui/material';
 import {
   Refresh,
@@ -30,6 +33,7 @@ import {
   DataObject,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Add,
 } from '@mui/icons-material';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
@@ -75,8 +79,8 @@ const InfrastructureCloudNative: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string[]>(['org-root', 'environments']);
   
-  // Tenant state
-  const [tenant, setTenant] = useState<'organization' | 'partners'>('partners');
+  // Tenant state - default to organization to show self partner's infrastructure
+  const [tenant, setTenant] = useState<'organization' | 'partners'>('organization');
   
   // Dialog states
   const [openDialog, setOpenDialog] = useState(false);
@@ -98,10 +102,9 @@ const InfrastructureCloudNative: React.FC = () => {
   
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
-    mouseX: number;
-    mouseY: number;
+    anchorEl: HTMLElement | null;
     node: TreeNode | null;
-  } | null>(null);
+  }>({ anchorEl: null, node: null });
 
   useEffect(() => {
     config.printConfiguration();
@@ -142,41 +145,122 @@ const InfrastructureCloudNative: React.FC = () => {
   const fetchInfrastructureData = async () => {
     setLoading(true);
     try {
-      const tenantParam = tenant === 'organization' ? 'organization' : 'other';
+      const tenantParam = tenant === 'organization' ? 'organization' : 'organization';
       console.log('🔍 fetchInfrastructureData - tenant:', tenant, 'tenantParam:', tenantParam);
-      console.log('🔍 fetchInfrastructureData - partners:', partners);
+      
+      // Fetch partners first to ensure we have them before building the tree
+      let fetchedPartners = partners;
+      if (partners.length === 0) {
+        try {
+          const partnersResponse = await axios.get(config.getApiEndpoint('/partners'));
+          fetchedPartners = partnersResponse.data.partners.filter((p: Partner) => 
+            p.roles && (p.roles.includes('customer') || p.roles.includes('self') || p.roles.includes('vendor'))
+          );
+          setPartners(fetchedPartners);
+        } catch (error) {
+          console.error('Error fetching partners:', error);
+          fetchedPartners = [];
+        }
+      }
+      console.log('🔍 fetchInfrastructureData - partners:', fetchedPartners);
       
       const [cloudsRes, regionsRes, azsRes, datacentersRes, poolsRes, computesRes, networkDevicesRes, resourceGroupsRes] = await Promise.allSettled([
         axios.get(config.getApiEndpoint(`/clouds?tenant=${tenantParam}`)),
-        axios.get(config.getApiEndpoint(`/regions?tenant=${tenantParam}`)).catch(() => ({ data: [] })),
-        axios.get(config.getApiEndpoint(`/availability-zones?tenant=${tenantParam}`)).catch(() => ({ data: [] })),
+        axios.get(config.getApiEndpoint(`/regions?tenant=${tenantParam}`)),
+        axios.get(config.getApiEndpoint(`/availability-zones?tenant=${tenantParam}`)),
         axios.get(config.getApiEndpoint(`/datacenters?tenant=${tenantParam}`)),
-        axios.get(config.getApiEndpoint(`/resource-pools?tenant=${tenantParam}`)).catch(() => ({ data: [] })),
-        axios.get(config.getApiEndpoint(`/computes?tenant=${tenantParam}`)).catch(() => ({ data: [] })),
-        axios.get(config.getApiEndpoint(`/network-devices?tenant=${tenantParam}`)).catch(() => ({ data: [] })),
-        axios.get(config.getApiEndpoint(`/resource-groups?tenant=${tenantParam}`)).catch(() => ({ data: [] }))
+        axios.get(config.getApiEndpoint(`/resource-pools?tenant=${tenantParam}`)),
+        axios.get(config.getApiEndpoint(`/computes?tenant=${tenantParam}`)),
+        axios.get(config.getApiEndpoint(`/network-devices?tenant=${tenantParam}`)),
+        axios.get(config.getApiEndpoint(`/resource-groups?tenant=${tenantParam}`))
       ]);
 
       const clouds = cloudsRes.status === 'fulfilled' ? cloudsRes.value.data : [];
-      const regions = regionsRes.status === 'fulfilled' ? regionsRes.value.data : [];
-      const azs = azsRes.status === 'fulfilled' ? azsRes.value.data : [];
-      const datacenters = datacentersRes.status === 'fulfilled' ? datacentersRes.value.data : [];
+      let regions = regionsRes.status === 'fulfilled' ? regionsRes.value.data : [];
+      let azs = azsRes.status === 'fulfilled' ? azsRes.value.data : [];
+      let datacenters = datacentersRes.status === 'fulfilled' ? datacentersRes.value.data : [];
       const pools = poolsRes.status === 'fulfilled' ? poolsRes.value.data : [];
       const computes = computesRes.status === 'fulfilled' ? computesRes.value.data : [];
       const networkDevices = networkDevicesRes.status === 'fulfilled' ? networkDevicesRes.value.data : [];
       const resourceGroups = resourceGroupsRes.status === 'fulfilled' ? resourceGroupsRes.value.data : [];
+      
+      // Always extract and enrich nested data from clouds
+      // This ensures we have complete hierarchical data with proper relationships
+      const nestedRegions: any[] = [];
+      const nestedAzs: any[] = [];
+      const nestedDatacenters: any[] = [];
+      
+      clouds.forEach((cloud: any) => {
+        if (cloud.regions) {
+          // Add cloudId to each region for proper filtering
+          cloud.regions.forEach((region: any) => {
+            const enrichedRegion = {
+              ...region,
+              cloudId: cloud.id,
+              cloud: { id: cloud.id } // Also add cloud object reference
+            };
+            nestedRegions.push(enrichedRegion);
+            
+            if (region.availabilityZones) {
+              // Add regionId to each AZ for proper filtering
+              region.availabilityZones.forEach((az: any) => {
+                const enrichedAz = {
+                  ...az,
+                  regionId: region.id,
+                  region: { id: region.id } // Also add region object reference
+                };
+                nestedAzs.push(enrichedAz);
+                
+                // Extract datacenters from AZs
+                if (az.datacenters) {
+                  az.datacenters.forEach((dc: any) => {
+                    const enrichedDc = {
+                      ...dc,
+                      availabilityZoneId: az.id,
+                      availabilityZone: { id: az.id } // Also add AZ object reference
+                    };
+                    nestedDatacenters.push(enrichedDc);
+                  });
+                }
+              });
+            }
+          });
+        }
+      });
+      
+      // Merge nested data with direct API data, preferring nested data for completeness
+      // Use a Map to deduplicate by ID
+      const regionMap = new Map<number, any>();
+      regions.forEach((r: any) => regionMap.set(r.id, r));
+      nestedRegions.forEach((r: any) => regionMap.set(r.id, r)); // Nested overwrites direct
+      regions = Array.from(regionMap.values());
+      
+      const azMap = new Map<number, any>();
+      azs.forEach((az: any) => azMap.set(az.id, az));
+      nestedAzs.forEach((az: any) => azMap.set(az.id, az)); // Nested overwrites direct
+      azs = Array.from(azMap.values());
+      
+      const dcMap = new Map<number, any>();
+      datacenters.forEach((dc: any) => dcMap.set(dc.id, dc));
+      nestedDatacenters.forEach((dc: any) => dcMap.set(dc.id, dc)); // Nested overwrites direct
+      datacenters = Array.from(dcMap.values());
+      
+      console.log('📊 Extracted nested data:');
+      console.log('  - Nested regions:', nestedRegions.length);
+      console.log('  - Nested AZs:', nestedAzs.length);
+      console.log('  - Nested datacenters:', nestedDatacenters.length);
 
       console.log('📊 API Data fetched:');
-      console.log('  - clouds:', clouds);
-      console.log('  - regions:', regions);
-      console.log('  - azs:', azs);
-      console.log('  - datacenters:', datacenters);
-      console.log('  - pools:', pools);
-      console.log('  - computes:', computes);
-      console.log('  - networkDevices:', networkDevices);
-      console.log('  - resourceGroups:', resourceGroups);
+      console.log('  - clouds:', clouds.length, clouds);
+      console.log('  - regions:', regions.length, regions);
+      console.log('  - azs:', azs.length, azs);
+      console.log('  - datacenters:', datacenters.length, datacenters);
+      console.log('  - pools:', pools.length);
+      console.log('  - computes:', computes.length);
+      console.log('  - networkDevices:', networkDevices.length);
+      console.log('  - resourceGroups:', resourceGroups.length);
 
-      const tree: TreeNode[] = buildTenantTree(tenant, partners, clouds, regions, azs, datacenters, pools, computes, networkDevices, resourceGroups);
+      const tree: TreeNode[] = buildTenantTree(tenant, fetchedPartners, clouds, regions, azs, datacenters, pools, computes, networkDevices, resourceGroups);
       console.log('🌳 Built tree:', tree);
       
       setTreeData(tree);
@@ -440,8 +524,9 @@ const InfrastructureCloudNative: React.FC = () => {
               metadata: {
                 capabilities: az.capabilities?.split(',') || []
               },
-              children: envDatacenters
-                .filter(dc => dc.availabilityZone?.id === az.id || dc.availabilityZoneId === az.id)
+              children: datacenters
+                .filter(dc => (dc.availabilityZone?.id === az.id || dc.availabilityZoneId === az.id) &&
+                  (!dc.environment || dc.environment.type === envType))
                 .map((dc: any, dcIndex: number) => {
                   const dcAssignedGroups = dc.datacenterResourceGroups || [];
                   
@@ -574,7 +659,7 @@ const InfrastructureCloudNative: React.FC = () => {
     }
   };
 
-  const handleAdd = (type: 'cloud' | 'datacenter' | 'compute' | 'network-device', parentNode?: TreeNode) => {
+  const handleAdd = (type: 'cloud' | 'region' | 'az' | 'datacenter' | 'compute' | 'network-device', parentNode?: TreeNode) => {
     if (type === 'compute') {
       setComputeEditData({});
       setOpenComputeEditDialog(true);
@@ -641,22 +726,17 @@ const InfrastructureCloudNative: React.FC = () => {
     }
   };
 
-  const handleContextMenu = (event: React.MouseEvent, node: TreeNode) => {
+  const handleContextMenu = (event: React.MouseEvent<HTMLElement>, node: TreeNode) => {
     event.preventDefault();
     event.stopPropagation();
-    setContextMenu(
-      contextMenu === null
-        ? {
-            mouseX: event.clientX + 2,
-            mouseY: event.clientY - 6,
-            node: node,
-          }
-        : null
-    );
+    setContextMenu({
+      anchorEl: event.currentTarget,
+      node: node,
+    });
   };
 
   const handleCloseContextMenu = () => {
-    setContextMenu(null);
+    setContextMenu({ anchorEl: null, node: null });
   };
 
   const handleContextMenuAction = (action: string) => {
@@ -670,11 +750,20 @@ const InfrastructureCloudNative: React.FC = () => {
       case 'add-cloud':
         handleAdd('cloud', node);
         break;
+      case 'add-region':
+        handleAdd('region', node);
+        break;
+      case 'add-az':
+        handleAdd('az', node);
+        break;
       case 'add-datacenter':
         handleAdd('datacenter', node);
         break;
       case 'add-compute':
         handleAdd('compute', node);
+        break;
+      case 'add-network-device':
+        handleAdd('network-device', node);
         break;
       case 'edit':
         setSelectedNode(node);
@@ -849,7 +938,10 @@ const InfrastructureCloudNative: React.FC = () => {
           key={node.id}
           itemId={node.id}
           label={
-            <Box sx={{ display: 'flex', alignItems: 'center', py: 0.5 }}>
+            <Box 
+              sx={{ display: 'flex', alignItems: 'center', py: 0.5 }}
+              onContextMenu={(e) => handleContextMenu(e, node)}
+            >
               {getIconForNodeType(node.type, node.metadata)}
               <Typography variant="body2" sx={{ ml: 1 }}>
                 {node.name}
@@ -1062,6 +1154,33 @@ const InfrastructureCloudNative: React.FC = () => {
                         </Button>
                       )}
                       {selectedNode.type === 'cloud' && (
+                        <>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleAdd('region', selectedNode)}
+                          >
+                            Add Region
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleAdd('datacenter', selectedNode)}
+                          >
+                            Add Datacenter
+                          </Button>
+                        </>
+                      )}
+                      {selectedNode.type === 'region' && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => handleAdd('az', selectedNode)}
+                        >
+                          Add Availability Zone
+                        </Button>
+                      )}
+                      {selectedNode.type === 'az' && (
                         <Button
                           variant="outlined"
                           size="small"
@@ -1122,6 +1241,64 @@ const InfrastructureCloudNative: React.FC = () => {
           </Box>
         </Box>
       </Box>
+
+      {/* Context Menu */}
+      <Menu
+        anchorEl={contextMenu.anchorEl}
+        open={Boolean(contextMenu.anchorEl)}
+        onClose={() => setContextMenu({ anchorEl: null, node: null })}
+      >
+        {contextMenu.node && (
+          <>
+            {contextMenu.node.type === 'environment' && (
+              <MenuItem onClick={() => handleContextMenuAction('add-cloud')}>
+                <Add fontSize="small" sx={{ mr: 1 }} /> Add Cloud
+              </MenuItem>
+            )}
+            {contextMenu.node.type === 'cloud' && (
+              <>
+                <MenuItem onClick={() => handleContextMenuAction('add-region')}>
+                  <Add fontSize="small" sx={{ mr: 1 }} /> Add Region
+                </MenuItem>
+                <MenuItem onClick={() => handleContextMenuAction('add-datacenter')}>
+                  <Add fontSize="small" sx={{ mr: 1 }} /> Add Datacenter
+                </MenuItem>
+              </>
+            )}
+            {contextMenu.node.type === 'region' && (
+              <MenuItem onClick={() => handleContextMenuAction('add-az')}>
+                <Add fontSize="small" sx={{ mr: 1 }} /> Add Availability Zone
+              </MenuItem>
+            )}
+            {contextMenu.node.type === 'az' && (
+              <MenuItem onClick={() => handleContextMenuAction('add-datacenter')}>
+                <Add fontSize="small" sx={{ mr: 1 }} /> Add Datacenter
+              </MenuItem>
+            )}
+            {(contextMenu.node.type === 'datacenter' || contextMenu.node.type === 'service') && (
+              <>
+                <MenuItem onClick={() => handleContextMenuAction('add-compute')}>
+                  <Add fontSize="small" sx={{ mr: 1 }} /> Add Compute
+                </MenuItem>
+                <MenuItem onClick={() => handleContextMenuAction('add-network-device')}>
+                  <Add fontSize="small" sx={{ mr: 1 }} /> Add Network Device
+                </MenuItem>
+              </>
+            )}
+            {(['cloud', 'region', 'az', 'datacenter', 'compute', 'network-device'].includes(contextMenu.node.type)) && (
+              <>
+                <Divider />
+                <MenuItem onClick={() => handleContextMenuAction('edit')}>
+                  <EditIcon fontSize="small" sx={{ mr: 1 }} /> Edit
+                </MenuItem>
+                <MenuItem onClick={() => handleContextMenuAction('delete')}>
+                  <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Delete
+                </MenuItem>
+              </>
+            )}
+          </>
+        )}
+      </Menu>
 
       {/* Dialogs */}
       <ComputeEditDialog
