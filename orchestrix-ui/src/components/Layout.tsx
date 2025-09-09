@@ -46,6 +46,7 @@ import {
   Folder,
   Cloud,
   VpnKey,
+  Terminal,
 } from '@mui/icons-material';
 import { AppDispatch, RootState } from '../store/store';
 import { logout } from '../store/slices/authSlice';
@@ -589,6 +590,30 @@ const Layout: React.FC = () => {
                 <Assessment />
               </ListItemIcon>
               <ListItemText primary="Reports" />
+            </ListItemButton>
+          </ListItem>
+
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton
+              onClick={() => navigate('/websocket-test')}
+              selected={location.pathname === '/websocket-test'}
+              sx={{
+                borderRadius: 1,
+                '&.Mui-selected': {
+                  backgroundColor: alpha('#000', 0.08),
+                  '&:hover': {
+                    backgroundColor: alpha('#000', 0.12),
+                  },
+                },
+                '&:hover': {
+                  backgroundColor: alpha('#000', 0.05),
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
+                <Terminal />
+              </ListItemIcon>
+              <ListItemText primary="WebSocket Test" />
             </ListItemButton>
           </ListItem>
 

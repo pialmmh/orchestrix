@@ -26,6 +26,7 @@ import Storage from './pages/resources/Storage';
 import Countries from './pages/resources/Countries';
 import Infrastructure from './pages/InfrastructureCloudNative';
 import RemoteAccess from './pages/RemoteAccess';
+import WebSocketTest from './pages/WebSocketTest';
 import './utils/debugAxios';
 // @ts-ignore
 import { useClaudeBridge } from './hooks/useClaudeBridge';
@@ -70,6 +71,7 @@ function App() {
               <Route path="resources/datacenters" element={<Datacenters />} />
               <Route path="resources/compute" element={<Compute />} />
               <Route path="resources/storage" element={<Storage />} />
+              <Route path="websocket-test" element={<WebSocketTest />} />
             </Route>
           </Routes>
         </Router>

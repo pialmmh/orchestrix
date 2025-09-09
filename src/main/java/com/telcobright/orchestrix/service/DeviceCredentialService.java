@@ -35,8 +35,8 @@ public class DeviceCredentialService {
     @Autowired
     private NetworkDeviceRepository networkDeviceRepository;
     
-    @Autowired
-    private StorageRepository storageRepository;
+    // @Autowired
+    // private StorageRepository storageRepository;
     
     @Autowired
     private ContainerRepository containerRepository;
@@ -154,7 +154,8 @@ public class DeviceCredentialService {
             case NETWORK_DEVICE:
                 return networkDeviceRepository.findById(deviceId).orElse(null);
             case STORAGE:
-                return storageRepository.findById(deviceId).orElse(null);
+                // Storage repository not yet implemented
+                return null;
             case CONTAINER:
                 return containerRepository.findById(deviceId).orElse(null);
             default:

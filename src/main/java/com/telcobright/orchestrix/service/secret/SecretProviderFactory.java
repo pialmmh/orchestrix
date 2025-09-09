@@ -32,8 +32,8 @@ public class SecretProviderFactory {
     @Autowired(required = false)
     private LocalEncryptedSecretProvider localProvider;
     
-    @Autowired(required = false)
-    private HashiCorpVaultSecretProvider vaultProvider;
+    // @Autowired(required = false)
+    // private HashiCorpVaultSecretProvider vaultProvider;
     
     @PostConstruct
     public void init() {
@@ -46,9 +46,9 @@ public class SecretProviderFactory {
             registerProvider(SecretProviderType.LOCAL_ENCRYPTED, localProvider);
         }
         
-        if (vaultProvider != null) {
-            registerProvider(SecretProviderType.HASHICORP_VAULT, vaultProvider);
-        }
+        // if (vaultProvider != null) {
+        //     registerProvider(SecretProviderType.HASHICORP_VAULT, vaultProvider);
+        // }
         
         // Set default provider
         try {
