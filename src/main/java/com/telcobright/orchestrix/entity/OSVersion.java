@@ -19,6 +19,9 @@ public class OSVersion {
     @Column(nullable = false, length = 50)
     private String version;
 
+    @Column(length = 20)
+    private String architecture = "amd64";
+
     @Column(name = "display_name", nullable = false, length = 200)
     private String displayName;
 
@@ -46,6 +49,14 @@ public class OSVersion {
         this.osType = osType;
         this.distribution = distribution;
         this.version = version;
+        this.displayName = displayName;
+    }
+
+    public OSVersion(String osType, String distribution, String version, String architecture, String displayName) {
+        this.osType = osType;
+        this.distribution = distribution;
+        this.version = version;
+        this.architecture = architecture;
         this.displayName = displayName;
     }
 
@@ -80,6 +91,14 @@ public class OSVersion {
 
     public void setVersion(String version) {
         this.version = version;
+    }
+
+    public String getArchitecture() {
+        return architecture;
+    }
+
+    public void setArchitecture(String architecture) {
+        this.architecture = architecture;
     }
 
     public String getDisplayName() {

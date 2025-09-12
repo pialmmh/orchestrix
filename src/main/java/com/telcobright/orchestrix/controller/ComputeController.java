@@ -4,6 +4,7 @@ import com.telcobright.orchestrix.entity.Compute;
 import com.telcobright.orchestrix.entity.ResourcePool;
 import com.telcobright.orchestrix.repository.ComputeRepository;
 import com.telcobright.orchestrix.repository.ResourcePoolRepository;
+import com.telcobright.orchestrix.validator.ComputeValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +24,9 @@ public class ComputeController {
     
     @Autowired
     private ResourcePoolRepository resourcePoolRepository;
+    
+    @Autowired
+    private ComputeValidator computeValidator;
 
     @GetMapping
     public List<Compute> getAllComputes(@RequestParam(value = "tenant", required = false) String tenant) {
@@ -90,6 +94,15 @@ public class ComputeController {
                 }
             }
             
+            // Validate the compute object
+            List<String> validationErrors = computeValidator.validate(compute, false);
+            if (!validationErrors.isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", "Validation failed");
+                errorResponse.put("errors", validationErrors);
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+            
             Compute saved = computeRepository.save(compute);
             return ResponseEntity.ok(saved);
         } catch (Exception e) {
@@ -100,10 +113,20 @@ public class ComputeController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Compute> updateCompute(@PathVariable Long id, @RequestBody Compute computeDetails) {
+    public ResponseEntity<?> updateCompute(@PathVariable Long id, @RequestBody Compute computeDetails) {
         Optional<Compute> optionalCompute = computeRepository.findById(id);
         if (optionalCompute.isPresent()) {
             Compute compute = optionalCompute.get();
+            
+            // Validate the update
+            List<String> validationErrors = computeValidator.validate(computeDetails, true);
+            if (!validationErrors.isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", "Validation failed");
+                errorResponse.put("errors", validationErrors);
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+            
             compute.setName(computeDetails.getName());
             compute.setDescription(computeDetails.getDescription());
             if (computeDetails.getNodeType() != null) {

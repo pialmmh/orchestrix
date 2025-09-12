@@ -17,6 +17,7 @@ import {
   Checkbox,
 } from '@mui/material';
 import RemoteAccessTab from './RemoteAccessTab';
+import IPAddressManager from './IPAddressManager';
 
 interface NetworkDeviceEditDialogProps {
   open: boolean;
@@ -159,14 +160,27 @@ const NetworkDeviceEditDialog: React.FC<NetworkDeviceEditDialogProps> = ({
           
           {/* Network Config Tab */}
           {activeTab === 1 && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
-              <TextField
-                label="Management IP"
-                value={formData.managementIp || ''}
-                onChange={(e) => setFormData({ ...formData, managementIp: e.target.value })}
-                fullWidth
-                size="small"
+            <Box sx={{ mt: 2 }}>
+              <IPAddressManager
+                deviceType="NETWORK_DEVICE"
+                deviceId={formData.id || 0}
+                deviceName={formData.name || 'New Network Device'}
+                readOnly={!editMode}
               />
+              
+              {/* Legacy IP field - hidden but kept for backward compatibility */}
+              <Box sx={{ display: 'none' }}>
+                <TextField
+                  label="Management IP (Legacy)"
+                  value={formData.managementIp || ''}
+                  onChange={(e) => setFormData({ ...formData, managementIp: e.target.value })}
+                  fullWidth
+                  size="small"
+                />
+              </Box>
+              
+              {/* Additional Network Configuration */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 3 }}>
               <TextField
                 label="MAC Address"
                 value={formData.macAddress || ''}
@@ -244,6 +258,7 @@ const NetworkDeviceEditDialog: React.FC<NetworkDeviceEditDialogProps> = ({
                 size="small"
                 type="password"
               />
+              </Box>
             </Box>
           )}
 

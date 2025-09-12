@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @Table(name = "computes")
@@ -26,7 +27,13 @@ public class Compute {
     private String hostname;
 
     @Column(name = "ip_address")
+    @Deprecated // Kept for backward compatibility, use ipAddresses instead
     private String ipAddress;
+    
+    // Multiple IP addresses support
+    @OneToMany(mappedBy = "compute", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"compute", "networkDevice", "container", "hibernateLazyInitializer", "handler"})
+    private List<IPAddress> ipAddresses = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "os_version_id")
@@ -296,6 +303,42 @@ public class Compute {
 
     public void setIpAddress(String ipAddress) {
         this.ipAddress = ipAddress;
+    }
+    
+    public List<IPAddress> getIpAddresses() {
+        return ipAddresses;
+    }
+    
+    public void setIpAddresses(List<IPAddress> ipAddresses) {
+        this.ipAddresses = ipAddresses;
+    }
+    
+    // Helper method to add an IP address
+    public void addIpAddress(IPAddress ipAddress) {
+        if (this.ipAddresses == null) {
+            this.ipAddresses = new ArrayList<>();
+        }
+        ipAddress.setCompute(this);
+        this.ipAddresses.add(ipAddress);
+    }
+    
+    // Helper method to remove an IP address
+    public void removeIpAddress(IPAddress ipAddress) {
+        if (this.ipAddresses != null) {
+            ipAddress.setCompute(null);
+            this.ipAddresses.remove(ipAddress);
+        }
+    }
+    
+    // Helper method to get primary IP address
+    public IPAddress getPrimaryIpAddress() {
+        if (ipAddresses != null) {
+            return ipAddresses.stream()
+                .filter(IPAddress::getIsPrimary)
+                .findFirst()
+                .orElse(null);
+        }
+        return null;
     }
 
     public OSVersion getOsVersion() {

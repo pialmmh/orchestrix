@@ -1,10 +1,13 @@
 package com.telcobright.orchestrix.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import lombok.Data;
 import javax.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @Table(name = "network_devices")
@@ -41,7 +44,13 @@ public class NetworkDevice {
     
     // Network Configuration
     @Column(name = "management_ip", length = 45)
+    @Deprecated // Kept for backward compatibility, use ipAddresses instead
     private String managementIp;
+    
+    // Multiple IP addresses support
+    @OneToMany(mappedBy = "networkDevice", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"compute", "networkDevice", "container", "hibernateLazyInitializer", "handler"})
+    private List<IPAddress> ipAddresses = new ArrayList<>();
     
     @Column(name = "management_port")
     private Integer managementPort = 22;

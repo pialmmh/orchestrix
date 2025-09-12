@@ -163,8 +163,8 @@ const Compute: React.FC = () => {
 
   const fetchResources = async () => {
     try {
-      const response = await axios.get('/api/compute/resources');
-      setResources(response.data.resources || []);
+      const response = await axios.get('/api/api/computes');
+      setResources(response.data || []);
     } catch (error) {
       console.error('Error fetching compute resources:', error);
     } finally {
@@ -229,7 +229,7 @@ const Compute: React.FC = () => {
 
   const handleDeleteResource = async (id: number) => {
     try {
-      await axios.delete(`/api/compute/resources/${id}`);
+      await axios.delete(`/api/api/computes/${id}`);
       fetchResources();
     } catch (error) {
       console.error('Error deleting resource:', error);
@@ -239,21 +239,36 @@ const Compute: React.FC = () => {
   const handleSubmit = async () => {
     try {
       const payload: any = {
-        ...formData,
-        osVersionId: formData.osVersionId ? parseInt(formData.osVersionId) : null,
-        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : [],
+        name: formData.name,
+        hostname: formData.hostname,
+        ipAddress: formData.ipAddress || null,
+        status: formData.status,
+        cpuCores: parseInt(formData.cpuCores.toString()) || 0,
+        memoryGb: parseInt(formData.memoryGb.toString()) || 0,
+        diskGb: parseInt(formData.storageGb.toString()) || 0,
+        osVersion: formData.osVersionId ? { id: parseInt(formData.osVersionId) } : null,
+        tags: formData.tags || null,
+        notes: formData.notes || null,
+        environment: formData.environment || null,
+        nodeType: formData.nodeType || null,
+        purpose: formData.purpose || null,
       };
+      
+      console.log('Sending payload:', JSON.stringify(payload, null, 2));
 
       if (selectedResource) {
-        await axios.put(`/api/compute/resources/${selectedResource.id}`, payload);
+        await axios.put(`/api/api/computes/${selectedResource.id}`, payload);
       } else {
-        await axios.post('/api/compute/resources', payload);
+        const response = await axios.post('/api/api/computes', payload);
+        console.log('Response:', response.data);
       }
       
       setOpenDialog(false);
       fetchResources();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving resource:', error);
+      console.error('Error response:', error.response?.data);
+      alert(`Failed to save compute: ${error.response?.data?.error || error.response?.data?.errors?.join(', ') || error.response?.data?.message || error.message}`);
     }
   };
 

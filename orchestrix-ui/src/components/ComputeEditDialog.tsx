@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -17,6 +17,7 @@ import {
   Checkbox,
 } from '@mui/material';
 import RemoteAccessTab from './RemoteAccessTab';
+import IPAddressManager from './IPAddressManager';
 
 interface ComputeEditDialogProps {
   open: boolean;
@@ -36,6 +37,19 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
   editMode,
 }) => {
   const [activeTab, setActiveTab] = useState(0);
+  const [osVersions, setOsVersions] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Fetch OS versions when dialog opens
+    if (open) {
+      fetch('http://localhost:8090/api/os-versions')
+        .then(res => res.json())
+        .then(data => {
+          setOsVersions(data);
+        })
+        .catch(err => console.error('Failed to fetch OS versions:', err));
+    }
+  }, [open]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
@@ -151,40 +165,38 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
           {/* OS & Software Tab */}
           {activeTab === 1 && (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2, px: 3, maxWidth: 800, mx: 'auto' }}>
-              <FormControl fullWidth size="small">
-                <InputLabel>OS Type</InputLabel>
+              <FormControl fullWidth size="small" sx={{ gridColumn: { md: 'span 2' } }}>
+                <InputLabel>Operating System</InputLabel>
                 <Select
-                  value={formData.osType || ''}
-                  onChange={(e) => setFormData({ ...formData, osType: e.target.value })}
-                  label="OS Type"
+                  value={formData.osVersion?.id || ''}
+                  onChange={(e) => {
+                    const selectedOS = osVersions.find(os => os.id === e.target.value);
+                    if (selectedOS) {
+                      setFormData({ 
+                        ...formData, 
+                        osVersion: selectedOS,
+                        osType: selectedOS.osType,
+                        osDistribution: selectedOS.distribution,
+                        osVersionString: `${selectedOS.version} ${selectedOS.architecture}`
+                      });
+                    }
+                  }}
+                  label="Operating System"
                 >
-                  <MenuItem value="LINUX">Linux</MenuItem>
-                  <MenuItem value="WINDOWS">Windows</MenuItem>
-                  <MenuItem value="UNIX">Unix</MenuItem>
-                  <MenuItem value="MACOS">macOS</MenuItem>
+                  {osVersions.map((os) => (
+                    <MenuItem key={os.id} value={os.id}>
+                      {os.displayName}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
-              <TextField
-                label="OS Distribution"
-                value={formData.osDistribution || ''}
-                onChange={(e) => setFormData({ ...formData, osDistribution: e.target.value })}
-                fullWidth
-                size="small"
-                placeholder="Ubuntu, RHEL, CentOS, Windows Server, etc."
-              />
-              <TextField
-                label="OS Version"
-                value={formData.osVersionString || ''}
-                onChange={(e) => setFormData({ ...formData, osVersionString: e.target.value })}
-                fullWidth
-                size="small"
-              />
               <TextField
                 label="Kernel Version"
                 value={formData.kernelVersion || ''}
                 onChange={(e) => setFormData({ ...formData, kernelVersion: e.target.value })}
                 fullWidth
                 size="small"
+                placeholder="e.g., 5.15.0-76-generic"
               />
               <TextField
                 label="Firmware Version"
@@ -207,11 +219,12 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
                   onChange={(e) => setFormData({ ...formData, hypervisor: e.target.value })}
                   label="Hypervisor"
                 >
+                  <MenuItem value="">None</MenuItem>
                   <MenuItem value="VMWARE">VMware</MenuItem>
                   <MenuItem value="KVM">KVM</MenuItem>
                   <MenuItem value="HYPERV">Hyper-V</MenuItem>
                   <MenuItem value="XEN">Xen</MenuItem>
-                  <MenuItem value="">None</MenuItem>
+                  <MenuItem value="PROXMOX">Proxmox</MenuItem>
                 </Select>
               </FormControl>
               <FormControl fullWidth size="small">
@@ -221,6 +234,7 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
                   onChange={(e) => setFormData({ ...formData, virtualizationType: e.target.value })}
                   label="Virtualization Type"
                 >
+                  <MenuItem value="NONE">None</MenuItem>
                   <MenuItem value="KVM">KVM</MenuItem>
                   <MenuItem value="VMWARE">VMware</MenuItem>
                   <MenuItem value="HYPERV">Hyper-V</MenuItem>
@@ -228,7 +242,6 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
                   <MenuItem value="DOCKER">Docker</MenuItem>
                   <MenuItem value="LXC">LXC</MenuItem>
                   <MenuItem value="LXD">LXD</MenuItem>
-                  <MenuItem value="NONE">None</MenuItem>
                 </Select>
               </FormControl>
             </Box>
@@ -365,58 +378,42 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
 
           {/* Network Tab */}
           {activeTab === 3 && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 2, px: 3, maxWidth: 800, mx: 'auto' }}>
-              <TextField
-                label="Primary MAC Address"
-                value={formData.primaryMacAddress || ''}
-                onChange={(e) => setFormData({ ...formData, primaryMacAddress: e.target.value })}
-                fullWidth
-                size="small"
-                placeholder="aa:bb:cc:dd:ee:ff"
+            <Box sx={{ mt: 2, px: 3 }}>
+              <IPAddressManager
+                deviceType="COMPUTE"
+                deviceId={formData.id || 0}
+                deviceName={formData.name || 'New Compute'}
+                readOnly={!editMode}
               />
-              <TextField
-                label="Management IP"
-                value={formData.managementIp || ''}
-                onChange={(e) => setFormData({ ...formData, managementIp: e.target.value })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Public IP"
-                value={formData.publicIp || ''}
-                onChange={(e) => setFormData({ ...formData, publicIp: e.target.value })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Private IP"
-                value={formData.privateIp || ''}
-                onChange={(e) => setFormData({ ...formData, privateIp: e.target.value })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="IPMI IP"
-                value={formData.ipmiIp || ''}
-                onChange={(e) => setFormData({ ...formData, ipmiIp: e.target.value })}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="VLAN IDs"
-                value={formData.vlanIds || ''}
-                onChange={(e) => setFormData({ ...formData, vlanIds: e.target.value })}
-                fullWidth
-                size="small"
-                placeholder="JSON array: [100, 200, 300]"
-              />
-              <TextField
-                label="Network Interfaces Count"
-                type="number"
-                value={formData.networkInterfacesCount || ''}
-                onChange={(e) => setFormData({ ...formData, networkInterfacesCount: parseInt(e.target.value) || 1 })}
-                fullWidth
-                size="small"
+              
+              {/* Legacy IP fields - hidden but kept for backward compatibility */}
+              <Box sx={{ display: 'none' }}>
+                <TextField
+                  label="IP Address (Legacy)"
+                  value={formData.ipAddress || ''}
+                  onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
+                  fullWidth
+                  size="small"
+                />
+              </Box>
+              
+              {/* Additional Network Configuration */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2, mt: 3 }}>
+                <TextField
+                  label="Primary MAC Address"
+                  value={formData.primaryMacAddress || ''}
+                  onChange={(e) => setFormData({ ...formData, primaryMacAddress: e.target.value })}
+                  fullWidth
+                  size="small"
+                  placeholder="aa:bb:cc:dd:ee:ff"
+                />
+                <TextField
+                  label="Network Interfaces Count"
+                  type="number"
+                  value={formData.networkInterfacesCount || ''}
+                  onChange={(e) => setFormData({ ...formData, networkInterfacesCount: parseInt(e.target.value) || 1 })}
+                  fullWidth
+                  size="small"
               />
               <TextField
                 label="Network Speed (Gbps)"
@@ -426,6 +423,7 @@ const ComputeEditDialog: React.FC<ComputeEditDialogProps> = ({
                 fullWidth
                 size="small"
               />
+              </Box>
             </Box>
           )}
 

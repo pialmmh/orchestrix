@@ -23,6 +23,7 @@ import {
 import Grid from '@mui/material/Grid';
 import { Add, Delete } from '@mui/icons-material';
 import RemoteAccessTab from './RemoteAccessTab';
+import IPAddressManager from './IPAddressManager';
 
 interface ContainerEditDialogProps {
   open: boolean;
@@ -64,6 +65,7 @@ const ContainerEditDialog: React.FC<ContainerEditDialogProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState(0);
   const [formData, setFormData] = useState({
+    id: container?.id || null,
     name: '',
     description: '',
     containerType: 'DOCKER',
@@ -365,16 +367,26 @@ const ContainerEditDialog: React.FC<ContainerEditDialogProps> = ({
 
         {/* Network & Ports Tab */}
         <TabPanel value={activeTab} index={2}>
-          <Grid container spacing={2}>
-            <Grid item xs={6}>
-              <TextField
-                label="IP Address"
-                value={formData.ipAddress}
-                onChange={(e) => handleChange('ipAddress', e.target.value)}
-                fullWidth
-                placeholder="Auto-assigned if empty"
-              />
-            </Grid>
+          <IPAddressManager
+            deviceType="CONTAINER"
+            deviceId={container?.id || formData.id || 0}
+            deviceName={formData.name || container?.name || 'New Container'}
+            readOnly={false}
+          />
+          
+          {/* Legacy IP field - hidden but kept for backward compatibility */}
+          <Box sx={{ display: 'none' }}>
+            <TextField
+              label="IP Address (Legacy)"
+              value={formData.ipAddress}
+              onChange={(e) => handleChange('ipAddress', e.target.value)}
+              fullWidth
+              placeholder="Auto-assigned if empty"
+            />
+          </Box>
+          
+          {/* Additional Network Configuration */}
+          <Grid container spacing={2} sx={{ mt: 3 }}>
             
             <Grid item xs={6}>
               <FormControl fullWidth>

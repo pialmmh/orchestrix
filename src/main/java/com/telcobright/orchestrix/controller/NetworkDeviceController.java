@@ -6,6 +6,7 @@ import com.telcobright.orchestrix.entity.ResourcePool;
 import com.telcobright.orchestrix.repository.NetworkDeviceRepository;
 import com.telcobright.orchestrix.repository.DatacenterRepository;
 import com.telcobright.orchestrix.repository.ResourcePoolRepository;
+import com.telcobright.orchestrix.validator.NetworkDeviceValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,6 +30,9 @@ public class NetworkDeviceController {
     
     @Autowired
     private ResourcePoolRepository resourcePoolRepository;
+    
+    @Autowired
+    private NetworkDeviceValidator networkDeviceValidator;
     
     // Get all network devices
     @GetMapping
@@ -125,6 +129,15 @@ public class NetworkDeviceController {
     @PostMapping
     public ResponseEntity<?> createNetworkDevice(@RequestBody NetworkDevice networkDevice) {
         try {
+            // Validate the network device
+            List<String> validationErrors = networkDeviceValidator.validate(networkDevice, false);
+            if (!validationErrors.isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", "Validation failed");
+                errorResponse.put("errors", validationErrors);
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+            
             // Validate unique constraints
             if (networkDevice.getName() != null && networkDeviceRepository.findByName(networkDevice.getName()).isPresent()) {
                 Map<String, String> error = new HashMap<>();
@@ -187,6 +200,15 @@ public class NetworkDeviceController {
         return networkDeviceRepository.findById(id)
             .map(networkDevice -> {
                 try {
+                    // Validate the update
+                    List<String> validationErrors = networkDeviceValidator.validate(networkDeviceData, true);
+                    if (!validationErrors.isEmpty()) {
+                        Map<String, Object> errorResponse = new HashMap<>();
+                        errorResponse.put("error", "Validation failed");
+                        errorResponse.put("errors", validationErrors);
+                        return ResponseEntity.badRequest().body(errorResponse);
+                    }
+                    
                     // Update basic properties
                     if (networkDeviceData.getName() != null) {
                         networkDevice.setName(networkDeviceData.getName());

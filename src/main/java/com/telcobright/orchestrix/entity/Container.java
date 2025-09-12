@@ -1,8 +1,11 @@
 package com.telcobright.orchestrix.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @Table(name = "containers")
@@ -31,7 +34,13 @@ public class Container {
     private String status; // RUNNING, STOPPED, PAUSED, RESTARTING
 
     @Column(name = "ip_address")
+    @Deprecated // Kept for backward compatibility, use ipAddresses instead
     private String ipAddress;
+    
+    // Multiple IP addresses support
+    @OneToMany(mappedBy = "container", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"compute", "networkDevice", "container", "hibernateLazyInitializer", "handler"})
+    private List<IPAddress> ipAddresses = new ArrayList<>();
 
     @Column(name = "exposed_ports")
     private String exposedPorts;

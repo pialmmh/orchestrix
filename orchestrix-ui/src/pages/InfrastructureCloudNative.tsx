@@ -23,6 +23,7 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  Tooltip,
 } from '@mui/material';
 import {
   Refresh,
@@ -39,6 +40,8 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Add,
+  ExpandMore,
+  ExpandLess,
 } from '@mui/icons-material';
 import { TreeView } from '@mui/x-tree-view/TreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
@@ -658,6 +661,37 @@ const InfrastructureCloudNative: React.FC = () => {
     setExpanded(nodeIds);
   };
 
+  const getAllChildNodeIds = (node: TreeNode): string[] => {
+    let ids: string[] = [];
+    if (node.children && node.children.length > 0) {
+      node.children.forEach(child => {
+        ids.push(child.id);
+        ids = ids.concat(getAllChildNodeIds(child));
+      });
+    }
+    return ids;
+  };
+
+  const handleExpandCurrentNode = () => {
+    if (selectedNode) {
+      const childIds = getAllChildNodeIds(selectedNode);
+      const newExpanded = new Set(expanded);
+      newExpanded.add(selectedNode.id);
+      childIds.forEach(id => newExpanded.add(id));
+      setExpanded(Array.from(newExpanded));
+    }
+  };
+
+  const handleCollapseCurrentNode = () => {
+    if (selectedNode) {
+      const childIds = getAllChildNodeIds(selectedNode);
+      const newExpanded = new Set(expanded);
+      newExpanded.delete(selectedNode.id);
+      childIds.forEach(id => newExpanded.delete(id));
+      setExpanded(Array.from(newExpanded));
+    }
+  };
+
   const handleTenantChange = (event: React.MouseEvent<HTMLElement>, newTenant: 'organization' | 'partners' | null) => {
     if (newTenant !== null) {
       setTenant(newTenant);
@@ -707,7 +741,13 @@ const InfrastructureCloudNative: React.FC = () => {
 
   const handleComputeSave = async (updatedData: any) => {
     try {
-      await axios.put(config.getApiEndpoint(`/computes/${updatedData.id}`), updatedData);
+      if (updatedData.id) {
+        // Update existing compute
+        await axios.put(config.getApiEndpoint(`/computes/${updatedData.id}`), updatedData);
+      } else {
+        // Create new compute
+        await axios.post(config.getApiEndpoint('/computes'), updatedData);
+      }
       setOpenComputeEditDialog(false);
       await fetchInfrastructureData();
     } catch (error) {
@@ -1102,9 +1142,21 @@ const InfrastructureCloudNative: React.FC = () => {
                     Partners
                   </ToggleButton>
                 </ToggleButtonGroup>
-                <IconButton onClick={fetchInfrastructureData} size="small">
-                  <Refresh />
-                </IconButton>
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  <Tooltip title="Expand current node">
+                    <IconButton onClick={handleExpandCurrentNode} size="small">
+                      <ExpandMore />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Collapse current node">
+                    <IconButton onClick={handleCollapseCurrentNode} size="small">
+                      <ExpandLess />
+                    </IconButton>
+                  </Tooltip>
+                  <IconButton onClick={fetchInfrastructureData} size="small">
+                    <Refresh />
+                  </IconButton>
+                </Box>
               </Box>
 
               {error && (
@@ -1482,7 +1534,7 @@ const InfrastructureCloudNative: React.FC = () => {
         formData={computeEditData || {}}
         setFormData={setComputeEditData}
         onSave={handleComputeSave}
-        editMode={true}
+        editMode={!!computeEditData?.id}
       />
 
       <NetworkDeviceEditDialog

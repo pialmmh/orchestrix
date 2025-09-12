@@ -352,29 +352,6 @@ const Layout: React.FC = () => {
               </ListItem>
               <ListItem disablePadding sx={{ mb: 0.5, pl: 2 }}>
                 <ListItemButton
-                  onClick={() => navigate('/resources/compute')}
-                  selected={location.pathname === '/resources/compute'}
-                  sx={{
-                    borderRadius: 1,
-                    '&.Mui-selected': {
-                      backgroundColor: alpha('#000', 0.08),
-                      '&:hover': {
-                        backgroundColor: alpha('#000', 0.12),
-                      },
-                    },
-                    '&:hover': {
-                      backgroundColor: alpha('#000', 0.05),
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ color: '#424242', minWidth: 40 }}>
-                    <Computer />
-                  </ListItemIcon>
-                  <ListItemText primary="Compute" />
-                </ListItemButton>
-              </ListItem>
-              <ListItem disablePadding sx={{ mb: 0.5, pl: 2 }}>
-                <ListItemButton
                   onClick={() => navigate('/resources/storage')}
                   selected={location.pathname === '/resources/storage'}
                   sx={{
