@@ -91,6 +91,18 @@ public class QueryParser {
             case "employee" -> Kind.EMPLOYEE;
             case "shipper" -> Kind.SHIPPER;
             case "supplier" -> Kind.SUPPLIER;
+            // Orchestrix entities
+            case "partner" -> Kind.PARTNER;
+            case "cloud" -> Kind.CLOUD;
+            case "region" -> Kind.REGION;
+            case "availabilityzone" -> Kind.AVAILABILITYZONE;
+            case "datacenter" -> Kind.DATACENTER;
+            case "resourcepool" -> Kind.RESOURCEPOOL;
+            case "compute" -> Kind.COMPUTE;
+            case "container" -> Kind.CONTAINER;
+            case "networkdevice" -> Kind.NETWORKDEVICE;
+            case "osversion" -> Kind.OSVERSION;
+            case "ipaddress" -> Kind.IPADDRESS;
             default -> throw new IllegalArgumentException("Unknown kind: " + kind);
         };
     }

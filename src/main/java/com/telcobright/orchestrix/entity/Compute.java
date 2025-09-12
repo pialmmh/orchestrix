@@ -334,7 +334,7 @@ public class Compute {
     public IPAddress getPrimaryIpAddress() {
         if (ipAddresses != null) {
             return ipAddresses.stream()
-                .filter(IPAddress::getIsPrimary)
+                .filter(ip -> Boolean.TRUE.equals(ip.getIsPrimary()))
                 .findFirst()
                 .orElse(null);
         }

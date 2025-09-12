@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { store } from './store/store';
 import { theme } from './theme/theme';
+import { StoreProvider } from './stores/base/StoreProvider';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
@@ -25,6 +26,7 @@ import Compute from './pages/resources/Compute';
 import Storage from './pages/resources/Storage';
 import Countries from './pages/resources/Countries';
 import Infrastructure from './pages/InfrastructureCloudNative';
+import InfrastructureStellar from './pages/InfrastructureStellar';
 import RemoteAccess from './pages/RemoteAccess';
 import WebSocketTest from './pages/WebSocketTest';
 import './utils/debugAxios';
@@ -36,9 +38,10 @@ function App() {
   useClaudeBridge(process.env.NODE_ENV === 'development');
   return (
     <Provider store={store}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Router>
+      <StoreProvider>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -54,6 +57,7 @@ function App() {
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="infrastructure" element={<Infrastructure />} />
+              <Route path="infrastructure-stellar" element={<InfrastructureStellar />} />
               <Route path="clouds" element={<Navigate to="/infrastructure" replace />} />
               <Route path="users" element={<Users />} />
               <Route path="users/:id" element={<UserProfile />} />
@@ -76,6 +80,7 @@ function App() {
           </Routes>
         </Router>
       </ThemeProvider>
+      </StoreProvider>
     </Provider>
   );
 }
