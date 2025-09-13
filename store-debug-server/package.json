@@ -1,0 +1,21 @@
+{
+  "name": "orchestrix-store-debug-server",
+  "version": "1.0.0",
+  "description": "Store debug server for Orchestrix with XState and log rotation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "node-cron": "^3.0.3",
+    "rotating-file-stream": "^3.1.1",
+    "ws": "^8.16.0",
+    "xstate": "^5.21.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

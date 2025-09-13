@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -23,6 +23,8 @@ import {
   Tooltip,
   alpha,
   Collapse,
+  Alert,
+  AlertTitle,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -51,6 +53,7 @@ import {
 import { AppDispatch, RootState } from '../store/store';
 import { logout } from '../store/slices/authSlice';
 import OrchestrixLogo from './OrchestrixLogo';
+import { getStoreDebugConfig } from '../config/storeDebugConfig';
 
 const drawerWidth = 290;
 
@@ -66,6 +69,12 @@ const Layout: React.FC = () => {
   const [open, setOpen] = useState(!isMobile);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [resourcesOpen, setResourcesOpen] = useState(false);
+  const [storeDebugMode, setStoreDebugMode] = useState(false);
+
+  useEffect(() => {
+    const config = getStoreDebugConfig();
+    setStoreDebugMode(config.store_debug);
+  }, []);
 
   const handleDrawerToggle = () => {
     setOpen(!open);
@@ -92,12 +101,40 @@ const Layout: React.FC = () => {
 
   return (
     <Box sx={{ display: 'flex' }}>
+      {/* Store Debug Mode Warning Banner */}
+      {storeDebugMode && (
+        <Alert
+          severity="warning"
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: theme.zIndex.drawer + 2,
+            borderRadius: 0,
+            backgroundColor: '#fff3cd',
+            color: '#856404',
+            border: 'none',
+            borderBottom: '2px solid #ffc107',
+            '& .MuiAlert-icon': {
+              color: '#ffc107',
+            },
+          }}
+        >
+          <AlertTitle sx={{ fontWeight: 'bold', mb: 0 }}>
+            Store Debug Mode Active
+          </AlertTitle>
+          Performance may be affected. All store operations are being logged and sent to the debug server.
+        </Alert>
+      )}
+      
       <AppBar
         position="fixed"
         sx={{
           zIndex: theme.zIndex.drawer + 1,
           background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
           boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+          top: storeDebugMode ? 72 : 0, // Adjust position when banner is shown
         }}
       >
         <Toolbar>
@@ -196,6 +233,7 @@ const Layout: React.FC = () => {
             boxShadow: '2px 0 10px rgba(0,0,0,0.1)',
             display: 'flex',
             flexDirection: 'column',
+            top: storeDebugMode ? 72 : 0, // Adjust for banner
           },
         }}
         variant={isMobile ? 'temporary' : 'persistent'}
