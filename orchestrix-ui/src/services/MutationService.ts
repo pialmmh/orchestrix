@@ -1,13 +1,80 @@
 import StellarClient from './StellarClient';
 import { EntityModificationRequest, MutationResponse } from '../models/stellar/MutationRequest';
+import { getEventBus } from '../store/events/EventBus';
+import { StoreEvent, StoreEventResponse } from '../store/events/StoreEvent';
+import { v4 as uuidv4 } from 'uuid';
+import { getStoreDebugConfig } from '../config/storeDebugConfig';
 
 class MutationService {
+  private eventBus = getEventBus();
+  private debugMode = getStoreDebugConfig().store_debug;
   async executeMutation(request: EntityModificationRequest): Promise<MutationResponse> {
+    const eventId = uuidv4();
+    const timestamp = Date.now();
+
+    // Publish mutation start event if in debug mode
+    if (this.debugMode) {
+      const startEvent: StoreEvent = {
+        id: eventId,
+        timestamp,
+        type: 'mutation',
+        operation: `${request.operation}_START`,
+        entity: request.entityName,
+        payload: request,
+        metadata: {
+          endpoint: '/stellar/modify',
+          method: 'POST',
+        },
+      };
+      this.eventBus.publish(startEvent);
+    }
+
     try {
       const response = await StellarClient.post<MutationResponse>('/stellar/modify', request);
+      
+      // Publish mutation success event if in debug mode
+      if (this.debugMode) {
+        const successEvent: StoreEventResponse = {
+          id: eventId,
+          timestamp: Date.now(),
+          type: 'mutation',
+          operation: `${request.operation}_SUCCESS`,
+          entity: request.entityName,
+          payload: response,
+          metadata: {
+            endpoint: '/stellar/modify',
+            method: 'POST',
+            duration: Date.now() - timestamp,
+          },
+          success: true,
+        };
+        this.eventBus.publish(successEvent);
+      }
+      
       return response;
     } catch (error: any) {
       console.error('Mutation execution error:', error);
+      
+      // Publish mutation error event if in debug mode
+      if (this.debugMode) {
+        const errorEvent: StoreEventResponse = {
+          id: eventId,
+          timestamp: Date.now(),
+          type: 'mutation',
+          operation: `${request.operation}_ERROR`,
+          entity: request.entityName,
+          payload: error.response?.data || error,
+          metadata: {
+            endpoint: '/stellar/modify',
+            method: 'POST',
+            duration: Date.now() - timestamp,
+          },
+          success: false,
+          error: error.response?.data?.error || error.message || 'Mutation failed',
+        };
+        this.eventBus.publish(errorEvent);
+      }
+      
       return {
         success: false,
         error: error.response?.data?.error || error.message || 'Mutation failed',

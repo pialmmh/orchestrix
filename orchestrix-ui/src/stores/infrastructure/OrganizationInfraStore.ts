@@ -196,10 +196,10 @@ export class OrganizationInfraStore extends StellarStore {
   async loadInfrastructureTree(partner: string = 'self') {
     // Build criteria based on partner parameter
     const criteria: any = {};
-    
+
     if (partner === 'self') {
-      // Load organization's own infrastructure
-      criteria.roles = JSON.stringify(['self']);
+      // Load organization's own infrastructure - temporarily load all for testing
+      // criteria.roles = ['self'];
     } else if (partner === 'all') {
       // Load all partners' infrastructure (no criteria filter)
     } else {

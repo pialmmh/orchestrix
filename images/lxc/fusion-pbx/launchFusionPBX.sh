@@ -1,288 +1,179 @@
 #!/bin/bash
+# Launch script for FusionPBX LXC container
+# Accepts configuration file from any path
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEFAULT_CONFIG="${SCRIPT_DIR}/sample-config.conf"
-CONFIG_FILE="${1:-$DEFAULT_CONFIG}"
-
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo "Error: Config file not found: $CONFIG_FILE"
-    echo "Usage: $0 [config-file]"
+# Check for config file argument
+CONFIG_FILE="$1"
+if [ -z "$CONFIG_FILE" ]; then
+    echo "Error: Configuration file path required"
+    echo "Usage: $0 /path/to/config.conf"
     echo ""
-    echo "Config file can be located anywhere in the filesystem."
-    echo "If no config file is specified, uses: $DEFAULT_CONFIG"
+    echo "Example: $0 /tmp/my-fusion-config.conf"
+    echo "Example: $0 ~/configs/fusion-pbx.conf"
+    echo "Example: $0 ./sample-config.conf"
     exit 1
 fi
 
-echo "Using configuration file: $CONFIG_FILE"
-CONFIG_ABS_PATH="$(cd "$(dirname "$CONFIG_FILE")" && pwd)/$(basename "$CONFIG_FILE")"
+# Check if config file exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: Configuration file not found: $CONFIG_FILE"
+    exit 1
+fi
 
+# Get absolute path of config file
+CONFIG_FILE="$(realpath "$CONFIG_FILE")"
+echo "Using configuration: $CONFIG_FILE"
+
+# Source the configuration
 source "$CONFIG_FILE"
 
-BASE_IMAGE_NAME="${BASE_IMAGE_NAME:-fusion-pbx-base}"
-CONTAINER_NAME="${CONTAINER_NAME:-fusion-pbx-dev}"
-CONTAINER_IP="${CONTAINER_IP:-}"
-LXD_NETWORK="${LXD_NETWORK:-}"
-WORKSPACE_MOUNT="${WORKSPACE_MOUNT:-}"
-CONFIG_MOUNT="${CONFIG_MOUNT:-}"
-DATA_MOUNT="${DATA_MOUNT:-}"
-FREESWITCH_CONF_MOUNT="${FREESWITCH_CONF_MOUNT:-}"
-FUSIONPBX_APP_MOUNT="${FUSIONPBX_APP_MOUNT:-}"
+# Validate required variables
+if [ -z "$CONTAINER_NAME" ]; then
+    echo "Error: CONTAINER_NAME not defined in configuration"
+    exit 1
+fi
 
-echo "==================== Launching FusionPBX Container ===================="
+# Set defaults for optional variables
+IMAGE_NAME="${IMAGE_NAME:-fusion-pbx-base}"
+NETWORK="${NETWORK:-lxdbr0}"
+
+echo "==========================================="
+echo "Launching FusionPBX Container"
+echo "==========================================="
 echo "Container name: $CONTAINER_NAME"
-echo "Base image: $BASE_IMAGE_NAME"
-if [ ! -z "$CONTAINER_IP" ]; then
-    echo "Container IP: $CONTAINER_IP"
+echo "Base image: $IMAGE_NAME"
+echo "Network: $NETWORK"
+if [ ! -z "$STATIC_IP" ]; then
+    echo "Static IP: $STATIC_IP"
 fi
 
-EXISTING_IMAGE=$(lxc image list --format=json | jq -r ".[] | select(.aliases[].name==\"$BASE_IMAGE_NAME\") | .aliases[].name" | head -n1)
-if [ -z "$EXISTING_IMAGE" ]; then
-    echo "Error: Base image $BASE_IMAGE_NAME not found!"
-    echo "Please run buildFusionPBX.sh first to create the base image."
+# Check if container already exists
+if lxc list | grep -q "$CONTAINER_NAME"; then
+    echo "Error: Container $CONTAINER_NAME already exists"
+    echo "To delete: lxc delete $CONTAINER_NAME --force"
     exit 1
 fi
 
-EXISTING_CONTAINER=$(lxc list --format=json | jq -r ".[] | select(.name==\"$CONTAINER_NAME\") | .name")
-if [ ! -z "$EXISTING_CONTAINER" ]; then
-    echo "Container $CONTAINER_NAME already exists."
-    read -p "Do you want to delete and recreate it? (y/n): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "Stopping and deleting existing container..."
-        lxc stop "$CONTAINER_NAME" --force 2>/dev/null || true
-        lxc delete "$CONTAINER_NAME" --force
-    else
-        echo "Exiting without changes."
-        exit 0
-    fi
+# Check if image exists
+if ! lxc image list | grep -q "$IMAGE_NAME"; then
+    echo "Error: Image $IMAGE_NAME not found"
+    echo "Please build the image first: ./buildFusionPBX.sh"
+    exit 1
 fi
 
+# Launch container
 echo "Creating container from image..."
-lxc launch "$BASE_IMAGE_NAME" "$CONTAINER_NAME"
+lxc launch "$IMAGE_NAME" "$CONTAINER_NAME" --network="$NETWORK"
 
-echo "Ensuring container networking (IPv4 only, bridged)..."
-
-# Ensure a managed LXD bridge network exists and pick one
-select_managed_bridge() {
-    # If user specified a network, prefer it
-    if [ -n "$LXD_NETWORK" ]; then
-        if lxc network list --format=json | jq -e \
-            --arg net "$LXD_NETWORK" '.[] | select(.name==$net and .type=="bridge" and .managed==true)' >/dev/null; then
-            echo "$LXD_NETWORK"
-            return 0
-        else
-            echo "Error: Specified LXD network '$LXD_NETWORK' not found or not a managed bridge." >&2
-            return 1
-        fi
-    fi
-
-    # Try to find any existing managed bridge
-    local NET
-    NET=$(lxc network list --format=json | jq -r '.[] | select(.type=="bridge" and .managed==true) | .name' | head -n1)
-    if [ -n "$NET" ]; then
-        echo "$NET"
-        return 0
-    fi
-
-    # None found, create lxdbr0 with IPv4 NAT and no IPv6
-    echo "No managed LXD bridge found; creating 'lxdbr0' (IPv4 NAT, IPv6 disabled)..."
-    lxc network create lxdbr0 ipv4.address=auto ipv4.nat=true ipv6.address=none >/dev/null
-    echo "lxdbr0"
-}
-
-BRIDGE_NET=$(select_managed_bridge)
-if [ -z "$BRIDGE_NET" ]; then
-    echo "Failed to select or create an LXD bridge network." >&2
-    exit 1
-fi
-
-# If DNS servers are provided, set them on the bridge so DHCP hands them out
-if [ -n "$DNS_SERVERS" ]; then
-    NS=$(echo "$DNS_SERVERS" | tr ',' ' ')
-    echo "Configuring DNS on network '$BRIDGE_NET': $NS"
-    lxc network set "$BRIDGE_NET" dns.nameservers="$NS" >/dev/null || true
-fi
-
-# Attach/override NIC to ensure it uses the selected bridge
-if ! lxc config device override "$CONTAINER_NAME" eth0 network="$BRIDGE_NET" >/dev/null 2>&1; then
-    # If no eth0, attach one
-    lxc network attach "$BRIDGE_NET" "$CONTAINER_NAME" eth0 >/dev/null
-fi
-
-# If a static IP is requested, pin it via DHCP reservation on the NIC
-if [ -n "$CONTAINER_IP" ]; then
-    echo "Setting static IPv4 on '$BRIDGE_NET': $CONTAINER_IP"
-    lxc config device set "$CONTAINER_NAME" eth0 ipv4.address "$CONTAINER_IP"
-fi
-
-# Restart to apply network changes reliably
-lxc restart "$CONTAINER_NAME" --force
-
-echo "Waiting for container to get IPv4 address..."
-for i in {1..40}; do
-    CURRENT_IP=$(lxc list "$CONTAINER_NAME" --format=json | jq -r '.[0].state.network.eth0.addresses[]? | select(.family=="inet").address' 2>/dev/null)
-    if [ -n "$CONTAINER_IP" ]; then
-        if [ "$CURRENT_IP" = "$CONTAINER_IP" ]; then
-            echo "Container IP configured successfully: $CURRENT_IP"
-            break
-        fi
-    else
-        if [ -n "$CURRENT_IP" ]; then
-            echo "Container obtained IP: $CURRENT_IP"
-            break
-        fi
-    fi
-    sleep 1
-done
-
-echo "Waiting for container to be ready..."
+# Wait for container to be ready
+echo "Waiting for container to start..."
 sleep 3
-
 while ! lxc exec "$CONTAINER_NAME" -- systemctl is-system-running &>/dev/null; do
-    echo "Waiting for system to be ready..."
     sleep 2
 done
 
-CONFIG_DIR="$(dirname "$CONFIG_ABS_PATH")"
-lxc config device add "$CONTAINER_NAME" config-mount disk source="$CONFIG_DIR" path=/mnt/config
-
-if [ ! -z "$WORKSPACE_MOUNT" ]; then
-    if [ -d "$WORKSPACE_MOUNT" ]; then
-        echo "Mounting workspace: $WORKSPACE_MOUNT -> /workspace"
-        lxc config device add "$CONTAINER_NAME" workspace disk source="$WORKSPACE_MOUNT" path=/workspace
-    else
-        echo "Warning: Workspace directory not found: $WORKSPACE_MOUNT"
-    fi
+# Configure static IP if specified
+if [ ! -z "$STATIC_IP" ]; then
+    echo "Setting static IP: $STATIC_IP"
+    lxc config device set "$CONTAINER_NAME" eth0 ipv4.address="$STATIC_IP"
+    
+    # Restart container to apply IP
+    echo "Restarting container to apply network settings..."
+    lxc restart "$CONTAINER_NAME"
+    sleep 5
 fi
 
-if [ ! -z "$DATA_MOUNT" ]; then
-    DATA_ABS_PATH="$(cd "$(dirname "$DATA_MOUNT")" 2>/dev/null && pwd)/$(basename "$DATA_MOUNT")" || DATA_ABS_PATH="$DATA_MOUNT"
-    
-    if [ ! -d "$DATA_ABS_PATH" ]; then
-        echo "Creating data directory: $DATA_ABS_PATH"
-        mkdir -p "$DATA_ABS_PATH"
-    fi
-    
-    echo "Mounting data directory: $DATA_ABS_PATH -> /var/lib/postgresql"
-    lxc config device add "$CONTAINER_NAME" data-mount disk source="$DATA_ABS_PATH" path=/var/lib/postgresql
-fi
+# Add configuration file mount
+echo "Mounting configuration file..."
+CONFIG_DIR="/mnt/config"
+lxc config device add "$CONTAINER_NAME" config disk \
+    source="$(dirname "$CONFIG_FILE")" \
+    path="$CONFIG_DIR"
 
-if [ ! -z "$FREESWITCH_CONF_MOUNT" ]; then
-    FREESWITCH_ABS_PATH="$(cd "$(dirname "$FREESWITCH_CONF_MOUNT")" 2>/dev/null && pwd)/$(basename "$FREESWITCH_CONF_MOUNT")" || FREESWITCH_ABS_PATH="$FREESWITCH_CONF_MOUNT"
-    
-    if [ ! -d "$FREESWITCH_ABS_PATH" ]; then
-        echo "Creating FreeSWITCH config directory: $FREESWITCH_ABS_PATH"
-        mkdir -p "$FREESWITCH_ABS_PATH"
-    fi
-    
-    echo "Mounting FreeSWITCH config: $FREESWITCH_ABS_PATH -> /etc/freeswitch"
-    lxc config device add "$CONTAINER_NAME" freeswitch-conf disk source="$FREESWITCH_ABS_PATH" path=/etc/freeswitch
-fi
-
-if [ ! -z "$FUSIONPBX_APP_MOUNT" ]; then
-    FUSIONPBX_ABS_PATH="$(cd "$(dirname "$FUSIONPBX_APP_MOUNT")" 2>/dev/null && pwd)/$(basename "$FUSIONPBX_APP_MOUNT")" || FUSIONPBX_ABS_PATH="$FUSIONPBX_APP_MOUNT"
-    
-    if [ ! -d "$FUSIONPBX_ABS_PATH" ]; then
-        echo "Creating FusionPBX app directory: $FUSIONPBX_ABS_PATH"
-        mkdir -p "$FUSIONPBX_ABS_PATH"
-    fi
-    
-    echo "Mounting FusionPBX app: $FUSIONPBX_ABS_PATH -> /var/www/fusionpbx"
-    lxc config device add "$CONTAINER_NAME" fusionpbx-app disk source="$FUSIONPBX_ABS_PATH" path=/var/www/fusionpbx
-fi
-
-echo "Running initialization script..."
-lxc exec "$CONTAINER_NAME" -- /usr/local/bin/fusion-pbx-init.sh
-
-if [ ! -z "$SSH_TUNNEL_HOST" ] && [ ! -z "$SSH_TUNNEL_USER" ] && [ ! -z "$SSH_TUNNEL_PORTS" ]; then
-    echo "==================== Setting up SSH Tunnels ===================="
-    
-    lxc exec "$CONTAINER_NAME" -- bash -c "mkdir -p /home/ubuntu/.ssh"
-    
-    if [ ! -z "$SSH_KEY_PATH" ] && [ -f "$SSH_KEY_PATH" ]; then
-        echo "Copying SSH key..."
-        lxc file push "$SSH_KEY_PATH" "$CONTAINER_NAME/home/ubuntu/.ssh/tunnel_key"
-        lxc exec "$CONTAINER_NAME" -- chmod 600 /home/ubuntu/.ssh/tunnel_key
-        lxc exec "$CONTAINER_NAME" -- chown ubuntu:ubuntu /home/ubuntu/.ssh/tunnel_key
-        SSH_KEY_OPT="-i /home/ubuntu/.ssh/tunnel_key"
-    else
-        SSH_KEY_OPT=""
-    fi
-    
-    IFS=',' read -ra PORTS <<< "$SSH_TUNNEL_PORTS"
-    for PORT_MAP in "${PORTS[@]}"; do
-        IFS=':' read -ra PARTS <<< "$PORT_MAP"
-        LOCAL_PORT="${PARTS[0]}"
-        REMOTE_HOST="${PARTS[1]:-127.0.0.1}"
-        REMOTE_PORT="${PARTS[2]:-$LOCAL_PORT}"
+# Add bind mounts if specified
+if [ ! -z "$BIND_MOUNTS" ]; then
+    echo "Adding bind mounts..."
+    MOUNT_INDEX=0
+    for MOUNT in "${BIND_MOUNTS[@]}"; do
+        IFS=':' read -r HOST_PATH CONTAINER_PATH <<< "$MOUNT"
         
-        SERVICE_NAME="ssh-tunnel-${LOCAL_PORT}"
+        # Expand ~ to home directory
+        HOST_PATH="${HOST_PATH/#\~/$HOME}"
         
-        lxc exec "$CONTAINER_NAME" -- bash -c "cat > /etc/systemd/system/${SERVICE_NAME}.service <<EOF
-[Unit]
-Description=SSH Tunnel for port ${LOCAL_PORT}
-After=network.target
-
-[Service]
-Type=simple
-User=ubuntu
-ExecStart=/usr/bin/ssh -N -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -L ${LOCAL_PORT}:${REMOTE_HOST}:${REMOTE_PORT} ${SSH_KEY_OPT} ${SSH_TUNNEL_USER}@${SSH_TUNNEL_HOST}
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF"
+        # Check if host path exists
+        if [ ! -e "$HOST_PATH" ]; then
+            echo "Warning: Host path does not exist: $HOST_PATH"
+            echo "Creating directory..."
+            mkdir -p "$HOST_PATH"
+        fi
         
-        lxc exec "$CONTAINER_NAME" -- systemctl daemon-reload
-        lxc exec "$CONTAINER_NAME" -- systemctl enable "${SERVICE_NAME}"
-        lxc exec "$CONTAINER_NAME" -- systemctl start "${SERVICE_NAME}"
+        # Get absolute path
+        HOST_PATH="$(realpath "$HOST_PATH")"
         
-        echo "SSH tunnel configured: localhost:${LOCAL_PORT} -> ${SSH_TUNNEL_HOST}:${REMOTE_PORT}"
+        # Add mount
+        MOUNT_NAME="mount${MOUNT_INDEX}"
+        echo "  Mounting $HOST_PATH -> $CONTAINER_PATH"
+        lxc config device add "$CONTAINER_NAME" "$MOUNT_NAME" disk \
+            source="$HOST_PATH" \
+            path="$CONTAINER_PATH"
+        
+        MOUNT_INDEX=$((MOUNT_INDEX + 1))
     done
 fi
 
+# Apply configuration inside container
+echo "Applying configuration..."
+CONFIG_FILENAME="$(basename "$CONFIG_FILE")"
+lxc exec "$CONTAINER_NAME" -- bash -c "ln -sf $CONFIG_DIR/$CONFIG_FILENAME /mnt/config/fusion-pbx.conf"
+lxc exec "$CONTAINER_NAME" -- /usr/local/bin/apply-config.sh
+
+# Get container IP
+echo "Getting container network information..."
+sleep 2
+CONTAINER_IP=$(lxc list "$CONTAINER_NAME" --format=json | jq -r '.[0].state.network.eth0.addresses[] | select(.family=="inet").address')
+
 echo ""
-echo "==================== FusionPBX Container Launch Complete ===================="
-echo ""
+echo "==========================================="
+echo "FusionPBX Container Launched Successfully!"
+echo "==========================================="
 echo "Container: $CONTAINER_NAME"
-
-CONTAINER_IP=$(lxc list "$CONTAINER_NAME" --format=json | jq -r '.[0].state.network.eth0.addresses[] | select(.family=="inet").address' 2>/dev/null)
-echo "IP Address: ${CONTAINER_IP:-Not assigned}"
+echo "IP Address: ${CONTAINER_IP:-Waiting for IP...}"
 echo ""
-echo "Access Methods:"
-echo "  - Web Interface: http://${CONTAINER_IP:-<container-ip>}"
-echo "  - First-time setup: http://${CONTAINER_IP:-<container-ip>}/install.php"
-echo "  - SSH: ssh ubuntu@${CONTAINER_IP:-<container-ip>} (password: debian)"
-echo "  - Shell: lxc exec $CONTAINER_NAME -- bash"
+echo "Access FusionPBX:"
+echo "  Web Interface: http://${CONTAINER_IP:-<container-ip>}"
+echo "  Initial Setup: http://${CONTAINER_IP:-<container-ip>}/install.php"
 echo ""
-echo "Default Credentials:"
-echo "  - SSH: ubuntu/debian"
-echo "  - PostgreSQL: postgres/(set via config)"
-echo "  - FusionPBX Admin: (set during first-time setup)"
+echo "SSH Access:"
+echo "  ssh fusionpbx@${CONTAINER_IP:-<container-ip>}"
+echo "  Password: fusion123"
 echo ""
-
-if [ ! -z "$WORKSPACE_MOUNT" ]; then
-    echo "Workspace mounted at: /workspace"
-fi
-
-if [ ! -z "$DATA_MOUNT" ]; then
-    echo "PostgreSQL data mounted from: $DATA_MOUNT"
-fi
-
-if [ ! -z "$FREESWITCH_CONF_MOUNT" ]; then
-    echo "FreeSWITCH config mounted from: $FREESWITCH_CONF_MOUNT"
-fi
-
-if [ ! -z "$FUSIONPBX_APP_MOUNT" ]; then
-    echo "FusionPBX app mounted from: $FUSIONPBX_APP_MOUNT"
-fi
-
+echo "FreeSWITCH SIP Ports:"
+echo "  Internal Profile: 5060 (UDP/TCP)"
+echo "  External Profile: 5080 (UDP/TCP)"
+echo "  RTP Ports: 16384-32768"
+echo "  Note: No NAT between container and host (ideal for VoIP)"
+echo ""
+echo "PostgreSQL:"
+echo "  Port: 5432"
+echo "  User: postgres"
 echo ""
 echo "Services Status:"
-lxc exec "$CONTAINER_NAME" -- systemctl is-active postgresql && echo "  - PostgreSQL: active" || echo "  - PostgreSQL: inactive"
-lxc exec "$CONTAINER_NAME" -- systemctl is-active freeswitch && echo "  - FreeSWITCH: active" || echo "  - FreeSWITCH: inactive"
-lxc exec "$CONTAINER_NAME" -- systemctl is-active nginx && echo "  - Nginx: active" || echo "  - Nginx: inactive"
-lxc exec "$CONTAINER_NAME" -- systemctl is-active php8.2-fpm && echo "  - PHP-FPM: active" || echo "  - PHP-FPM: inactive"
+lxc exec "$CONTAINER_NAME" -- systemctl is-active postgresql && echo "  PostgreSQL: active" || echo "  PostgreSQL: inactive"
+lxc exec "$CONTAINER_NAME" -- systemctl is-active freeswitch && echo "  FreeSWITCH: active" || echo "  FreeSWITCH: inactive"
+lxc exec "$CONTAINER_NAME" -- systemctl is-active nginx && echo "  Nginx: active" || echo "  Nginx: inactive"
+lxc exec "$CONTAINER_NAME" -- systemctl is-active php8.2-fpm && echo "  PHP-FPM: active" || echo "  PHP-FPM: inactive"
+echo ""
+echo "Management commands:"
+echo "  lxc exec $CONTAINER_NAME -- bash"
+echo "  lxc stop $CONTAINER_NAME"
+echo "  lxc start $CONTAINER_NAME"
+echo "  lxc delete $CONTAINER_NAME --force"
+echo ""
+
+# If MONITOR flag is set, tail the logs
+if [ "$MONITOR_STARTUP" = "true" ]; then
+    echo "Monitoring startup (Ctrl+C to exit)..."
+    lxc exec "$CONTAINER_NAME" -- journalctl -f
+fi

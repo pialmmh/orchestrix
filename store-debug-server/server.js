@@ -518,10 +518,32 @@ wss.on('connection', (ws) => {
   
   ws.on('message', async (message) => {
     try {
-      const event = JSON.parse(message);
-      await handleStoreEvent(event, ws);
+      const messageStr = message.toString();
+      
+      // Skip empty or undefined messages
+      if (!messageStr || messageStr === 'undefined' || messageStr === 'null' || messageStr.trim() === '') {
+        console.warn('Received empty or invalid message, skipping');
+        return;
+      }
+      
+      const event = JSON.parse(messageStr);
+      
+      // Validate event structure
+      if (!event || typeof event !== 'object') {
+        console.warn('Invalid event structure:', event);
+        return;
+      }
+      
+      console.log('Received event:', event.type, event.operation, event.entity);
+
+      // Send to XState machine - use the event type directly (query -> QUERY, mutation -> MUTATION)
+      storeService.send({
+        type: event.type.toUpperCase(),
+        ...event
+      });
+      
     } catch (error) {
-      console.error('Error processing message:', error);
+      console.error('Error processing message:', error, 'Raw message:', message.toString());
     }
   });
   

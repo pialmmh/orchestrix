@@ -1,0 +1,1 @@
+/home/mustafa/telcobright-projects/orchestrix/store-debug-server/event-logs/20250914-0000-01-events.log.gz

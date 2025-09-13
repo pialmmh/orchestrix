@@ -40,14 +40,54 @@ public abstract class UniversalSshDevice extends NetworkingDevice implements Ssh
         return CompletableFuture.supplyAsync(() -> {
             try {
                 JSch jsch = new JSch();
+                
+                // Add SSH key authentication if password is empty
+                if (password == null || password.isEmpty()) {
+                    String homeDir = System.getProperty("user.home");
+                    // Try multiple possible SSH key locations
+                    String[] keyPaths = {
+                        homeDir + "/.ssh/id_rsa_jsch",  // JSch-compatible key
+                        homeDir + "/.ssh/id_rsa",        // Standard RSA key
+                        homeDir + "/.ssh/id_dsa"         // DSA key
+                    };
+                    
+                    boolean keyAdded = false;
+                    for (String keyPath : keyPaths) {
+                        java.io.File sshKey = new java.io.File(keyPath);
+                        if (sshKey.exists()) {
+                            try {
+                                jsch.addIdentity(sshKey.getAbsolutePath());
+                                log.debug("Using SSH key authentication from: {}", sshKey.getAbsolutePath());
+                                keyAdded = true;
+                                break;
+                            } catch (Exception e) {
+                                log.debug("Failed to load key from {}: {}", keyPath, e.getMessage());
+                            }
+                        }
+                    }
+                    
+                    if (!keyAdded) {
+                        log.warn("No valid SSH key found for authentication");
+                    }
+                }
+                
                 sshSession = jsch.getSession(username, hostname, port);
-                sshSession.setPassword(password);
+                
+                // Only set password if provided
+                if (password != null && !password.isEmpty()) {
+                    sshSession.setPassword(password);
+                }
                 
                 // Universal SSH configuration
                 sshSession.setConfig("StrictHostKeyChecking", "no");
                 sshSession.setConfig("UserKnownHostsFile", "/dev/null");
                 sshSession.setConfig("CheckHostIP", "no");
                 sshSession.setConfig("LogLevel", "ERROR");
+                
+                // Explicitly set authentication methods when using key
+                if (password == null || password.isEmpty()) {
+                    sshSession.setConfig("PreferredAuthentications", "publickey");
+                }
                 
                 sshSession.connect(30000);
                 

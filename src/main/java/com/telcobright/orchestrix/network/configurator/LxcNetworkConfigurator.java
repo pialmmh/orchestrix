@@ -5,6 +5,7 @@ import com.telcobright.orchestrix.network.entity.Bridge;
 import com.telcobright.orchestrix.network.entity.lxc.LxcContainer;
 import com.telcobright.orchestrix.network.entity.NetworkInterface;
 import com.telcobright.orchestrix.network.entity.lxc.LxcNetworkConfig;
+import com.telcobright.orchestrix.network.entity.lxc.LxcMount;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -290,28 +291,37 @@ public class LxcNetworkConfigurator extends UniversalSshDevice implements Contai
      * Configure container mounts
      */
     private CompletableFuture<String> configureMounts(LxcContainer container) {
-        CompletableFuture<String> result = CompletableFuture.completedFuture("");
+        if (container.getMounts() == null || container.getMounts().isEmpty()) {
+            return CompletableFuture.completedFuture("");
+        }
         
-        container.getMounts().forEach(mount -> {
+        CompletableFuture<String> chain = CompletableFuture.completedFuture("");
+        
+        for (LxcMount mount : container.getMounts()) {
             // Create directory if needed
             if (mount.getCreateIfMissing()) {
-                result = result.thenCompose(prev -> 
+                chain = chain.thenCompose(prev -> 
                     executeSudoCommand("mkdir -p " + mount.getHostPath())
                 );
             }
             
             // Add mount
-            result = result.thenCompose(prev -> 
-                executeSshCommandViaExecChannel("lxc config device add " + container.getContainerName() + 
-                    " " + mount.getMountName() + " disk source=" + mount.getHostPath() + 
-                    " path=" + mount.getContainerPath())
+            final String containerName = container.getContainerName();
+            final String hostPath = mount.getHostPath();
+            final String containerPath = mount.getContainerPath();
+            final String mountName = mount.getMountName();
+            
+            chain = chain.thenCompose(prev -> 
+                executeSshCommandViaExecChannel("lxc config device add " + containerName + 
+                    " " + mountName + " disk source=" + hostPath + 
+                    " path=" + containerPath)
             ).thenApply(v -> {
-                log.info("Mounted: {} -> {}", mount.getHostPath(), mount.getContainerPath());
+                log.info("Mounted: {} -> {}", hostPath, containerPath);
                 return v;
             });
-        });
+        }
         
-        return result;
+        return chain;
     }
     
     /**
@@ -498,5 +508,15 @@ public class LxcNetworkConfigurator extends UniversalSshDevice implements Contai
                 log.error("Failed to configure mount: {}", e.getMessage());
                 return false;
             });
+    }
+    
+    /**
+     * Public method to execute SSH commands via exec channel
+     * Exposes the protected method from UniversalSshDevice for testing
+     * @param command Command to execute
+     * @return CompletableFuture with command output
+     */
+    public CompletableFuture<String> executeCommand(String command) {
+        return executeSshCommandViaExecChannel(command);
     }
 }

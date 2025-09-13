@@ -1,61 +1,76 @@
 #!/bin/bash
+# Build script for FusionPBX LXC container
+# Creates reusable base image with FreeSWITCH and FusionPBX on Debian 12 (64-bit)
 
 set -e
 
+echo "==========================================="
+echo "FusionPBX LXC Container Build Script"
+echo "Base: Debian 12 (64-bit)"
+echo "==========================================="
+
+# Configuration
+CONTAINER_NAME="fusion-pbx-build"
+BASE_IMAGE="images:debian/12"
+IMAGE_ALIAS="fusion-pbx-base"
+IMAGE_DESCRIPTION="FusionPBX with FreeSWITCH on Debian 12 (64-bit)"
+
+# Load build configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEFAULT_CONFIG="${SCRIPT_DIR}/sample-config.conf"
-CONFIG_FILE="${1:-$DEFAULT_CONFIG}"
+CONFIG_FILE="${SCRIPT_DIR}/buildFusionPBXConfig.cnf"
 
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo "Error: Config file not found: $CONFIG_FILE"
-    echo "Usage: $0 [config-file]"
-    exit 1
+if [ -f "$CONFIG_FILE" ]; then
+    echo "Loading configuration from: $CONFIG_FILE"
+    source "$CONFIG_FILE"
 fi
 
-echo "Using configuration file: $CONFIG_FILE"
-
-source "$CONFIG_FILE"
-
-BASE_IMAGE_NAME="${BASE_IMAGE_NAME:-fusion-pbx-base}"
-BASE_IMAGE_USER="${BASE_IMAGE_USER:-ubuntu}"
-
-echo "==================== Starting FusionPBX Base Image Build ===================="
-echo "Base image name: $BASE_IMAGE_NAME"
-echo "Base image user: $BASE_IMAGE_USER"
-
-EXISTING_CONTAINER=$(lxc list --format=json | jq -r ".[] | select(.name==\"$BASE_IMAGE_NAME\") | .name")
-if [ ! -z "$EXISTING_CONTAINER" ]; then
-    echo "Container $BASE_IMAGE_NAME already exists. Deleting..."
-    lxc delete -f "$BASE_IMAGE_NAME"
+# Check if build container already exists
+echo -n "Checking for existing build container... "
+if lxc list | grep -q "$CONTAINER_NAME"; then
+    echo "found"
+    echo "Stopping and deleting existing build container..."
+    lxc stop "$CONTAINER_NAME" --force 2>/dev/null || true
+    lxc delete "$CONTAINER_NAME" --force
+else
+    echo "none"
 fi
 
-EXISTING_IMAGE=$(lxc image list --format=json | jq -r ".[] | select(.aliases[].name==\"$BASE_IMAGE_NAME\") | .aliases[].name" | head -n1)
-if [ ! -z "$EXISTING_IMAGE" ]; then
-    echo "Image $BASE_IMAGE_NAME already exists. Deleting..."
-    lxc image delete "$BASE_IMAGE_NAME"
+# Check if image already exists
+echo -n "Checking for existing image... "
+if lxc image list | grep -q "$IMAGE_ALIAS"; then
+    echo "found"
+    echo "Deleting existing image $IMAGE_ALIAS..."
+    lxc image delete "$IMAGE_ALIAS"
+else
+    echo "none"
 fi
 
-echo "Creating base container from Debian 12 (Bookworm)..."
-lxc launch images:debian/12 "$BASE_IMAGE_NAME"
+# Create build container
+echo "Creating build container from $BASE_IMAGE..."
+lxc launch "$BASE_IMAGE" "$CONTAINER_NAME"
 
+# Wait for container to be ready
 echo "Waiting for container to be ready..."
 sleep 5
-
-while ! lxc exec "$BASE_IMAGE_NAME" -- systemctl is-system-running &>/dev/null; do
-    echo "Waiting for system to be ready..."
+while ! lxc exec "$CONTAINER_NAME" -- systemctl is-system-running &>/dev/null; do
     sleep 2
 done
 
-echo "==================== Installing FusionPBX Dependencies ===================="
+# Update system
+echo "==================== System Update ===================="
+lxc exec "$CONTAINER_NAME" -- apt-get update
+lxc exec "$CONTAINER_NAME" -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get upgrade -y"
 
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "apt-get update"
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y \
+# Install base packages
+echo "==================== Installing Base Packages ===================="
+lxc exec "$CONTAINER_NAME" -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y \
     wget \
     curl \
     gnupg \
     lsb-release \
     ca-certificates \
     software-properties-common \
+    apt-transport-https \
     sudo \
     openssh-server \
     net-tools \
@@ -63,21 +78,71 @@ lxc exec "$BASE_IMAGE_NAME" -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get i
     vim \
     nano \
     htop \
-    git"
+    git \
+    jq"
 
+# Install PostgreSQL
 echo "==================== Installing PostgreSQL ===================="
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql postgresql-contrib"
+lxc exec "$CONTAINER_NAME" -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    postgresql \
+    postgresql-contrib"
 
+# Install FreeSWITCH from SignalWire repository
 echo "==================== Installing FreeSWITCH ===================="
-# Using SignalWire repository for Debian 12
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "apt-get install -y gnupg apt-transport-https lsb-release curl"
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "curl -1sLf 'https://freeswitch.signalwire.com/repo/deb/debian-release/signalwire-freeswitch-repo.gpg' | gpg --dearmor -o /usr/share/keyrings/signalwire-freeswitch-repo.gpg"
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "echo 'deb [signed-by=/usr/share/keyrings/signalwire-freeswitch-repo.gpg] https://freeswitch.signalwire.com/repo/deb/debian-release/ bookworm main' > /etc/apt/sources.list.d/freeswitch.list"
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "apt-get update"
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y freeswitch-meta-all"
+# Try SignalWire repository first, fallback to Debian packages if it fails
+lxc exec "$CONTAINER_NAME" -- bash -c "
+    set -e
+    # Method 1: Try SignalWire repository
+    echo 'Attempting to add SignalWire FreeSWITCH repository...'
+    if wget --timeout=10 -O /tmp/signalwire-freeswitch-repo.gpg https://freeswitch.signalwire.com/repo/deb/debian-release/signalwire-freeswitch-repo.gpg 2>/dev/null; then
+        cat /tmp/signalwire-freeswitch-repo.gpg | gpg --dearmor > /usr/share/keyrings/signalwire-freeswitch-repo.gpg
+        echo 'deb [signed-by=/usr/share/keyrings/signalwire-freeswitch-repo.gpg] https://freeswitch.signalwire.com/repo/deb/debian-release/ bookworm main' > /etc/apt/sources.list.d/freeswitch.list
+        apt-get update
+        echo 'Installing FreeSWITCH from SignalWire repository...'
+        DEBIAN_FRONTEND=noninteractive apt-get install -y freeswitch-meta-all
+    else
+        # Method 2: Fallback to Debian packages
+        echo 'SignalWire repository unavailable, using Debian packages...'
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y \\
+            freeswitch \\
+            freeswitch-mod-commands \\
+            freeswitch-mod-conference \\
+            freeswitch-mod-console \\
+            freeswitch-mod-dptools \\
+            freeswitch-mod-dialplan-xml \\
+            freeswitch-mod-dialplan-directory \\
+            freeswitch-mod-event-socket \\
+            freeswitch-mod-sofia \\
+            freeswitch-mod-loopback \\
+            freeswitch-mod-rtc \\
+            freeswitch-mod-verto \\
+            freeswitch-mod-callcenter \\
+            freeswitch-mod-fifo \\
+            freeswitch-mod-voicemail \\
+            freeswitch-mod-directory \\
+            freeswitch-mod-flite \\
+            freeswitch-mod-say-en \\
+            freeswitch-mod-lua \\
+            freeswitch-mod-db \\
+            freeswitch-mod-sndfile \\
+            freeswitch-mod-native-file \\
+            freeswitch-mod-local-stream \\
+            freeswitch-mod-tone-stream \\
+            freeswitch-mod-python3 \\
+            freeswitch-mod-pgsql \\
+            freeswitch-mod-png \\
+            freeswitch-mod-odbc \\
+            freeswitch-mod-httapi \\
+            freeswitch-mod-spandsp \\
+            freeswitch-mod-b64
+    fi
+    echo 'FreeSWITCH installation completed.'
+"
 
-echo "==================== Installing Web Server and PHP ===================="
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y \
+# Install Nginx and PHP 8.2
+echo "==================== Installing Nginx and PHP 8.2 ===================="
+lxc exec "$CONTAINER_NAME" -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y \
     nginx \
     php8.2-fpm \
     php8.2-pgsql \
@@ -92,12 +157,14 @@ lxc exec "$BASE_IMAGE_NAME" -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get i
     php8.2-soap \
     php8.2-cli"
 
-echo "==================== Downloading FusionPBX ===================="
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "cd /var/www && git clone https://github.com/fusionpbx/fusionpbx.git"
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "chown -R www-data:www-data /var/www/fusionpbx"
+# Clone FusionPBX
+echo "==================== Installing FusionPBX ===================="
+lxc exec "$CONTAINER_NAME" -- bash -c "cd /var/www && git clone https://github.com/fusionpbx/fusionpbx.git"
+lxc exec "$CONTAINER_NAME" -- chown -R www-data:www-data /var/www/fusionpbx
 
-echo "==================== Configuring Nginx for FusionPBX ===================="
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "cat > /etc/nginx/sites-available/fusionpbx <<'EOF'
+# Configure Nginx for FusionPBX
+echo "==================== Configuring Nginx ===================="
+lxc exec "$CONTAINER_NAME" -- bash -c "cat > /etc/nginx/sites-available/fusionpbx <<'EOF'
 server {
     listen 80;
     listen [::]:80;
@@ -121,17 +188,20 @@ server {
 }
 EOF"
 
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "ln -sf /etc/nginx/sites-available/fusionpbx /etc/nginx/sites-enabled/"
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "rm -f /etc/nginx/sites-enabled/default"
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "nginx -t && systemctl restart nginx"
+lxc exec "$CONTAINER_NAME" -- ln -sf /etc/nginx/sites-available/fusionpbx /etc/nginx/sites-enabled/
+lxc exec "$CONTAINER_NAME" -- rm -f /etc/nginx/sites-enabled/default
+lxc exec "$CONTAINER_NAME" -- nginx -t
+lxc exec "$CONTAINER_NAME" -- systemctl restart nginx
 
-echo "==================== Setting up SSH Configuration ===================="
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config"
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config"
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "systemctl restart sshd"
+# Configure SSH (for development environment)
+echo "==================== Configuring SSH ===================="
+lxc exec "$CONTAINER_NAME" -- sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+lxc exec "$CONTAINER_NAME" -- sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+lxc exec "$CONTAINER_NAME" -- systemctl restart sshd
 
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "mkdir -p /etc/ssh/ssh_config.d"
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "cat > /etc/ssh/ssh_config.d/99-dev-env.conf <<'EOF'
+# Add SSH client config for auto-accept certificates (dev environment)
+lxc exec "$CONTAINER_NAME" -- mkdir -p /etc/ssh/ssh_config.d
+lxc exec "$CONTAINER_NAME" -- bash -c "cat > /etc/ssh/ssh_config.d/99-dev.conf <<'EOF'
 Host *
     StrictHostKeyChecking no
     UserKnownHostsFile /dev/null
@@ -139,82 +209,131 @@ Host *
     LogLevel ERROR
 EOF"
 
+# Create default user
 echo "==================== Creating Default User ===================="
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "useradd -m -s /bin/bash -G sudo $BASE_IMAGE_USER || true"
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "echo '$BASE_IMAGE_USER:debian' | chpasswd"
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "echo '$BASE_IMAGE_USER ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/$BASE_IMAGE_USER"
+lxc exec "$CONTAINER_NAME" -- useradd -m -s /bin/bash -G sudo fusionpbx || true
+lxc exec "$CONTAINER_NAME" -- bash -c "echo 'fusionpbx:fusion123' | chpasswd"
+lxc exec "$CONTAINER_NAME" -- bash -c "echo 'fusionpbx ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/fusionpbx"
 
-echo "==================== Creating Initialization Script ===================="
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "cat > /usr/local/bin/fusion-pbx-init.sh <<'EOF'
+# Create configuration reader script
+echo "==================== Creating Configuration Reader ===================="
+lxc exec "$CONTAINER_NAME" -- bash -c "cat > /usr/local/bin/apply-config.sh <<'EOF'
 #!/bin/bash
+# Reads configuration from mounted config file and applies settings
 
-CONFIG_FILE=\"/mnt/config/config.conf\"
+CONFIG_FILE=\"/mnt/config/fusion-pbx.conf\"
 
-if [ -f \"\\\$CONFIG_FILE\" ]; then
-    source \"\\\$CONFIG_FILE\"
-    
-    # Set PostgreSQL password if provided
-    if [ ! -z \"\\\$DB_PASSWORD\" ]; then
-        sudo -u postgres psql -c \"ALTER USER postgres PASSWORD '\\\$DB_PASSWORD';\"
-    fi
-    
-    # Set FusionPBX admin password if provided
-    if [ ! -z \"\\\$ADMIN_PASSWORD\" ]; then
-        echo \"Admin password will be set during first-time setup: \\\$ADMIN_PASSWORD\"
-    fi
-    
-    # Configure network settings if provided
-    if [ ! -z \"\\\$SIP_PROFILE_INTERNAL_IP\" ]; then
-        # Update FreeSWITCH SIP profiles
-        sed -i \"s/\\\\\\$\\\\{local_ip_v4\\\\}/\\\$SIP_PROFILE_INTERNAL_IP/g\" /etc/freeswitch/vars.xml
-    fi
+if [ ! -f \"\\\$CONFIG_FILE\" ]; then
+    echo \"No configuration file found at \\\$CONFIG_FILE, using defaults\"
+    exit 0
 fi
 
-# Ensure services are running
-systemctl start postgresql
-systemctl start freeswitch
-systemctl start nginx
-systemctl start php8.2-fpm
+echo \"Applying configuration from \\\$CONFIG_FILE\"
+source \"\\\$CONFIG_FILE\"
 
-echo \"FusionPBX is ready. Access at http://\\\$(hostname -I | awk '{print \\\$1}')\"
-echo \"First-time setup: http://\\\$(hostname -I | awk '{print \\\$1}')/install.php\"
+# Apply network configuration
+if [ ! -z \"\\\$STATIC_IP\" ]; then
+    echo \"Setting static IP: \\\$STATIC_IP\"
+    # This would be handled by LXD device config
+fi
+
+# Apply SIP profile configuration
+if [ ! -z \"\\\$SIP_INTERNAL_IP\" ]; then
+    echo \"Configuring SIP internal profile: \\\$SIP_INTERNAL_IP\"
+    sed -i \"s/<param name=\\\"rtp-ip\\\" value=\\\".*\\\"\\/>/param name=\\\"rtp-ip\\\" value=\\\"\\\$SIP_INTERNAL_IP\\\"\\/>/g\" /etc/freeswitch/sip_profiles/internal.xml
+    sed -i \"s/<param name=\\\"sip-ip\\\" value=\\\".*\\\"\\/>/param name=\\\"sip-ip\\\" value=\\\"\\\$SIP_INTERNAL_IP\\\"\\/>/g\" /etc/freeswitch/sip_profiles/internal.xml
+fi
+
+if [ ! -z \"\\\$SIP_EXTERNAL_IP\" ]; then
+    echo \"Configuring SIP external profile: \\\$SIP_EXTERNAL_IP\"
+    sed -i \"s/<param name=\\\"ext-rtp-ip\\\" value=\\\".*\\\"\\/>/param name=\\\"ext-rtp-ip\\\" value=\\\"\\\$SIP_EXTERNAL_IP\\\"\\/>/g\" /etc/freeswitch/sip_profiles/external.xml
+    sed -i \"s/<param name=\\\"ext-sip-ip\\\" value=\\\".*\\\"\\/>/param name=\\\"ext-sip-ip\\\" value=\\\"\\\$SIP_EXTERNAL_IP\\\"\\/>/g\" /etc/freeswitch/sip_profiles/external.xml
+fi
+
+# Apply database configuration
+if [ ! -z \"\\\$DB_PASSWORD\" ]; then
+    echo \"Setting PostgreSQL password\"
+    sudo -u postgres psql -c \"ALTER USER postgres PASSWORD '\\\$DB_PASSWORD';\"
+fi
+
+# Apply domain configuration
+if [ ! -z \"\\\$DOMAIN_NAME\" ]; then
+    echo \"Setting domain name: \\\$DOMAIN_NAME\"
+    # This would be configured during FusionPBX setup
+fi
+
+# Restart services if configuration changed
+if [ ! -z \"\\\$RESTART_SERVICES\" ] && [ \"\\\$RESTART_SERVICES\" = \"true\" ]; then
+    echo \"Restarting services...\"
+    systemctl restart postgresql
+    systemctl restart freeswitch
+    systemctl restart nginx
+    systemctl restart php8.2-fpm
+fi
+
+echo \"Configuration applied successfully\"
 EOF"
 
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "chmod +x /usr/local/bin/fusion-pbx-init.sh"
+lxc exec "$CONTAINER_NAME" -- chmod +x /usr/local/bin/apply-config.sh
 
-echo "==================== Creating systemd Service ===================="
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "cat > /etc/systemd/system/fusion-pbx-init.service <<'EOF'
+# Create startup service
+echo "==================== Creating Startup Service ===================="
+lxc exec "$CONTAINER_NAME" -- bash -c "cat > /etc/systemd/system/fusion-pbx-startup.service <<'EOF'
 [Unit]
-Description=FusionPBX Initialization Service
+Description=FusionPBX Container Startup Configuration
 After=network.target postgresql.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/fusion-pbx-init.sh
+ExecStart=/usr/local/bin/apply-config.sh
 RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
 EOF"
 
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "systemctl daemon-reload"
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "systemctl enable fusion-pbx-init.service"
+lxc exec "$CONTAINER_NAME" -- systemctl daemon-reload
+lxc exec "$CONTAINER_NAME" -- systemctl enable fusion-pbx-startup.service
 
-echo "==================== Cleaning up ===================="
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "apt-get clean"
-lxc exec "$BASE_IMAGE_NAME" -- bash -c "rm -rf /var/lib/apt/lists/*"
+# Enable services
+echo "==================== Enabling Services ===================="
+lxc exec "$CONTAINER_NAME" -- systemctl enable postgresql
+lxc exec "$CONTAINER_NAME" -- systemctl enable freeswitch
+lxc exec "$CONTAINER_NAME" -- systemctl enable nginx
+lxc exec "$CONTAINER_NAME" -- systemctl enable php8.2-fpm
+lxc exec "$CONTAINER_NAME" -- systemctl enable ssh
 
-echo "==================== Stopping container for snapshot ===================="
-lxc stop "$BASE_IMAGE_NAME"
+# Clean up
+echo "==================== Cleaning Up ===================="
+lxc exec "$CONTAINER_NAME" -- apt-get clean
+lxc exec "$CONTAINER_NAME" -- rm -rf /var/lib/apt/lists/*
 
-echo "Creating image from container..."
-lxc publish "$BASE_IMAGE_NAME" --alias "$BASE_IMAGE_NAME" --public
+# Stop container
+echo "==================== Creating Image ===================="
+echo "Stopping container..."
+lxc stop "$CONTAINER_NAME"
 
-echo "Removing temporary container..."
-lxc delete "$BASE_IMAGE_NAME"
+# Create image
+echo "Publishing image as $IMAGE_ALIAS..."
+lxc publish "$CONTAINER_NAME" --alias "$IMAGE_ALIAS" --description "$IMAGE_DESCRIPTION" --public
 
-echo "==================== FusionPBX Base Image Build Complete ===================="
-echo "Image created: $BASE_IMAGE_NAME"
+# Delete build container
+echo "Deleting build container..."
+lxc delete "$CONTAINER_NAME"
+
 echo ""
-echo "You can now launch containers using: ./launchFusionPBX.sh [config-file]"
-echo "Or use the quick start: ./startDefault.sh"
+echo "==========================================="
+echo "Build Complete!"
+echo "==========================================="
+echo "Image created: $IMAGE_ALIAS"
+echo ""
+echo "To launch a container:"
+echo "  ./launchFusionPBX.sh /path/to/config.conf"
+echo ""
+echo "Or use quick start:"
+echo "  ./startDefault.sh"
+echo ""
+echo "FusionPBX will be available at:"
+echo "  http://<container-ip>"
+echo "  Initial setup: http://<container-ip>/install.php"
+echo ""

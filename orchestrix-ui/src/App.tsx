@@ -25,7 +25,7 @@ import Datacenters from './pages/resources/DatacentersNew';
 import Compute from './pages/resources/Compute';
 import Storage from './pages/resources/Storage';
 import Countries from './pages/resources/Countries';
-import Infrastructure from './pages/InfrastructureCloudNative';
+import InfrastructureCloudNative from './pages/InfrastructureCloudNative';
 import InfrastructureStellar from './pages/InfrastructureStellar';
 import RemoteAccess from './pages/RemoteAccess';
 import WebSocketTest from './pages/WebSocketTest';
@@ -56,7 +56,7 @@ function App() {
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="infrastructure" element={<Infrastructure />} />
+              <Route path="infrastructure" element={<InfrastructureCloudNative />} />
               <Route path="infrastructure-stellar" element={<InfrastructureStellar />} />
               <Route path="clouds" element={<Navigate to="/infrastructure" replace />} />
               <Route path="users" element={<Users />} />
@@ -78,8 +78,8 @@ function App() {
               <Route path="websocket-test" element={<WebSocketTest />} />
             </Route>
           </Routes>
-        </Router>
-      </ThemeProvider>
+          </Router>
+        </ThemeProvider>
       </StoreProvider>
     </Provider>
   );

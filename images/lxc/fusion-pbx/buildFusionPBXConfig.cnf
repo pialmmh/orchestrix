@@ -1,0 +1,57 @@
+#!/bin/bash
+# Build configuration for FusionPBX base image
+# This file contains settings used during the image build process
+
+# Base image to build from
+BASE_IMAGE="images:debian/12"
+
+# Name for the build container (temporary)
+CONTAINER_NAME="fusion-pbx-build"
+
+# Name for the final image
+IMAGE_ALIAS="fusion-pbx-base"
+
+# Image description
+IMAGE_DESCRIPTION="FusionPBX with FreeSWITCH on Debian 12 (64-bit) - No NAT Bridge Mode"
+
+# Build timeout (seconds)
+BUILD_TIMEOUT="1800"
+
+# Package installation options
+INSTALL_RECOMMENDED="false"
+APT_CACHE_DIR="/tmp/apt-cache"
+
+# FreeSWITCH version/repository
+FREESWITCH_REPO="https://freeswitch.signalwire.com/repo/deb/debian-release/"
+FREESWITCH_CODENAME="bookworm"
+
+# PHP version
+PHP_VERSION="8.2"
+
+# PostgreSQL version (major)
+POSTGRESQL_VERSION="15"
+
+# Default user for containers
+DEFAULT_USER="fusionpbx"
+DEFAULT_PASSWORD="fusion123"
+
+# SSH configuration for development
+ENABLE_SSH="true"
+SSH_AUTO_ACCEPT="true"
+
+# Services to enable by default
+ENABLE_SERVICES=(
+    "postgresql"
+    "freeswitch"
+    "nginx"
+    "php${PHP_VERSION}-fpm"
+    "ssh"
+)
+
+# Cleanup options
+CLEAN_APT_CACHE="true"
+REMOVE_BUILD_DEPS="false"
+
+# Debug options
+DEBUG_MODE="false"
+VERBOSE_OUTPUT="true"

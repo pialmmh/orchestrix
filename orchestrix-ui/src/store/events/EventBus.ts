@@ -44,7 +44,10 @@ export class LocalEventBus implements IEventBus {
       this.emitter.off(eventId, handler);
     } else {
       // Remove all handlers for this event
-      delete (this.emitter as any).all?.get(eventId);
+      const emitterWithAll = this.emitter as any;
+      if (emitterWithAll.all) {
+        emitterWithAll.all.delete(eventId);
+      }
     }
   }
 

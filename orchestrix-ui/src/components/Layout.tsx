@@ -23,8 +23,7 @@ import {
   Tooltip,
   alpha,
   Collapse,
-  Alert,
-  AlertTitle,
+  Chip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -49,6 +48,7 @@ import {
   Cloud,
   VpnKey,
   Terminal,
+  BugReport,
 } from '@mui/icons-material';
 import { AppDispatch, RootState } from '../store/store';
 import { logout } from '../store/slices/authSlice';
@@ -101,40 +101,12 @@ const Layout: React.FC = () => {
 
   return (
     <Box sx={{ display: 'flex' }}>
-      {/* Store Debug Mode Warning Banner */}
-      {storeDebugMode && (
-        <Alert
-          severity="warning"
-          sx={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: theme.zIndex.drawer + 2,
-            borderRadius: 0,
-            backgroundColor: '#fff3cd',
-            color: '#856404',
-            border: 'none',
-            borderBottom: '2px solid #ffc107',
-            '& .MuiAlert-icon': {
-              color: '#ffc107',
-            },
-          }}
-        >
-          <AlertTitle sx={{ fontWeight: 'bold', mb: 0 }}>
-            Store Debug Mode Active
-          </AlertTitle>
-          Performance may be affected. All store operations are being logged and sent to the debug server.
-        </Alert>
-      )}
-      
       <AppBar
         position="fixed"
         sx={{
           zIndex: theme.zIndex.drawer + 1,
           background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
           boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-          top: storeDebugMode ? 72 : 0, // Adjust position when banner is shown
         }}
       >
         <Toolbar>
@@ -153,6 +125,22 @@ const Layout: React.FC = () => {
             <Typography variant="h6" noWrap component="div">
               Orchestrix
             </Typography>
+            {storeDebugMode && (
+              <Chip
+                icon={<BugReport />}
+                label="DEBUG MODE"
+                size="small"
+                sx={{
+                  ml: 2,
+                  backgroundColor: '#ff9800',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  '& .MuiChip-icon': {
+                    color: 'white',
+                  },
+                }}
+              />
+            )}
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

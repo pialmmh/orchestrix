@@ -98,7 +98,7 @@ public class LxcNetworkConfiguratorTest {
             }
             
             // Show container status
-            configurator.executeSshCommandViaExecChannel("lxc list test-static-ip")
+            configurator.executeCommand("lxc list test-static-ip")
                 .thenAccept(result -> log.info("Container status:\n{}", result));
             
             Thread.sleep(1000);

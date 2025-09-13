@@ -1,22 +1,28 @@
 // Store Event Types and Interfaces
 
 export type StoreEventType = 'query' | 'mutation';
-export type StoreOperation = 'create' | 'read' | 'update' | 'delete' | 'list';
+export type StoreOperation = 'create' | 'read' | 'update' | 'delete' | 'list' | 
+  'QUERY_START' | 'QUERY_SUCCESS' | 'QUERY_ERROR' |
+  'INSERT_START' | 'INSERT_SUCCESS' | 'INSERT_ERROR' |
+  'UPDATE_START' | 'UPDATE_SUCCESS' | 'UPDATE_ERROR' |
+  'DELETE_START' | 'DELETE_SUCCESS' | 'DELETE_ERROR';
 export type StoreEventStatus = 'pending' | 'success' | 'error';
 
 export interface StoreEvent {
   id: string;
   type: StoreEventType;
   entity: string;
-  operation: StoreOperation;
+  operation: StoreOperation | string; // Allow string for dynamic operations
   payload?: any;
   timestamp: number;
   userId?: string;
   sessionId?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface StoreEventResponse extends StoreEvent {
-  status: StoreEventStatus;
+  status?: StoreEventStatus;
+  success?: boolean;
   data?: any;
   error?: string;
   errorDetails?: any;

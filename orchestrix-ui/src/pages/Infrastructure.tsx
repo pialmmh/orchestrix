@@ -12,7 +12,7 @@ import { useInfrastructure } from '../contexts/InfrastructureContext';
 import { TreeNode } from '../types/CloudHierarchy';
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8090/api/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8090/api';
 
 const Infrastructure: React.FC = () => {
   const { clouds, selectedNode, setSelectedNode, loading, error, refreshClouds } = useInfrastructure();

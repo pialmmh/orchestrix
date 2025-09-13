@@ -70,18 +70,18 @@ public class HelloLxcTest {
             
             // Check if container exists and delete if needed
             String checkCmd = "lxc list hello-lxc --format=json | jq length";
-            String result = configurator.executeSshCommandViaExecChannel(checkCmd).get();
+            String result = configurator.executeCommand(checkCmd).get();
             
             if (!result.trim().equals("0")) {
                 System.out.println("Container exists, deleting...");
-                configurator.executeSshCommandViaExecChannel("lxc stop hello-lxc --force").get();
-                configurator.executeSshCommandViaExecChannel("lxc delete hello-lxc --force").get();
+                configurator.executeCommand("lxc stop hello-lxc --force").get();
+                configurator.executeCommand("lxc delete hello-lxc --force").get();
             }
             
             // Launch container
             System.out.println("Launching container...");
             String launchCmd = "lxc launch images:debian/12 hello-lxc --network=lxcbr0";
-            configurator.executeSshCommandViaExecChannel(launchCmd).get();
+            configurator.executeCommand(launchCmd).get();
             
             System.out.println("✓ Container launched!");
             
@@ -116,7 +116,7 @@ public class HelloLxcTest {
             
             // Test ping from container to gateway
             System.out.println("Testing container -> gateway (10.10.199.1)...");
-            String gwPing = configurator.executeSshCommandViaExecChannel(
+            String gwPing = configurator.executeCommand(
                 "lxc exec hello-lxc -- ping -c 1 10.10.199.1"
             ).get();
             boolean containerToGw = gwPing.contains("1 received");
@@ -124,7 +124,7 @@ public class HelloLxcTest {
             
             // Test ping from container to Google DNS
             System.out.println("Testing container -> Google DNS (8.8.8.8)...");
-            String googlePing = configurator.executeSshCommandViaExecChannel(
+            String googlePing = configurator.executeCommand(
                 "lxc exec hello-lxc -- ping -c 1 8.8.8.8"
             ).get();
             boolean containerToGoogle = googlePing.contains("1 received");
@@ -132,7 +132,7 @@ public class HelloLxcTest {
             
             // Test DNS resolution
             System.out.println("Testing DNS resolution (google.com)...");
-            String dnsPing = configurator.executeSshCommandViaExecChannel(
+            String dnsPing = configurator.executeCommand(
                 "lxc exec hello-lxc -- ping -c 1 google.com"
             ).get();
             boolean dnsWorks = dnsPing.contains("1 received");
@@ -140,12 +140,12 @@ public class HelloLxcTest {
             
             // Step 6: Show container info
             System.out.println("\n6. Container Information:");
-            String containerInfo = configurator.executeSshCommandViaExecChannel("lxc list hello-lxc").get();
+            String containerInfo = configurator.executeCommand("lxc list hello-lxc").get();
             System.out.println(containerInfo);
             
             // Show IP configuration
             System.out.println("\nContainer IP Configuration:");
-            String ipInfo = configurator.executeSshCommandViaExecChannel(
+            String ipInfo = configurator.executeCommand(
                 "lxc exec hello-lxc -- ip addr show eth0"
             ).get();
             System.out.println(ipInfo);

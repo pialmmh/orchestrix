@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Cloud, TreeNode } from '../types/CloudHierarchy';
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8090/api/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8090/api';
 
 interface InfrastructureContextType {
   clouds: Cloud[];

@@ -10,7 +10,7 @@ export interface StoreDebugConfig {
 export const defaultStoreDebugConfig: StoreDebugConfig = {
   store_debug: true, // Enable debug mode by default for now
   eventbus: 'websocket',
-  websocket_url: 'ws://localhost:3011/store-debug',
+  websocket_url: 'ws://localhost:3013/store-debug',
   log_retention_hours: 24, // Keep logs for 1 day
 };
 
