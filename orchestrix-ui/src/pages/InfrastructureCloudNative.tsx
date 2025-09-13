@@ -81,7 +81,7 @@ interface Partner {
   roles: string[];
 }
 
-const InfrastructureCloudNative: React.FC = observer(() => {
+const InfrastructureCloudNative: React.FC = () => {
   const organizationInfraStore = useOrganizationInfraStore();
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('');
@@ -156,7 +156,9 @@ const InfrastructureCloudNative: React.FC = observer(() => {
       console.log('🔍 fetchInfrastructureData - using Stellar store, tenant:', tenant);
 
       // Use Stellar store to load infrastructure tree
-      await organizationInfraStore.loadInfrastructureTree(tenant);
+      // Map 'organization' to 'self' for the store
+      const storeParam = tenant === 'organization' ? 'self' : tenant;
+      await organizationInfraStore.loadInfrastructureTree(storeParam);
 
       // Get data from the store
       const treeDataFromStore = organizationInfraStore.treeData;
@@ -1454,6 +1456,6 @@ const InfrastructureCloudNative: React.FC = observer(() => {
       />
     </Box>
   );
-});
+};
 
-export default InfrastructureCloudNative;
+export default observer(InfrastructureCloudNative);
