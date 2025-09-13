@@ -198,8 +198,8 @@ export class OrganizationInfraStore extends StellarStore {
     const criteria: any = {};
 
     if (partner === 'self') {
-      // Load organization's own infrastructure - temporarily load all for testing
-      // criteria.roles = ['self'];
+      // Load organization's own infrastructure - filter by name
+      criteria.name = 'telcobright';
     } else if (partner === 'all') {
       // Load all partners' infrastructure (no criteria filter)
     } else {
@@ -231,7 +231,7 @@ export class OrganizationInfraStore extends StellarStore {
     };
 
     const data = await this.executeQuery(query);
-    
+
     if (data) {
       runInAction(() => {
         this.treeData = transformStellarToTree(data);

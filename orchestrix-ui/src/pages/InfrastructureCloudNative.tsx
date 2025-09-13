@@ -157,7 +157,8 @@ const InfrastructureCloudNative: React.FC = () => {
 
       // Use Stellar store to load infrastructure tree
       // Map 'organization' to 'self' for the store
-      const storeParam = tenant === 'organization' ? 'self' : tenant;
+      // Map 'partners' to 'all' to show all partners
+      const storeParam = tenant === 'organization' ? 'self' : tenant === 'partners' ? 'all' : tenant;
       await organizationInfraStore.loadInfrastructureTree(storeParam);
 
       // Get data from the store
