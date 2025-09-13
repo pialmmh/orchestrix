@@ -20,10 +20,18 @@ CONFIG_ABS_PATH="$(cd "$(dirname "$CONFIG_FILE")" && pwd)/$(basename "$CONFIG_FI
 
 source "$CONFIG_FILE"
 
+# Base configuration
 BASE_IMAGE_NAME="${BASE_IMAGE_NAME:-fusion-pbx-base}"
 CONTAINER_NAME="${CONTAINER_NAME:-fusion-pbx-dev}"
-CONTAINER_IP="${CONTAINER_IP:-}"
-LXD_NETWORK="${LXD_NETWORK:-}"
+
+# Network configuration - REQUIRED for static IP setup
+CONTAINER_IP="${CONTAINER_IP:-}"  # e.g., "10.10.199.100"
+CONTAINER_BRIDGE="${CONTAINER_BRIDGE:-lxcbr0}"  # Bridge name
+CONTAINER_GATEWAY="${CONTAINER_GATEWAY:-10.10.199.1}"  # Gateway IP
+CONTAINER_NETMASK="${CONTAINER_NETMASK:-24}"  # Network mask
+CONTAINER_DNS="${CONTAINER_DNS:-8.8.8.8,8.8.4.4}"  # DNS servers
+
+# Mount points
 WORKSPACE_MOUNT="${WORKSPACE_MOUNT:-}"
 CONFIG_MOUNT="${CONFIG_MOUNT:-}"
 DATA_MOUNT="${DATA_MOUNT:-}"
@@ -33,10 +41,13 @@ FUSIONPBX_APP_MOUNT="${FUSIONPBX_APP_MOUNT:-}"
 echo "==================== Launching FusionPBX Container ===================="
 echo "Container name: $CONTAINER_NAME"
 echo "Base image: $BASE_IMAGE_NAME"
+echo "Bridge: $CONTAINER_BRIDGE"
 if [ ! -z "$CONTAINER_IP" ]; then
-    echo "Container IP: $CONTAINER_IP"
+    echo "Static IP: $CONTAINER_IP"
+    echo "Gateway: $CONTAINER_GATEWAY"
 fi
 
+# Check if base image exists
 EXISTING_IMAGE=$(lxc image list --format=json | jq -r ".[] | select(.aliases[].name==\"$BASE_IMAGE_NAME\") | .aliases[].name" | head -n1)
 if [ -z "$EXISTING_IMAGE" ]; then
     echo "Error: Base image $BASE_IMAGE_NAME not found!"
@@ -44,6 +55,7 @@ if [ -z "$EXISTING_IMAGE" ]; then
     exit 1
 fi
 
+# Check if container already exists
 EXISTING_CONTAINER=$(lxc list --format=json | jq -r ".[] | select(.name==\"$CONTAINER_NAME\") | .name")
 if [ ! -z "$EXISTING_CONTAINER" ]; then
     echo "Container $CONTAINER_NAME already exists."
@@ -60,94 +72,76 @@ if [ ! -z "$EXISTING_CONTAINER" ]; then
 fi
 
 echo "Creating container from image..."
-lxc launch "$BASE_IMAGE_NAME" "$CONTAINER_NAME"
+lxc launch "$BASE_IMAGE_NAME" "$CONTAINER_NAME" --network="$CONTAINER_BRIDGE"
 
-echo "Ensuring container networking (IPv4 only, bridged)..."
-
-# Ensure a managed LXD bridge network exists and pick one
-select_managed_bridge() {
-    # If user specified a network, prefer it
-    if [ -n "$LXD_NETWORK" ]; then
-        if lxc network list --format=json | jq -e \
-            --arg net "$LXD_NETWORK" '.[] | select(.name==$net and .type=="bridge" and .managed==true)' >/dev/null; then
-            echo "$LXD_NETWORK"
-            return 0
-        else
-            echo "Error: Specified LXD network '$LXD_NETWORK' not found or not a managed bridge." >&2
-            return 1
-        fi
-    fi
-
-    # Try to find any existing managed bridge
-    local NET
-    NET=$(lxc network list --format=json | jq -r '.[] | select(.type=="bridge" and .managed==true) | .name' | head -n1)
-    if [ -n "$NET" ]; then
-        echo "$NET"
-        return 0
-    fi
-
-    # None found, create lxdbr0 with IPv4 NAT and no IPv6
-    echo "No managed LXD bridge found; creating 'lxdbr0' (IPv4 NAT, IPv6 disabled)..."
-    lxc network create lxdbr0 ipv4.address=auto ipv4.nat=true ipv6.address=none >/dev/null
-    echo "lxdbr0"
-}
-
-BRIDGE_NET=$(select_managed_bridge)
-if [ -z "$BRIDGE_NET" ]; then
-    echo "Failed to select or create an LXD bridge network." >&2
-    exit 1
-fi
-
-# If DNS servers are provided, set them on the bridge so DHCP hands them out
-if [ -n "$DNS_SERVERS" ]; then
-    NS=$(echo "$DNS_SERVERS" | tr ',' ' ')
-    echo "Configuring DNS on network '$BRIDGE_NET': $NS"
-    lxc network set "$BRIDGE_NET" dns.nameservers="$NS" >/dev/null || true
-fi
-
-# Attach/override NIC to ensure it uses the selected bridge
-if ! lxc config device override "$CONTAINER_NAME" eth0 network="$BRIDGE_NET" >/dev/null 2>&1; then
-    # If no eth0, attach one
-    lxc network attach "$BRIDGE_NET" "$CONTAINER_NAME" eth0 >/dev/null
-fi
-
-# If a static IP is requested, pin it via DHCP reservation on the NIC
-if [ -n "$CONTAINER_IP" ]; then
-    echo "Setting static IPv4 on '$BRIDGE_NET': $CONTAINER_IP"
-    lxc config device set "$CONTAINER_NAME" eth0 ipv4.address "$CONTAINER_IP"
-fi
-
-# Restart to apply network changes reliably
-lxc restart "$CONTAINER_NAME" --force
-
-echo "Waiting for container to get IPv4 address..."
-for i in {1..40}; do
-    CURRENT_IP=$(lxc list "$CONTAINER_NAME" --format=json | jq -r '.[0].state.network.eth0.addresses[]? | select(.family=="inet").address' 2>/dev/null)
-    if [ -n "$CONTAINER_IP" ]; then
-        if [ "$CURRENT_IP" = "$CONTAINER_IP" ]; then
-            echo "Container IP configured successfully: $CURRENT_IP"
-            break
-        fi
-    else
-        if [ -n "$CURRENT_IP" ]; then
-            echo "Container obtained IP: $CURRENT_IP"
-            break
-        fi
-    fi
-    sleep 1
-done
-
-echo "Waiting for container to be ready..."
+echo "Waiting for container to start..."
 sleep 3
 
-while ! lxc exec "$CONTAINER_NAME" -- systemctl is-system-running &>/dev/null; do
-    echo "Waiting for system to be ready..."
-    sleep 2
-done
+# Configure static IP if provided
+if [ ! -z "$CONTAINER_IP" ]; then
+    echo "Configuring static IP address..."
+    
+    # Wait for container to be ready
+    while ! lxc exec "$CONTAINER_NAME" -- systemctl is-system-running &>/dev/null; do
+        sleep 1
+    done
+    
+    # Configure network inside container
+    # First, try netplan (Debian 12 / Ubuntu)
+    lxc exec "$CONTAINER_NAME" -- bash -c "cat > /etc/netplan/10-lxc.yaml <<EOF
+network:
+  version: 2
+  ethernets:
+    eth0:
+      addresses: [$CONTAINER_IP/$CONTAINER_NETMASK]
+      gateway4: $CONTAINER_GATEWAY
+      nameservers:
+        addresses: [${CONTAINER_DNS//,/, }]
+EOF"
+    
+    # Apply netplan configuration
+    lxc exec "$CONTAINER_NAME" -- netplan apply 2>/dev/null || {
+        echo "Netplan not available, configuring network manually..."
+        
+        # Manual network configuration as fallback
+        lxc exec "$CONTAINER_NAME" -- bash -c "
+            # Configure interface
+            ip addr flush dev eth0
+            ip addr add $CONTAINER_IP/$CONTAINER_NETMASK dev eth0
+            ip link set eth0 up
+            ip route add default via $CONTAINER_GATEWAY
+            
+            # Configure DNS
+            echo 'nameserver ${CONTAINER_DNS%%,*}' > /etc/resolv.conf
+            echo 'nameserver ${CONTAINER_DNS##*,}' >> /etc/resolv.conf
+            
+            # Make it persistent (Debian style)
+            cat > /etc/network/interfaces <<NETCFG
+auto lo
+iface lo inet loopback
 
+auto eth0
+iface eth0 inet static
+    address $CONTAINER_IP/$CONTAINER_NETMASK
+    gateway $CONTAINER_GATEWAY
+    dns-nameservers $CONTAINER_DNS
+NETCFG
+        "
+    }
+    
+    echo "Static IP configured: $CONTAINER_IP"
+else
+    echo "No static IP configured, container will use DHCP or need manual configuration"
+fi
+
+echo "Waiting for network to stabilize..."
+sleep 2
+
+# Mount configuration directory
 CONFIG_DIR="$(dirname "$CONFIG_ABS_PATH")"
 lxc config device add "$CONTAINER_NAME" config-mount disk source="$CONFIG_DIR" path=/mnt/config
 
+# Mount workspace if specified
 if [ ! -z "$WORKSPACE_MOUNT" ]; then
     if [ -d "$WORKSPACE_MOUNT" ]; then
         echo "Mounting workspace: $WORKSPACE_MOUNT -> /workspace"
@@ -157,6 +151,7 @@ if [ ! -z "$WORKSPACE_MOUNT" ]; then
     fi
 fi
 
+# Mount data directory if specified
 if [ ! -z "$DATA_MOUNT" ]; then
     DATA_ABS_PATH="$(cd "$(dirname "$DATA_MOUNT")" 2>/dev/null && pwd)/$(basename "$DATA_MOUNT")" || DATA_ABS_PATH="$DATA_MOUNT"
     
@@ -169,6 +164,7 @@ if [ ! -z "$DATA_MOUNT" ]; then
     lxc config device add "$CONTAINER_NAME" data-mount disk source="$DATA_ABS_PATH" path=/var/lib/postgresql
 fi
 
+# Mount FreeSWITCH config if specified
 if [ ! -z "$FREESWITCH_CONF_MOUNT" ]; then
     FREESWITCH_ABS_PATH="$(cd "$(dirname "$FREESWITCH_CONF_MOUNT")" 2>/dev/null && pwd)/$(basename "$FREESWITCH_CONF_MOUNT")" || FREESWITCH_ABS_PATH="$FREESWITCH_CONF_MOUNT"
     
@@ -181,6 +177,7 @@ if [ ! -z "$FREESWITCH_CONF_MOUNT" ]; then
     lxc config device add "$CONTAINER_NAME" freeswitch-conf disk source="$FREESWITCH_ABS_PATH" path=/etc/freeswitch
 fi
 
+# Mount FusionPBX app if specified
 if [ ! -z "$FUSIONPBX_APP_MOUNT" ]; then
     FUSIONPBX_ABS_PATH="$(cd "$(dirname "$FUSIONPBX_APP_MOUNT")" 2>/dev/null && pwd)/$(basename "$FUSIONPBX_APP_MOUNT")" || FUSIONPBX_ABS_PATH="$FUSIONPBX_APP_MOUNT"
     
@@ -196,6 +193,7 @@ fi
 echo "Running initialization script..."
 lxc exec "$CONTAINER_NAME" -- /usr/local/bin/fusion-pbx-init.sh
 
+# Set up SSH tunnels if configured
 if [ ! -z "$SSH_TUNNEL_HOST" ] && [ ! -z "$SSH_TUNNEL_USER" ] && [ ! -z "$SSH_TUNNEL_PORTS" ]; then
     echo "==================== Setting up SSH Tunnels ===================="
     
@@ -248,9 +246,16 @@ echo ""
 echo "==================== FusionPBX Container Launch Complete ===================="
 echo ""
 echo "Container: $CONTAINER_NAME"
+echo "Bridge: $CONTAINER_BRIDGE"
 
-CONTAINER_IP=$(lxc list "$CONTAINER_NAME" --format=json | jq -r '.[0].state.network.eth0.addresses[] | select(.family=="inet").address' 2>/dev/null)
-echo "IP Address: ${CONTAINER_IP:-Not assigned}"
+if [ ! -z "$CONTAINER_IP" ]; then
+    echo "IP Address: $CONTAINER_IP"
+    echo "Gateway: $CONTAINER_GATEWAY"
+else
+    ACTUAL_IP=$(lxc list "$CONTAINER_NAME" --format=json | jq -r '.[0].state.network.eth0.addresses[] | select(.family=="inet").address' 2>/dev/null)
+    echo "IP Address: ${ACTUAL_IP:-Not assigned}"
+fi
+
 echo ""
 echo "Access Methods:"
 echo "  - Web Interface: http://${CONTAINER_IP:-<container-ip>}"
@@ -286,3 +291,9 @@ lxc exec "$CONTAINER_NAME" -- systemctl is-active postgresql && echo "  - Postgr
 lxc exec "$CONTAINER_NAME" -- systemctl is-active freeswitch && echo "  - FreeSWITCH: active" || echo "  - FreeSWITCH: inactive"
 lxc exec "$CONTAINER_NAME" -- systemctl is-active nginx && echo "  - Nginx: active" || echo "  - Nginx: inactive"
 lxc exec "$CONTAINER_NAME" -- systemctl is-active php8.2-fpm && echo "  - PHP-FPM: active" || echo "  - PHP-FPM: inactive"
+
+echo ""
+echo "Network Note:"
+echo "  - Containers can communicate directly without NAT"
+echo "  - Internet access is through host gateway ($CONTAINER_GATEWAY)"
+echo "  - Perfect for VoIP applications (no NAT issues)"

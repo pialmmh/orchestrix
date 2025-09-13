@@ -5,7 +5,9 @@ import com.orchestrix.stellar.json.QueryParser;
 import com.orchestrix.stellar.model.QueryNode;
 import com.orchestrix.stellar.model.EntityModificationRequest;
 import com.orchestrix.stellar.result.FlatRow;
+import com.orchestrix.stellar.result.ResultTransformer;
 import com.orchestrix.stellar.schema.OrchestrixSchema;
+import com.orchestrix.stellar.schema.SchemaMeta;
 import com.orchestrix.stellar.sql.MysqlQueryBuilder;
 import com.orchestrix.stellar.sql.SqlPlan;
 import com.orchestrix.stellar.service.EntityModificationService;
@@ -38,10 +40,14 @@ public class QueryController {
     private EntityModificationService modificationService;
     
     private final MysqlQueryBuilder queryBuilder;
+    private final ResultTransformer resultTransformer;
+    private final SchemaMeta schemaMeta;
     
     public QueryController() {
         // Initialize with Orchestrix schema
-        this.queryBuilder = new MysqlQueryBuilder(OrchestrixSchema.getSchema());
+        this.schemaMeta = OrchestrixSchema.getSchema();
+        this.queryBuilder = new MysqlQueryBuilder(schemaMeta);
+        this.resultTransformer = new ResultTransformer(schemaMeta);
     }
     
     /**
@@ -64,14 +70,12 @@ public class QueryController {
             // Execute query
             Runner runner = new Runner(dataSource);
             List<FlatRow> rows = runner.execute(plan);
+            log.info("Query returned {} flat rows", rows.size());
             
-            // Convert FlatRow results to plain Maps for JSON serialization
-            List<Map<String, Object>> results = new ArrayList<>();
-            for (FlatRow row : rows) {
-                results.add(row.col());
-            }
+            // Transform flat rows to hierarchical structure with clean field names
+            List<Map<String, Object>> results = resultTransformer.transform(rows, query);
             
-            log.info("Query returned {} rows", results.size());
+            log.info("Transformed to {} hierarchical objects", results.size());
             
             // Return results
             return ResponseEntity.ok(Map.of(

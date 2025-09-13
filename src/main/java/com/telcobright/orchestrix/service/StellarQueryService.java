@@ -11,6 +11,7 @@ import javax.persistence.Query;
 import javax.persistence.criteria.*;
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class StellarQueryService {
@@ -20,17 +21,7 @@ public class StellarQueryService {
 
     public List<Map<String, Object>> executeQuery(QueryNode queryNode) {
         try {
-            String entityName = queryNode.getKind();
-            // Capitalize first letter to match entity class name
-            entityName = entityName.substring(0, 1).toUpperCase() + entityName.substring(1).toLowerCase();
-            
-            // Handle special cases
-            if (entityName.equalsIgnoreCase("networkdevice")) {
-                entityName = "NetworkDevice";
-            } else if (entityName.equalsIgnoreCase("availabilityzone")) {
-                entityName = "AvailabilityZone";
-            }
-            
+            String entityName = normalizeEntityName(queryNode.getKind());
             Class<?> entityClass = Class.forName("com.telcobright.orchestrix.entity." + entityName);
             
             CriteriaBuilder cb = entityManager.getCriteriaBuilder();
@@ -54,17 +45,18 @@ public class StellarQueryService {
             
             List<?> results = jpaQuery.getResultList();
             
-            // Convert to Maps and handle includes
+            // Convert to Maps with proper field names and handle includes
             List<Map<String, Object>> resultMaps = new ArrayList<>();
             for (Object entity : results) {
-                Map<String, Object> entityMap = entityToMap(entity, queryNode.getSelect());
+                Map<String, Object> entityMap = entityToCleanMap(entity, queryNode.getSelect());
                 
                 // Handle includes (nested queries)
                 if (queryNode.getInclude() != null) {
                     for (QueryNode includeNode : queryNode.getInclude()) {
                         String relationName = includeNode.getKind();
+                        String propertyName = pluralizeName(toCamelCase(relationName));
                         List<Map<String, Object>> nestedResults = executeNestedQuery(entity, includeNode, relationName);
-                        entityMap.put(relationName, nestedResults);
+                        entityMap.put(propertyName, nestedResults);
                     }
                 }
                 
@@ -80,8 +72,13 @@ public class StellarQueryService {
     
     private List<Map<String, Object>> executeNestedQuery(Object parentEntity, QueryNode includeNode, String relationName) {
         try {
-            // Get the relation field from parent entity
-            Field relationField = parentEntity.getClass().getDeclaredField(relationName);
+            // Try to find the relation field
+            String fieldName = findRelationFieldName(parentEntity.getClass(), relationName);
+            if (fieldName == null) {
+                return new ArrayList<>();
+            }
+            
+            Field relationField = parentEntity.getClass().getDeclaredField(fieldName);
             relationField.setAccessible(true);
             Object relationValue = relationField.get(parentEntity);
             
@@ -94,14 +91,15 @@ public class StellarQueryService {
             if (relationValue instanceof Collection) {
                 // Handle one-to-many relations
                 for (Object childEntity : (Collection<?>) relationValue) {
-                    Map<String, Object> childMap = entityToMap(childEntity, includeNode.getSelect());
+                    Map<String, Object> childMap = entityToCleanMap(childEntity, includeNode.getSelect());
                     
                     // Recursively handle nested includes
                     if (includeNode.getInclude() != null) {
                         for (QueryNode nestedInclude : includeNode.getInclude()) {
                             String nestedRelationName = nestedInclude.getKind();
+                            String propertyName = pluralizeName(toCamelCase(nestedRelationName));
                             List<Map<String, Object>> nestedResults = executeNestedQuery(childEntity, nestedInclude, nestedRelationName);
-                            childMap.put(nestedRelationName, nestedResults);
+                            childMap.put(propertyName, nestedResults);
                         }
                     }
                     
@@ -109,14 +107,15 @@ public class StellarQueryService {
                 }
             } else {
                 // Handle many-to-one relations
-                Map<String, Object> childMap = entityToMap(relationValue, includeNode.getSelect());
+                Map<String, Object> childMap = entityToCleanMap(relationValue, includeNode.getSelect());
                 
                 // Recursively handle nested includes
                 if (includeNode.getInclude() != null) {
                     for (QueryNode nestedInclude : includeNode.getInclude()) {
                         String nestedRelationName = nestedInclude.getKind();
+                        String propertyName = pluralizeName(toCamelCase(nestedRelationName));
                         List<Map<String, Object>> nestedResults = executeNestedQuery(relationValue, nestedInclude, nestedRelationName);
-                        childMap.put(nestedRelationName, nestedResults);
+                        childMap.put(propertyName, nestedResults);
                     }
                 }
                 
@@ -127,6 +126,84 @@ public class StellarQueryService {
         } catch (Exception e) {
             e.printStackTrace();
             return new ArrayList<>();
+        }
+    }
+    
+    private String findRelationFieldName(Class<?> entityClass, String relationName) {
+        // Normalize the relation name
+        String normalized = normalizeEntityName(relationName);
+        
+        // Try different variations
+        String[] variations = {
+            toCamelCase(relationName) + "s",  // e.g., "clouds"
+            toCamelCase(relationName),        // e.g., "cloud"
+            normalized.toLowerCase() + "s",    // e.g., "datacenters"
+            normalized.toLowerCase()           // e.g., "datacenter"
+        };
+        
+        for (String variation : variations) {
+            try {
+                entityClass.getDeclaredField(variation);
+                return variation;
+            } catch (NoSuchFieldException e) {
+                // Try next variation
+            }
+        }
+        
+        return null;
+    }
+    
+    private String normalizeEntityName(String kind) {
+        // Convert to proper entity class name
+        String entityName = kind.substring(0, 1).toUpperCase() + kind.substring(1).toLowerCase();
+        
+        // Handle special cases
+        if (kind.equalsIgnoreCase("networkdevice") || kind.equalsIgnoreCase("network-device")) {
+            entityName = "NetworkDevice";
+        } else if (kind.equalsIgnoreCase("availabilityzone") || kind.equalsIgnoreCase("availability-zone")) {
+            entityName = "AvailabilityZone";
+        } else if (kind.equalsIgnoreCase("datacenter")) {
+            entityName = "Datacenter";
+        } else if (kind.equalsIgnoreCase("partner")) {
+            entityName = "Partner";
+        } else if (kind.equalsIgnoreCase("cloud")) {
+            entityName = "Cloud";
+        } else if (kind.equalsIgnoreCase("compute")) {
+            entityName = "Compute";
+        }
+        
+        return entityName;
+    }
+    
+    private String toCamelCase(String input) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+        
+        // Handle hyphenated names
+        String[] parts = input.split("-");
+        if (parts.length > 1) {
+            StringBuilder result = new StringBuilder(parts[0].toLowerCase());
+            for (int i = 1; i < parts.length; i++) {
+                result.append(parts[i].substring(0, 1).toUpperCase());
+                result.append(parts[i].substring(1).toLowerCase());
+            }
+            return result.toString();
+        }
+        
+        // Simple lowercase for single words
+        return input.toLowerCase();
+    }
+    
+    private String pluralizeName(String name) {
+        // Simple pluralization rules
+        if (name.endsWith("y") && !name.endsWith("ay") && !name.endsWith("ey") && !name.endsWith("oy")) {
+            return name.substring(0, name.length() - 1) + "ies";
+        } else if (name.endsWith("s") || name.endsWith("x") || name.endsWith("z") || 
+                   name.endsWith("ch") || name.endsWith("sh")) {
+            return name + "es";
+        } else {
+            return name + "s";
         }
     }
     
@@ -180,32 +257,52 @@ public class StellarQueryService {
         return predicates;
     }
     
-    private Map<String, Object> entityToMap(Object entity, List<String> selectFields) {
+    private Map<String, Object> entityToCleanMap(Object entity, List<String> selectFields) {
         Map<String, Object> map = new HashMap<>();
         
         try {
             Class<?> clazz = entity.getClass();
             
-            // If no select fields specified, include all fields
+            // If no select fields specified, include all simple fields
             if (selectFields == null || selectFields.isEmpty()) {
                 for (Field field : clazz.getDeclaredFields()) {
                     field.setAccessible(true);
                     String fieldName = field.getName();
                     
-                    // Skip collections and complex types for now
+                    // Skip collections and complex types for basic mapping
                     if (!Collection.class.isAssignableFrom(field.getType()) && 
                         !field.getType().getPackage().getName().startsWith("com.telcobright.orchestrix.entity")) {
+                        
                         Object value = field.get(entity);
-                        map.put(fieldName, value);
+                        
+                        // Convert field name from snake_case to camelCase
+                        String camelCaseName = snakeToCamelCase(fieldName);
+                        
+                        // Handle special value conversions
+                        if (value instanceof String && value.toString().startsWith("[") && value.toString().endsWith("]")) {
+                            // Convert JSON array strings to actual arrays
+                            try {
+                                value = value.toString().replaceAll("[\\[\\]\"]", "").split(",");
+                            } catch (Exception e) {
+                                // Keep as string if conversion fails
+                            }
+                        }
+                        
+                        map.put(camelCaseName, value);
                     }
                 }
             } else {
                 // Include only selected fields
                 for (String fieldName : selectFields) {
-                    Field field = clazz.getDeclaredField(fieldName);
-                    field.setAccessible(true);
-                    Object value = field.get(entity);
-                    map.put(fieldName, value);
+                    try {
+                        Field field = clazz.getDeclaredField(fieldName);
+                        field.setAccessible(true);
+                        Object value = field.get(entity);
+                        String camelCaseName = snakeToCamelCase(fieldName);
+                        map.put(camelCaseName, value);
+                    } catch (NoSuchFieldException e) {
+                        // Field doesn't exist, skip it
+                    }
                 }
             }
         } catch (Exception e) {
@@ -215,22 +312,30 @@ public class StellarQueryService {
         return map;
     }
     
+    private String snakeToCamelCase(String input) {
+        if (!input.contains("_")) {
+            return input;
+        }
+        
+        String[] parts = input.split("_");
+        StringBuilder result = new StringBuilder(parts[0]);
+        
+        for (int i = 1; i < parts.length; i++) {
+            if (!parts[i].isEmpty()) {
+                result.append(parts[i].substring(0, 1).toUpperCase());
+                result.append(parts[i].substring(1));
+            }
+        }
+        
+        return result.toString();
+    }
+    
     @Transactional
     public MutationResponse executeMutation(EntityModificationRequest request) {
         MutationResponse response = new MutationResponse();
         
         try {
-            String entityName = request.getEntityName();
-            // Capitalize first letter to match entity class name
-            entityName = entityName.substring(0, 1).toUpperCase() + entityName.substring(1).toLowerCase();
-            
-            // Handle special cases
-            if (entityName.equalsIgnoreCase("networkdevice")) {
-                entityName = "NetworkDevice";
-            } else if (entityName.equalsIgnoreCase("availabilityzone")) {
-                entityName = "AvailabilityZone";
-            }
-            
+            String entityName = normalizeEntityName(request.getEntityName());
             Class<?> entityClass = Class.forName("com.telcobright.orchestrix.entity." + entityName);
             
             switch (request.getOperation().toUpperCase()) {
@@ -240,7 +345,7 @@ public class StellarQueryService {
                     entityManager.flush();
                     response.setSuccess(true);
                     response.setMessage("Entity created successfully");
-                    response.setData(entityToMap(newEntity, null));
+                    response.setData(entityToCleanMap(newEntity, null));
                     response.setEntityName(entityName);
                     break;
                     
@@ -252,7 +357,7 @@ public class StellarQueryService {
                         entityManager.flush();
                         response.setSuccess(true);
                         response.setMessage("Entity updated successfully");
-                        response.setData(entityToMap(existingEntity, null));
+                        response.setData(entityToCleanMap(existingEntity, null));
                         response.setEntityName(entityName);
                         response.setId(request.getId());
                     } else {

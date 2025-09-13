@@ -71,6 +71,7 @@ The config file can be located anywhere in the filesystem.
 ### Basic Settings
 - `CONTAINER_NAME`: Name for the container instance
 - `CONTAINER_IP`: Static IP address (optional, uses DHCP if not set)
+- `LXD_NETWORK`: Preferred managed LXD bridge (e.g. `lxdbr0`). If not set, the launcher picks an existing managed bridge or creates `lxdbr0` with IPv4 NAT and IPv6 disabled.
 - `BASE_IMAGE_NAME`: Name of the base image
 - `BASE_IMAGE_USER`: Default user in the container
 
@@ -209,6 +210,10 @@ lxc list fusion-pbx-dev
 
 # Check network configuration
 lxc config show fusion-pbx-dev
+
+# Inspect LXD networks
+lxc network list
+lxc network show lxdbr0
 ```
 
 ### FreeSWITCH Issues

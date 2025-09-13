@@ -110,6 +110,13 @@
             <version>${snakeyaml.version}</version>
         </dependency>
         
+        <!-- Stellar V2 Library -->
+        <dependency>
+            <groupId>com.telcobright</groupId>
+            <artifactId>stellar</artifactId>
+            <version>0.1.0-SNAPSHOT</version>
+        </dependency>
+        
         <!-- Utilities -->
         <dependency>
             <groupId>commons-io</groupId>
