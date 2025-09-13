@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { observer } from 'mobx-react-lite';
+import { useOrganizationInfraStore } from '../stores/base/StoreProvider';
+import { TreeNode as StellarTreeNode } from '../models/entities/TreeNode';
 import {
   Box,
   Paper,
@@ -53,7 +56,7 @@ import config from '../config';
 interface TreeNode {
   id: string;
   name: string;
-  type: 'organization' | 'environment' | 'cloud' | 'region' | 'az' | 'datacenter' | 'pool' | 'compute' | 'container' | 'resource-group' | 'service' | 'network-device';
+  type: 'organization' | 'environment' | 'cloud' | 'region' | 'az' | 'datacenter' | 'pool' | 'compute' | 'container' | 'resource-group' | 'service' | 'network-device' | 'partner';
   data?: any;
   children?: TreeNode[];
   metadata?: {
@@ -78,7 +81,8 @@ interface Partner {
   roles: string[];
 }
 
-const InfrastructureCloudNative: React.FC = () => {
+const InfrastructureCloudNative: React.FC = observer(() => {
+  const organizationInfraStore = useOrganizationInfraStore();
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('');
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
@@ -126,22 +130,18 @@ const InfrastructureCloudNative: React.FC = () => {
   }, [selectedNodeId]);
 
   const fetchPartners = async () => {
-    try {
-      const response = await axios.get(config.getApiEndpoint('/partners'));
-      const filtered = response.data.partners.filter((p: Partner) => 
-        p.roles && (p.roles.includes('customer') || p.roles.includes('self') || p.roles.includes('vendor'))
-      );
-      setPartners(filtered);
-    } catch (error) {
-      console.error('Error fetching partners:', error);
-    }
+    // Partners are loaded with the infrastructure tree in Stellar
+    const partnersFromStore = organizationInfraStore.partners;
+    setPartners(partnersFromStore);
   };
 
   const fetchEnvironments = async () => {
-    try {
-      const response = await axios.get(config.getApiEndpoint('/environments'));
-      setEnvironments(response.data || []);
-    } catch (error) {
+    // Environments are loaded with the infrastructure tree in Stellar
+    const environmentsFromStore = organizationInfraStore.environments;
+    if (environmentsFromStore && environmentsFromStore.length > 0) {
+      setEnvironments(environmentsFromStore);
+    } else {
+      // Fallback to default environments
       setEnvironments([
         { id: 1, name: 'Production', code: 'PROD', type: 'PRODUCTION' },
         { id: 2, name: 'Development', code: 'DEV', type: 'DEVELOPMENT' },
@@ -153,127 +153,21 @@ const InfrastructureCloudNative: React.FC = () => {
   const fetchInfrastructureData = async () => {
     setLoading(true);
     try {
-      const tenantParam = tenant === 'organization' ? 'organization' : 'organization';
-      console.log('🔍 fetchInfrastructureData - tenant:', tenant, 'tenantParam:', tenantParam);
-      
-      // Fetch partners first to ensure we have them before building the tree
-      let fetchedPartners = partners;
-      if (partners.length === 0) {
-        try {
-          const partnersResponse = await axios.get(config.getApiEndpoint('/partners'));
-          fetchedPartners = partnersResponse.data.partners.filter((p: Partner) => 
-            p.roles && (p.roles.includes('customer') || p.roles.includes('self') || p.roles.includes('vendor'))
-          );
-          setPartners(fetchedPartners);
-        } catch (error) {
-          console.error('Error fetching partners:', error);
-          fetchedPartners = [];
-        }
-      }
-      console.log('🔍 fetchInfrastructureData - partners:', fetchedPartners);
-      
-      const [cloudsRes, regionsRes, azsRes, datacentersRes, poolsRes, computesRes, networkDevicesRes, resourceGroupsRes] = await Promise.allSettled([
-        axios.get(config.getApiEndpoint(`/clouds?tenant=${tenantParam}`)),
-        axios.get(config.getApiEndpoint(`/regions?tenant=${tenantParam}`)),
-        axios.get(config.getApiEndpoint(`/availability-zones?tenant=${tenantParam}`)),
-        axios.get(config.getApiEndpoint(`/datacenters?tenant=${tenantParam}`)),
-        axios.get(config.getApiEndpoint(`/resource-pools?tenant=${tenantParam}`)),
-        axios.get(config.getApiEndpoint(`/computes?tenant=${tenantParam}`)),
-        axios.get(config.getApiEndpoint(`/network-devices?tenant=${tenantParam}`)),
-        axios.get(config.getApiEndpoint(`/resource-groups?tenant=${tenantParam}`))
-      ]);
+      console.log('🔍 fetchInfrastructureData - using Stellar store, tenant:', tenant);
 
-      const clouds = cloudsRes.status === 'fulfilled' ? cloudsRes.value.data : [];
-      let regions = regionsRes.status === 'fulfilled' ? regionsRes.value.data : [];
-      let azs = azsRes.status === 'fulfilled' ? azsRes.value.data : [];
-      let datacenters = datacentersRes.status === 'fulfilled' ? datacentersRes.value.data : [];
-      const pools = poolsRes.status === 'fulfilled' ? poolsRes.value.data : [];
-      const computes = computesRes.status === 'fulfilled' ? computesRes.value.data : [];
-      const networkDevices = networkDevicesRes.status === 'fulfilled' ? networkDevicesRes.value.data : [];
-      const resourceGroups = resourceGroupsRes.status === 'fulfilled' ? resourceGroupsRes.value.data : [];
-      
-      // Always extract and enrich nested data from clouds
-      // This ensures we have complete hierarchical data with proper relationships
-      const nestedRegions: any[] = [];
-      const nestedAzs: any[] = [];
-      const nestedDatacenters: any[] = [];
-      
-      clouds.forEach((cloud: any) => {
-        if (cloud.regions) {
-          // Add cloudId to each region for proper filtering
-          cloud.regions.forEach((region: any) => {
-            const enrichedRegion = {
-              ...region,
-              cloudId: cloud.id,
-              cloud: { id: cloud.id } // Also add cloud object reference
-            };
-            nestedRegions.push(enrichedRegion);
-            
-            if (region.availabilityZones) {
-              // Add regionId to each AZ for proper filtering
-              region.availabilityZones.forEach((az: any) => {
-                const enrichedAz = {
-                  ...az,
-                  regionId: region.id,
-                  region: { id: region.id } // Also add region object reference
-                };
-                nestedAzs.push(enrichedAz);
-                
-                // Extract datacenters from AZs
-                if (az.datacenters) {
-                  az.datacenters.forEach((dc: any) => {
-                    const enrichedDc = {
-                      ...dc,
-                      availabilityZoneId: az.id,
-                      availabilityZone: { id: az.id } // Also add AZ object reference
-                    };
-                    nestedDatacenters.push(enrichedDc);
-                  });
-                }
-              });
-            }
-          });
-        }
-      });
-      
-      // Merge nested data with direct API data, preferring nested data for completeness
-      // Use a Map to deduplicate by ID
-      const regionMap = new Map<number, any>();
-      regions.forEach((r: any) => regionMap.set(r.id, r));
-      nestedRegions.forEach((r: any) => regionMap.set(r.id, r)); // Nested overwrites direct
-      regions = Array.from(regionMap.values());
-      
-      const azMap = new Map<number, any>();
-      azs.forEach((az: any) => azMap.set(az.id, az));
-      nestedAzs.forEach((az: any) => azMap.set(az.id, az)); // Nested overwrites direct
-      azs = Array.from(azMap.values());
-      
-      const dcMap = new Map<number, any>();
-      datacenters.forEach((dc: any) => dcMap.set(dc.id, dc));
-      nestedDatacenters.forEach((dc: any) => dcMap.set(dc.id, dc)); // Nested overwrites direct
-      datacenters = Array.from(dcMap.values());
-      
-      console.log('📊 Extracted nested data:');
-      console.log('  - Nested regions:', nestedRegions.length);
-      console.log('  - Nested AZs:', nestedAzs.length);
-      console.log('  - Nested datacenters:', nestedDatacenters.length);
+      // Use Stellar store to load infrastructure tree
+      await organizationInfraStore.loadInfrastructureTree(tenant);
 
-      console.log('📊 API Data fetched:');
-      console.log('  - clouds:', clouds.length, clouds);
-      console.log('  - regions:', regions.length, regions);
-      console.log('  - azs:', azs.length, azs);
-      console.log('  - datacenters:', datacenters.length, datacenters);
-      console.log('  - pools:', pools.length);
-      console.log('  - computes:', computes.length);
-      console.log('  - networkDevices:', networkDevices.length);
-      console.log('  - resourceGroups:', resourceGroups.length);
+      // Get data from the store
+      const treeDataFromStore = organizationInfraStore.treeData;
+      const partnersFromStore = organizationInfraStore.partners;
 
-      const tree: TreeNode[] = buildTenantTree(tenant, fetchedPartners, clouds, regions, azs, datacenters, pools, computes, networkDevices, resourceGroups);
-      console.log('🌳 Built tree:', tree);
-      
-      setTreeData(tree);
-      setRegions(regions);
-      setAvailabilityZones(azs);
+      console.log('🔍 fetchInfrastructureData - tree from store:', treeDataFromStore);
+      console.log('🔍 fetchInfrastructureData - partners from store:', partnersFromStore);
+
+      // Update local state with data from Stellar store
+      setTreeData(treeDataFromStore);
+      setPartners(partnersFromStore);
       setError(null);
     } catch (error) {
       console.error('❌ Error fetching infrastructure data:', error);
@@ -662,7 +556,7 @@ const InfrastructureCloudNative: React.FC = () => {
   };
 
   const handleExpandAll = () => {
-    const getAllNodeIds = (nodes: TreeNode[]): string[] => {
+    const getAllNodeIds = (nodes: any[]): string[] => {
       let ids: string[] = [];
       nodes.forEach(node => {
         ids.push(node.id);
@@ -672,11 +566,16 @@ const InfrastructureCloudNative: React.FC = () => {
       });
       return ids;
     };
-    setExpanded(getAllNodeIds(treeData));
+    const allIds = getAllNodeIds(organizationInfraStore.treeData);
+    setExpanded(allIds);
+    // Also update store's expanded nodes
+    allIds.forEach(id => organizationInfraStore.expandNode(id));
   };
 
   const handleCollapseAll = () => {
     setExpanded([]);
+    // Clear store's expanded nodes
+    organizationInfraStore.expandedNodeIds = [];
   };
 
   const handleTenantChange = (event: React.MouseEvent<HTMLElement>, newTenant: 'organization' | 'partners' | null) => {
@@ -728,7 +627,17 @@ const InfrastructureCloudNative: React.FC = () => {
 
   const handleComputeSave = async (updatedData: any) => {
     try {
-      await axios.put(config.getApiEndpoint(`/computes/${updatedData.id}`), updatedData);
+      if (updatedData.id) {
+        await organizationInfraStore.updateCompute(updatedData.id, updatedData);
+      } else {
+        // For new compute, we need a datacenter ID - get it from selected node or data
+        const datacenterId = selectedNode?.type === 'datacenter' ? selectedNode.data?.id : updatedData.datacenterId;
+        if (!datacenterId) {
+          alert('Datacenter ID is required to create a compute');
+          return;
+        }
+        await organizationInfraStore.createCompute(datacenterId, updatedData);
+      }
       setOpenComputeEditDialog(false);
       await fetchInfrastructureData();
     } catch (error) {
@@ -740,9 +649,15 @@ const InfrastructureCloudNative: React.FC = () => {
   const handleNetworkDeviceSave = async (updatedData: any) => {
     try {
       if (updatedData.id) {
-        await axios.put(config.getApiEndpoint(`/network-devices/${updatedData.id}`), updatedData);
+        await organizationInfraStore.updateNetworkDevice(updatedData.id, updatedData);
       } else {
-        await axios.post(config.getApiEndpoint('/network-devices'), updatedData);
+        // For new network device, we need a datacenter ID - get it from selected node or data
+        const datacenterId = selectedNode?.type === 'datacenter' ? selectedNode.data?.id : updatedData.datacenterId;
+        if (!datacenterId) {
+          alert('Datacenter ID is required to create a network device');
+          return;
+        }
+        await organizationInfraStore.createNetworkDevice(datacenterId, updatedData);
       }
       setOpenNetworkDeviceEditDialog(false);
       await fetchInfrastructureData();
@@ -812,22 +727,29 @@ const InfrastructureCloudNative: React.FC = () => {
     }
 
     try {
-      let endpoint = '';
       switch (selectedNode.type) {
-        case 'cloud':
-          endpoint = config.getApiEndpoint(`/clouds/${selectedNode.data.id}`);
-          break;
-        case 'datacenter':
-          endpoint = config.getApiEndpoint(`/datacenters/${selectedNode.data.id}`);
-          break;
         case 'compute':
-          endpoint = config.getApiEndpoint(`/computes/${selectedNode.data.id}`);
+          await organizationInfraStore.deleteCompute(selectedNode.data.id);
+          break;
+        case 'network-device':
+          await organizationInfraStore.deleteNetworkDevice(selectedNode.data.id);
           break;
         default:
-          return;
+          // For other types, still use axios for now
+          let endpoint = '';
+          switch (selectedNode.type) {
+            case 'cloud':
+              endpoint = config.getApiEndpoint(`/clouds/${selectedNode.data.id}`);
+              break;
+            case 'datacenter':
+              endpoint = config.getApiEndpoint(`/datacenters/${selectedNode.data.id}`);
+              break;
+            default:
+              return;
+          }
+          await axios.delete(endpoint);
       }
-      
-      await axios.delete(endpoint);
+
       await fetchInfrastructureData();
       setSelectedNode(null);
       setSelectedNodeId('');
@@ -1532,6 +1454,6 @@ const InfrastructureCloudNative: React.FC = () => {
       />
     </Box>
   );
-};
+});
 
 export default InfrastructureCloudNative;
