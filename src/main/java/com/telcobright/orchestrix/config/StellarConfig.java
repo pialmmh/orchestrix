@@ -14,6 +14,8 @@ public class StellarConfig {
             // Define entities (with correct plural table names)
             .entity("partner", "partners", "p",
                 List.of("id", "name", "display_name", "phone", "email", "address", "type", "roles", "status", "created_at", "updated_at"))
+            .entity("environment", "environments", "env",
+                List.of("id", "name", "code", "description", "type", "status", "partner_id", "created_at", "updated_at"))
             .entity("cloud", "clouds", "c",
                 List.of("id", "name", "partner_id", "type", "region", "availability_zones", "endpoint_url", "api_version", "status", "created_at", "updated_at"))
             .entity("datacenter", "datacenters", "dc", 
@@ -48,6 +50,7 @@ public class StellarConfig {
                     "created_at", "updated_at"))
             
             // Define relationships
+            .relationship("partner", "environment", "id", "partner_id")
             .relationship("partner", "cloud", "id", "partner_id")
             .relationship("cloud", "datacenter", "id", "cloud_id")
             .relationship("datacenter", "availabilityzone", "id", "datacenter_id")

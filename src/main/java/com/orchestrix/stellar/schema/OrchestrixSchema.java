@@ -1,6 +1,7 @@
 package com.orchestrix.stellar.schema;
 
 import com.orchestrix.stellar.model.Kind;
+import com.telcobright.stellar.schema.SchemaMetaV2;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -169,5 +170,85 @@ public class OrchestrixSchema {
             default:
                 return false;
         }
+    }
+
+    /**
+     * Get schema for Stellar V2 (using string types)
+     */
+    public static SchemaMetaV2 getSchemaV2() {
+        SchemaMetaV2.Builder builder = SchemaMetaV2.builder();
+
+        // Define all entities
+        builder.entity("partner", "partners", "p",
+            Arrays.asList("id", "name", "display_name", "type", "roles", "status",
+                         "contact_email", "contact_phone", "website", "api_key", "api_secret",
+                         "billing_account_id", "created_at", "updated_at"));
+
+        builder.entity("cloud", "clouds", "c",
+            Arrays.asList("id", "name", "description", "client_name", "deployment_region",
+                         "status", "partner_id", "created_at", "updated_at"));
+
+        builder.entity("region", "regions", "r",
+            Arrays.asList("id", "name", "cloud_id", "code", "location", "status", "created_at", "updated_at"));
+
+        builder.entity("availabilityzone", "availability_zones", "az",
+            Arrays.asList("id", "name", "region_id", "zone_code", "status", "created_at", "updated_at"));
+
+        builder.entity("datacenter", "datacenters", "dc",
+            Arrays.asList("id", "name", "country_id", "state_id", "city_id", "location_other",
+                        "type", "status", "provider", "latitude", "longitude", "servers",
+                        "storage_tb", "utilization", "partner_id", "is_dr_site", "cloud_id",
+                        "tier", "availability_zone_id", "dr_paired_with", "environment_id",
+                        "created_at", "updated_at"));
+
+        builder.entity("resourcepool", "resource_pools", "rp",
+            Arrays.asList("id", "name", "datacenter_id", "type", "capacity", "used", "status", "created_at", "updated_at"));
+
+        builder.entity("compute", "computes", "comp",
+            Arrays.asList("id", "name", "hostname", "ip_address", "datacenter_id", "cloud_id",
+                        "resource_pool_id", "os_version_id", "cpu_cores", "memory_gb", "disk_gb",
+                        "status", "hypervisor", "is_physical", "node_type", "description",
+                        "created_at", "updated_at"));
+
+        builder.entity("container", "containers", "cont",
+            Arrays.asList("id", "name", "compute_id", "image", "status", "cpu_limit", "memory_limit_mb",
+                        "port_mappings", "environment_vars", "created_at", "updated_at"));
+
+        builder.entity("networkdevice", "network_devices", "nd",
+            Arrays.asList("id", "name", "datacenter_id", "resource_pool_id", "device_type",
+                        "vendor", "model", "management_ip", "mac_address", "port_count",
+                        "status", "description", "created_at", "updated_at"));
+
+        builder.entity("osversion", "os_versions", "os",
+            Arrays.asList("id", "name", "version", "architecture", "type", "created_at", "updated_at"));
+
+        builder.entity("application", "applications", "app",
+            Arrays.asList("id", "name", "compute_id", "datacenter_id", "version", "status", "description", "created_at", "updated_at"));
+
+        builder.entity("database", "databases", "db",
+            Arrays.asList("id", "name", "type", "datacenter_id", "version", "status", "port", "size_gb", "created_at", "updated_at"));
+
+        builder.entity("environment", "environments", "env",
+            Arrays.asList("id", "name", "type", "description", "created_at", "updated_at"));
+
+        // Define relationships (copy from joinEdges)
+        builder.relationship("partner", "cloud", "id", "partner_id");
+        builder.relationship("cloud", "region", "id", "cloud_id");
+        builder.relationship("cloud", "datacenter", "id", "cloud_id");
+        builder.relationship("region", "availabilityzone", "id", "region_id");
+        builder.relationship("availabilityzone", "datacenter", "id", "availability_zone_id");
+        builder.relationship("datacenter", "resourcepool", "id", "datacenter_id");
+        builder.relationship("datacenter", "compute", "id", "datacenter_id");
+        builder.relationship("datacenter", "networkdevice", "id", "datacenter_id");
+        builder.relationship("datacenter", "application", "id", "datacenter_id");
+        builder.relationship("datacenter", "database", "id", "datacenter_id");
+        builder.relationship("resourcepool", "compute", "id", "resource_pool_id");
+        builder.relationship("resourcepool", "networkdevice", "id", "resource_pool_id");
+        builder.relationship("compute", "container", "id", "compute_id");
+        builder.relationship("compute", "application", "id", "compute_id");
+        builder.relationship("osversion", "compute", "id", "os_version_id");
+        builder.relationship("environment", "datacenter", "id", "environment_id");
+
+        return builder.build();
     }
 }

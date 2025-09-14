@@ -210,20 +210,81 @@ export class OrganizationInfraStore extends StellarStore {
     const query: QueryNode = {
       kind: 'partner',
       ...(Object.keys(criteria).length > 0 && { criteria }),
+      page: { limit: 10 },
       include: [
         {
+          kind: 'environment',
+          page: { limit: 20 },
+        },
+        {
           kind: 'cloud',
+          page: { limit: 20 },
           include: [
             {
               kind: 'datacenter',
+              page: { limit: 50 },
               include: [
                 {
+                  kind: 'availabilityzone',
+                  page: { limit: 10 },
+                },
+                {
+                  kind: 'rack',
+                  page: { limit: 100 },
+                  include: [
+                    {
+                      kind: 'compute',
+                      page: { limit: 200 },
+                      include: [
+                        {
+                          kind: 'container',
+                          page: { limit: 50 },
+                        },
+                        {
+                          kind: 'ipaddress',
+                          page: { limit: 10 },
+                        },
+                      ],
+                    },
+                    {
+                      kind: 'networkdevice',
+                      page: { limit: 100 },
+                      include: [
+                        {
+                          kind: 'ipaddress',
+                          page: { limit: 10 },
+                        },
+                      ],
+                    },
+                  ],
+                },
+                {
                   kind: 'compute',
+                  page: { limit: 200 },
+                  include: [
+                    {
+                      kind: 'container',
+                      page: { limit: 50 },
+                    },
+                  ],
                 },
                 {
                   kind: 'networkdevice',
+                  page: { limit: 100 },
+                },
+                {
+                  kind: 'storage',
+                  page: { limit: 50 },
+                },
+                {
+                  kind: 'virtualnetwork',
+                  page: { limit: 50 },
                 },
               ],
+            },
+            {
+              kind: 'virtualnetwork',
+              page: { limit: 50 },
             },
           ],
         },

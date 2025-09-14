@@ -1,15 +1,15 @@
 package com.orchestrix.stellar.controller;
 
-import com.orchestrix.stellar.exec.Runner;
-import com.orchestrix.stellar.json.QueryParser;
-import com.orchestrix.stellar.model.QueryNode;
+import com.telcobright.stellar.json.QueryParserV2;
+import com.telcobright.stellar.model.QueryNodeV2;
+import com.telcobright.stellar.result.FlatRow;
+import com.telcobright.stellar.result.ResultTransformerV2;
+import com.telcobright.stellar.schema.SchemaMetaV2;
+import com.telcobright.stellar.sql.MysqlQueryBuilderV2;
+import com.telcobright.stellar.sql.SqlPlan;
+import com.telcobright.stellar.exec.Runner;
 import com.orchestrix.stellar.model.EntityModificationRequest;
-import com.orchestrix.stellar.result.FlatRow;
-import com.orchestrix.stellar.result.ResultTransformer;
 import com.orchestrix.stellar.schema.OrchestrixSchema;
-import com.orchestrix.stellar.schema.SchemaMeta;
-import com.orchestrix.stellar.sql.MysqlQueryBuilder;
-import com.orchestrix.stellar.sql.SqlPlan;
 import com.orchestrix.stellar.service.EntityModificationService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -39,15 +39,15 @@ public class QueryController {
     @Autowired
     private EntityModificationService modificationService;
     
-    private final MysqlQueryBuilder queryBuilder;
-    private final ResultTransformer resultTransformer;
-    private final SchemaMeta schemaMeta;
-    
+    private final MysqlQueryBuilderV2 queryBuilder;
+    private final ResultTransformerV2 resultTransformer;
+    private final SchemaMetaV2 schemaMeta;
+
     public QueryController() {
-        // Initialize with Orchestrix schema
-        this.schemaMeta = OrchestrixSchema.getSchema();
-        this.queryBuilder = new MysqlQueryBuilder(schemaMeta);
-        this.resultTransformer = new ResultTransformer(schemaMeta);
+        // Initialize with Orchestrix schema V2
+        this.schemaMeta = OrchestrixSchema.getSchemaV2();
+        this.queryBuilder = new MysqlQueryBuilderV2(schemaMeta);
+        this.resultTransformer = new ResultTransformerV2(schemaMeta);
     }
     
     /**
@@ -58,20 +58,20 @@ public class QueryController {
         log.info("Received query: {}", jsonQuery);
         
         try {
-            // Parse JSON to QueryNode
-            QueryNode query = QueryParser.parse(jsonQuery);
+            // Parse JSON to QueryNodeV2
+            QueryNodeV2 query = QueryParserV2.parse(jsonQuery);
             log.info("Parsed query for kind: {}", query.kind);
-            
+
             // Build SQL
             SqlPlan plan = queryBuilder.build(query);
             log.info("Generated SQL: {}", plan.sql());
             log.info("Parameters: {}", plan.params());
-            
+
             // Execute query
             Runner runner = new Runner(dataSource);
             List<FlatRow> rows = runner.execute(plan);
             log.info("Query returned {} flat rows", rows.size());
-            
+
             // Transform flat rows to hierarchical structure with clean field names
             List<Map<String, Object>> results = resultTransformer.transform(rows, query);
             
