@@ -1,37 +1,17 @@
 #!/bin/bash
 # Quick start script for FusionPBX container
-# Uses the sample configuration file
-
-set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "==========================================="
-echo "FusionPBX Container - Quick Start"
-echo "==========================================="
-echo ""
+# Find the latest version
+LATEST_VERSION=$(ls -d ${SCRIPT_DIR}/fusion-pbx-v.* 2>/dev/null | sort -V | tail -1)
 
-# Check if base image exists
-if ! lxc image list | grep -q "fusion-pbx-base"; then
-    echo "Base image not found. Building it now..."
-    echo "This will take several minutes on first run..."
-    echo ""
-    "${SCRIPT_DIR}/buildFusionPBX.sh"
-    echo ""
+if [ -z "$LATEST_VERSION" ]; then
+    echo "Error: No built version found. Run build/build.sh first."
+    exit 1
 fi
 
-# Launch with sample config
-echo "Launching FusionPBX container with sample configuration..."
-echo ""
-"${SCRIPT_DIR}/launchFusionPBX.sh" "${SCRIPT_DIR}/sample-config.conf"
+echo "Starting FusionPBX using version: $(basename $LATEST_VERSION)"
 
-echo ""
-echo "==========================================="
-echo "Quick Start Complete!"
-echo "==========================================="
-echo ""
-echo "To use a custom configuration:"
-echo "  1. Copy sample-config.conf to any location"
-echo "  2. Edit the configuration as needed"
-echo "  3. Run: ./launchFusionPBX.sh /path/to/your/config.conf"
-echo ""
+# Launch with sample config
+"${LATEST_VERSION}/generated/launch.sh" "${LATEST_VERSION}/generated/sample.conf"

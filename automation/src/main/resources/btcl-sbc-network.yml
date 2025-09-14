@@ -1,0 +1,52 @@
+# BTCL SBC Network Configuration
+# This configuration creates an LXC bridge network for FusionPBX deployment
+
+# SSH Connection Settings
+ssh:
+  host: "114.130.145.75"  # Replace with your server IP
+  port: 40004
+  username: "root"
+  password: "Takay1#$ane%%"  # Leave empty if using SSH key
+  keyPath: "~/.ssh/id_rsa"  # Path to SSH private key
+  useKey: true  # Set to true to use SSH key authentication
+
+# LXC Network Configuration
+network:
+  # Name of the LXC bridge interface
+  lxcInterfaceName: "lxcbr0"
+
+  # Host interface to bridge with (optional)
+  # Leave empty if not bridging with a specific host interface
+  hostInterfaceName: ""
+
+  # Network subnet configuration
+  subnetMaskPrefixLen: 24  # /24 network
+
+  # IP address for the host on this network (optional)
+  hostInterfaceIp: ""
+
+  # IP address for the LXC bridge interface
+  # This will be the gateway for containers
+  lxcInternalIp: "10.0.3.1"
+
+# Container Network Settings (for reference)
+containerDefaults:
+  # Default network for containers
+  network: "lxcbr0"
+
+  # Sample container IPs (for planning)
+  sampleIps:
+    - "10.0.3.100"  # FusionPBX-01
+# Automation Settings
+automation:
+  # Enable dry run mode (no actual changes)
+  dryRun: false
+
+  # Enable verbose logging
+  verbose: true
+
+  # Backup existing configuration before changes
+  backup: true
+
+  # Rollback on failure
+  autoRollback: true

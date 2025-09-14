@@ -172,6 +172,9 @@ const InfrastructureCloudNative: React.FC = () => {
       setTreeData(treeDataFromStore);
       setPartners(partnersFromStore);
       setError(null);
+
+      // Synchronize expanded state with store's expandedNodeIds
+      setExpanded([...organizationInfraStore.expandedNodeIds]);
     } catch (error) {
       console.error('❌ Error fetching infrastructure data:', error);
       setTreeData([]);
