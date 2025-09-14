@@ -9,7 +9,6 @@ import com.telcobright.stellar.sql.MysqlQueryBuilderV2;
 import com.telcobright.stellar.sql.SqlPlan;
 import com.telcobright.stellar.exec.Runner;
 import com.orchestrix.stellar.model.EntityModificationRequest;
-import com.orchestrix.stellar.schema.OrchestrixSchema;
 import com.orchestrix.stellar.service.EntityModificationService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -32,22 +31,25 @@ import java.util.*;
 @CrossOrigin(origins = "*")
 @Slf4j
 public class QueryController {
-    
+
     @Autowired
     private DataSource dataSource;
-    
+
     @Autowired
     private EntityModificationService modificationService;
-    
-    private final MysqlQueryBuilderV2 queryBuilder;
-    private final ResultTransformerV2 resultTransformer;
-    private final SchemaMetaV2 schemaMeta;
 
-    public QueryController() {
-        // Initialize with Orchestrix schema V2
-        this.schemaMeta = OrchestrixSchema.getSchemaV2();
-        this.queryBuilder = new MysqlQueryBuilderV2(schemaMeta);
-        this.resultTransformer = new ResultTransformerV2(schemaMeta);
+    @Autowired
+    private SchemaMetaV2 stellarSchema;
+
+    private MysqlQueryBuilderV2 queryBuilder;
+    private ResultTransformerV2 resultTransformer;
+
+    @Autowired
+    public QueryController(SchemaMetaV2 stellarSchema) {
+        // Use Spring-managed schema bean
+        this.stellarSchema = stellarSchema;
+        this.queryBuilder = new MysqlQueryBuilderV2(stellarSchema);
+        this.resultTransformer = new ResultTransformerV2(stellarSchema);
     }
     
     /**
@@ -74,7 +76,7 @@ public class QueryController {
 
             // Transform flat rows to hierarchical structure with clean field names
             List<Map<String, Object>> results = resultTransformer.transform(rows, query);
-            
+
             log.info("Transformed to {} hierarchical objects", results.size());
             
             // Return results
