@@ -232,9 +232,12 @@ export class OrganizationInfraStore extends StellarStore {
 
     const data = await this.executeQuery(query);
 
+    console.log('📊 Stellar API returned:', JSON.stringify(data, null, 2));
+
     if (data) {
       runInAction(() => {
         this.treeData = transformStellarToTree(data);
+        console.log('🌲 Transformed tree:', JSON.stringify(this.treeData, null, 2));
         // Auto-expand first few levels
         this.treeData.forEach(partner => {
           this.expandNode(partner.id);

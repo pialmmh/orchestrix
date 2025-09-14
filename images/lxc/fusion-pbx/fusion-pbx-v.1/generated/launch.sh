@@ -56,11 +56,8 @@ CONFIG_DIR="$(dirname "$CONFIG_FILE")"
 echo "Mounting config directory: $CONFIG_DIR -> /mnt/config"
 lxc config device add "$CONTAINER_NAME" config disk source="$CONFIG_DIR" path=/mnt/config
 
-# Wait for container to be ready before copying
-sleep 3
-
-# Copy runtime config (using cat to avoid permission issues)
-lxc exec "$CONTAINER_NAME" -- bash -c "cat /mnt/config/$(basename "$CONFIG_FILE") > /tmp/runtime.conf"
+# Copy runtime config
+lxc exec "$CONTAINER_NAME" -- cp "/mnt/config/$(basename "$CONFIG_FILE")" /mnt/config/runtime.conf
 
 # Add bind mounts
 if [ ${#BIND_MOUNTS[@]} -gt 0 ]; then

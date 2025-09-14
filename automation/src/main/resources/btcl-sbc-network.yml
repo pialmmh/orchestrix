@@ -5,10 +5,10 @@
 ssh:
   host: "114.130.145.75"  # Replace with your server IP
   port: 40004
-  username: "root"
+  username: "telcobright"
   password: "Takay1#$ane%%"  # Leave empty if using SSH key
   keyPath: "~/.ssh/id_rsa"  # Path to SSH private key
-  useKey: true  # Set to true to use SSH key authentication
+  useKey: false  # Set to true to use SSH key authentication
 
 # LXC Network Configuration
 network:
@@ -27,16 +27,7 @@ network:
 
   # IP address for the LXC bridge interface
   # This will be the gateway for containers
-  lxcInternalIp: "10.0.3.1"
-
-# Container Network Settings (for reference)
-containerDefaults:
-  # Default network for containers
-  network: "lxcbr0"
-
-  # Sample container IPs (for planning)
-  sampleIps:
-    - "10.0.3.100"  # FusionPBX-01
+  lxcInternalIp: "10.10.199.1"
 # Automation Settings
 automation:
   # Enable dry run mode (no actual changes)

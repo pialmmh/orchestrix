@@ -1,7 +1,7 @@
 package com.orchestrix.automation.networking;
 
 import com.orchestrix.automation.core.SshAutomation;
-import com.orchestrix.network.entity.SshDevice;
+import com.orchestrix.automation.device.SshDevice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
