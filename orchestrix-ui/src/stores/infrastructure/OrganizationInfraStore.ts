@@ -244,6 +244,23 @@ export class OrganizationInfraStore extends StellarStore {
     }
   }
 
+  async loadComputeEnvironments() {
+    // Load environment associations for computes
+    const query: QueryNode = {
+      kind: 'environmentassociation',
+      criteria: { resource_type: 'compute' },
+      page: { limit: 1000, offset: 0 },
+    };
+
+    try {
+      const associations = await this.executeQuery(query);
+      return associations || [];
+    } catch (error) {
+      console.error('Failed to load compute environments:', error);
+      return [];
+    }
+  }
+
   async loadInfrastructureTree(partner: string = 'self') {
     console.log('🚀 loadInfrastructureTree called with partner:', partner);
 
@@ -262,7 +279,7 @@ export class OrganizationInfraStore extends StellarStore {
 
     console.log('🔍 Using criteria:', criteria);
 
-    // Single unified query that loads cloud hierarchy with datacenter environment info
+    // Single unified query that loads cloud hierarchy with environment associations
     const unifiedQuery: QueryNode = {
       kind: 'partner',
       ...(Object.keys(criteria).length > 0 && { criteria }),
@@ -271,6 +288,12 @@ export class OrganizationInfraStore extends StellarStore {
         {
           kind: 'environment',
           page: { limit: 20, offset: 0 },
+          include: [
+            {
+              kind: 'environmentassociation',
+              page: { limit: 1000, offset: 0 },
+            },
+          ],
         },
         {
           kind: 'cloud',
@@ -309,15 +332,39 @@ export class OrganizationInfraStore extends StellarStore {
 
     try {
       console.log('📡 Loading unified infrastructure hierarchy...');
-      const data = await this.executeQuery(unifiedQuery);
+      const [data, computeAssociations] = await Promise.all([
+        this.executeQuery(unifiedQuery),
+        this.loadComputeEnvironments()
+      ]);
 
       console.log('📊 Unified data:', JSON.stringify(data, null, 2));
+      console.log('📊 Compute associations:', computeAssociations);
 
       if (data) {
         runInAction(() => {
           // Store environments separately for reference
           if (data[0]?.environments) {
             this.environments = data[0].environments;
+          }
+
+          // Add compute associations to the data
+          if (computeAssociations && data[0]?.clouds) {
+            // Attach associations to computes
+            const attachAssociations = (nodes: any[]) => {
+              nodes.forEach(node => {
+                if (node.computes) {
+                  node.computes.forEach((compute: any) => {
+                    compute.environmentassociations = computeAssociations.filter(
+                      (ea: any) => ea.resource_type === 'compute' && ea.resource_id === compute.id
+                    );
+                  });
+                }
+                if (node.datacenters) attachAssociations(node.datacenters);
+                if (node.regions) attachAssociations(node.regions);
+                if (node.availabilityzones) attachAssociations(node.availabilityzones);
+              });
+            };
+            attachAssociations(data[0].clouds);
           }
 
           // Transform to tree with environment metadata added

@@ -45,6 +45,17 @@ public class StellarConfig {
             .entity("resourcegroup", "resource_groups", "rg",
                 List.of("id", "name", "display_name", "category", "description", "icon", "color", "sort_order", "is_active", "created_at", "updated_at"))
 
+            .entity("environmentassociation", "environment_associations", "ea",
+                List.of("id", "environment_id", "resource_type", "resource_id", "is_primary", "allocated_percentage", "metadata", "created_at", "updated_at"))
+
+            .entity("computeworkload", "compute_workloads", "cw",
+                List.of("id", "compute_id", "environment_id", "workload_type", "workload_name", "workload_id",
+                       "cpu_cores", "memory_mb", "disk_gb", "ip_address", "ports",
+                       "isolation_method", "isolation_details", "status", "created_at", "updated_at"))
+
+            .entity("computecapability", "compute_capabilities", "cc",
+                List.of("compute_id", "capability_type", "capability_version", "configuration", "enabled", "created_at", "updated_at"))
+
             // Define all relationships for complete hierarchy
             .relationship("partner", "environment", "id", "partner_id")
             .relationship("partner", "cloud", "id", "partner_id")
@@ -59,6 +70,18 @@ public class StellarConfig {
             .relationship("cloud", "compute", "id", "cloud_id")
             .relationship("compute", "container", "id", "compute_id")
             .relationship("datacenter", "networkdevice", "id", "datacenter_id")
+
+            // New flexible environment associations
+            .relationship("environment", "environmentassociation", "id", "environment_id")
+            .relationship("compute", "environmentassociation", "id", "resource_id")
+
+            // Workload relationships
+            .relationship("compute", "computeworkload", "id", "compute_id")
+            .relationship("environment", "computeworkload", "id", "environment_id")
+
+            // Capability relationships
+            .relationship("compute", "computecapability", "id", "compute_id")
+
             .build();
     }
 }

@@ -170,14 +170,14 @@ function transformDatacenterToTreeNode(datacenter: any, environmentMap?: Map<num
   // Add resource pools as children
   if (datacenter.resourcepools && Array.isArray(datacenter.resourcepools)) {
     datacenter.resourcepools.forEach((pool: any) => {
-      dcNode.children!.push(transformResourcePoolToTreeNode(pool));
+      dcNode.children!.push(transformResourcePoolToTreeNode(pool, environmentMap));
     });
   }
 
   // Add computes as children (not in resource pools)
   if (datacenter.computes && Array.isArray(datacenter.computes)) {
     datacenter.computes.forEach((compute: any) => {
-      dcNode.children!.push(transformComputeToTreeNode(compute));
+      dcNode.children!.push(transformComputeToTreeNode(compute, environmentMap));
     });
   }
 
@@ -191,7 +191,28 @@ function transformDatacenterToTreeNode(datacenter: any, environmentMap?: Map<num
   return dcNode;
 }
 
-function transformComputeToTreeNode(compute: any): TreeNode {
+function transformComputeToTreeNode(compute: any, environmentMap?: Map<number, any>): TreeNode {
+  // Get environment associations for this compute
+  let computeEnvironments: any[] = [];
+  if (compute.environmentassociations && Array.isArray(compute.environmentassociations)) {
+    computeEnvironments = compute.environmentassociations
+      .filter((ea: any) => ea.resource_type === 'compute' && ea.resource_id === compute.id)
+      .map((ea: any) => {
+        const env = environmentMap?.get(ea.environment_id);
+        return {
+          id: ea.environment_id,
+          name: env?.type || env?.name || 'Unknown',
+          percentage: ea.allocated_percentage,
+          isPrimary: ea.is_primary
+        };
+      });
+  }
+
+  // Build environment display string
+  const envDisplay = computeEnvironments
+    .map(e => e.percentage ? `${e.name}: ${e.percentage}%` : e.name)
+    .join(', ');
+
   const computeNode: TreeNode = {
     id: `compute-${compute.id}`,
     name: compute.name || compute.hostname || `Compute-${compute.id}`,
@@ -207,10 +228,13 @@ function transformComputeToTreeNode(compute: any): TreeNode {
       memoryGb: compute.memoryGb || compute.ramGb,
       diskGb: compute.diskGb,
       nodeType: compute.nodeType || compute.hostType,
-    } as Compute,
+      environments: computeEnvironments,
+      capabilities: compute.computecapabilities,
+    } as Compute & { environments?: any[]; capabilities?: any[] },
     metadata: {
       hostname: compute.hostname,
       ipAddress: compute.ipAddress,
+      environments: envDisplay,
     },
     children: [],
   };
@@ -320,7 +344,7 @@ function transformAvailabilityZoneToTreeNode(az: any, environmentMap?: Map<numbe
   return azNode;
 }
 
-function transformResourcePoolToTreeNode(pool: any): TreeNode {
+function transformResourcePoolToTreeNode(pool: any, environmentMap?: Map<number, any>): TreeNode {
   const poolNode: TreeNode = {
     id: `resourcepool-${pool.id}`,
     name: pool.name,
@@ -347,14 +371,14 @@ function transformResourcePoolToTreeNode(pool: any): TreeNode {
   // Add computes as children
   if (pool.computes && Array.isArray(pool.computes)) {
     pool.computes.forEach((compute: any) => {
-      poolNode.children!.push(transformComputeToTreeNode(compute));
+      poolNode.children!.push(transformComputeToTreeNode(compute, environmentMap));
     });
   }
 
   return poolNode;
 }
 
-function transformRackToTreeNode(rack: any): TreeNode {
+function transformRackToTreeNode(rack: any, environmentMap?: Map<number, any>): TreeNode {
   const rackNode: TreeNode = {
     id: `rack-${rack.id}`,
     name: rack.name || `Rack ${rack.rowNumber}-${rack.position}`,
@@ -375,7 +399,7 @@ function transformRackToTreeNode(rack: any): TreeNode {
   // Add computes in this rack
   if (rack.computes && Array.isArray(rack.computes)) {
     rack.computes.forEach((compute: any) => {
-      rackNode.children!.push(transformComputeToTreeNode(compute));
+      rackNode.children!.push(transformComputeToTreeNode(compute, environmentMap));
     });
   }
 
