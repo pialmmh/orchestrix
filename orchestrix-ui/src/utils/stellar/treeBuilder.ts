@@ -1,13 +1,36 @@
 import { TreeNode, Partner, Cloud, Datacenter, Compute, NetworkDevice } from '../../models/entities/TreeNode';
 
-export function transformStellarToTree(data: any[]): TreeNode[] {
-  if (!data || !Array.isArray(data)) {
+export function transformStellarToTree(data: any): TreeNode[] {
+  console.log('🎯 transformStellarToTree called with:', data);
+
+  // Handle both direct array and response object with data property
+  let dataArray = data;
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    if ('data' in data) {
+      console.log('📦 Extracting data array from response object');
+      dataArray = data.data;
+    } else {
+      console.warn('⚠️ Data is object but no data property found:', data);
+      return [];
+    }
+  }
+
+  if (!dataArray || !Array.isArray(dataArray)) {
+    console.warn('⚠️ transformStellarToTree: Invalid data - not an array or null:', dataArray);
     return [];
   }
 
+  console.log(`📊 transformStellarToTree: Processing ${dataArray.length} partners`);
+
   // The API now returns hierarchical data directly, not flat data with prefixes
   // Data structure is an array of partners with nested clouds, datacenters, etc.
-  return data.map(partner => transformPartnerToTreeNode(partner));
+  const result = dataArray.map((partner, index) => {
+    console.log(`  🏢 Processing partner ${index + 1}:`, partner.name || partner.id);
+    return transformPartnerToTreeNode(partner);
+  });
+
+  console.log('✅ transformStellarToTree result:', JSON.stringify(result, null, 2));
+  return result;
 }
 
 function transformPartnerToTreeNode(partner: any): TreeNode {
@@ -61,12 +84,46 @@ function transformCloudToTreeNode(cloud: any): TreeNode {
     children: [],
   };
 
-  // Add datacenters as children
+  // Add regions as children
+  if (cloud.regions && Array.isArray(cloud.regions)) {
+    cloud.regions.forEach((region: any) => {
+      cloudNode.children!.push(transformRegionToTreeNode(region));
+    });
+  }
+
+  // Add datacenters as direct children (if not under regions)
   if (cloud.datacenters && Array.isArray(cloud.datacenters)) {
-    cloudNode.children = cloud.datacenters.map((dc: any) => transformDatacenterToTreeNode(dc));
+    cloudNode.children!.push(...cloud.datacenters.map((dc: any) => transformDatacenterToTreeNode(dc)));
   }
 
   return cloudNode;
+}
+
+function transformRegionToTreeNode(region: any): TreeNode {
+  const regionNode: TreeNode = {
+    id: `region-${region.id}`,
+    name: region.name,
+    type: 'region',
+    data: {
+      id: region.id,
+      name: region.name,
+      code: region.code,
+      geographicArea: region.geographicArea || region.geographic_area,
+      complianceZones: region.complianceZones || region.compliance_zones,
+      status: region.status,
+      cloudId: region.cloudId || region.cloud_id,
+    },
+    children: [],
+  };
+
+  // Add availability zones as children
+  if (region.availabilityzones && Array.isArray(region.availabilityzones)) {
+    region.availabilityzones.forEach((az: any) => {
+      regionNode.children!.push(transformAvailabilityZoneToTreeNode(az));
+    });
+  }
+
+  return regionNode;
 }
 
 function transformDatacenterToTreeNode(datacenter: any): TreeNode {
@@ -88,21 +145,14 @@ function transformDatacenterToTreeNode(datacenter: any): TreeNode {
     },
   };
 
-  // Add availability zones as children
-  if (datacenter.availabilityzones && Array.isArray(datacenter.availabilityzones)) {
-    datacenter.availabilityzones.forEach((az: any) => {
-      dcNode.children!.push(transformAvailabilityZoneToTreeNode(az));
+  // Add resource pools as children
+  if (datacenter.resourcepools && Array.isArray(datacenter.resourcepools)) {
+    datacenter.resourcepools.forEach((pool: any) => {
+      dcNode.children!.push(transformResourcePoolToTreeNode(pool));
     });
   }
 
-  // Add racks as children
-  if (datacenter.racks && Array.isArray(datacenter.racks)) {
-    datacenter.racks.forEach((rack: any) => {
-      dcNode.children!.push(transformRackToTreeNode(rack));
-    });
-  }
-
-  // Add computes as children (not in racks)
+  // Add computes as children (not in resource pools)
   if (datacenter.computes && Array.isArray(datacenter.computes)) {
     datacenter.computes.forEach((compute: any) => {
       dcNode.children!.push(transformComputeToTreeNode(compute));
@@ -113,20 +163,6 @@ function transformDatacenterToTreeNode(datacenter: any): TreeNode {
   if (datacenter.networkdevices && Array.isArray(datacenter.networkdevices)) {
     datacenter.networkdevices.forEach((device: any) => {
       dcNode.children!.push(transformNetworkDeviceToTreeNode(device));
-    });
-  }
-
-  // Add storage as children
-  if (datacenter.storages && Array.isArray(datacenter.storages)) {
-    datacenter.storages.forEach((storage: any) => {
-      dcNode.children!.push(transformStorageToTreeNode(storage));
-    });
-  }
-
-  // Add virtual networks as children
-  if (datacenter.virtualnetworks && Array.isArray(datacenter.virtualnetworks)) {
-    datacenter.virtualnetworks.forEach((vn: any) => {
-      dcNode.children!.push(transformVirtualNetworkToTreeNode(vn));
     });
   }
 
@@ -205,9 +241,9 @@ function transformNetworkDeviceToTreeNode(device: any): TreeNode {
 }
 
 function transformEnvironmentToTreeNode(env: any): TreeNode {
-  return {
+  const envNode: TreeNode = {
     id: `environment-${env.id}`,
-    name: env.name || env.code,
+    name: `${env.name || env.code} (${env.type || 'Environment'})`,
     type: 'environment',
     data: {
       id: env.id,
@@ -221,23 +257,79 @@ function transformEnvironmentToTreeNode(env: any): TreeNode {
     metadata: {
       category: env.type,
     },
+    children: [],
   };
+
+  // Add datacenters as children if present
+  if (env.datacenters && Array.isArray(env.datacenters)) {
+    env.datacenters.forEach((dc: any) => {
+      envNode.children!.push(transformDatacenterToTreeNode(dc));
+    });
+  }
+
+  return envNode;
 }
 
 function transformAvailabilityZoneToTreeNode(az: any): TreeNode {
-  return {
+  const azNode: TreeNode = {
     id: `az-${az.id}`,
-    name: az.name || az.zoneCode,
+    name: az.name || az.code || `AZ-${az.id}`,
     type: 'az',
     data: {
       id: az.id,
       name: az.name,
-      zoneCode: az.zoneCode,
-      subnetRange: az.subnetRange,
+      code: az.code,
+      zoneType: az.zoneType || az.zone_type,
+      capabilities: az.capabilities,
+      isDefault: az.isDefault || az.is_default,
       status: az.status,
-      datacenterId: az.datacenterId,
+      regionId: az.regionId || az.region_id,
     },
+    children: [],
   };
+
+  // Add datacenters as children
+  if (az.datacenters && Array.isArray(az.datacenters)) {
+    az.datacenters.forEach((dc: any) => {
+      azNode.children!.push(transformDatacenterToTreeNode(dc));
+    });
+  }
+
+  return azNode;
+}
+
+function transformResourcePoolToTreeNode(pool: any): TreeNode {
+  const poolNode: TreeNode = {
+    id: `resourcepool-${pool.id}`,
+    name: pool.name,
+    type: 'pool',
+    data: {
+      id: pool.id,
+      name: pool.name,
+      description: pool.description,
+      type: pool.type,
+      hypervisor: pool.hypervisor,
+      orchestrator: pool.orchestrator,
+      totalCpuCores: pool.totalCpuCores || pool.total_cpu_cores,
+      totalMemoryGb: pool.totalMemoryGb || pool.total_memory_gb,
+      totalStorageTb: pool.totalStorageTb || pool.total_storage_tb,
+      usedCpuCores: pool.usedCpuCores || pool.used_cpu_cores,
+      usedMemoryGb: pool.usedMemoryGb || pool.used_memory_gb,
+      usedStorageTb: pool.usedStorageTb || pool.used_storage_tb,
+      status: pool.status,
+      datacenterId: pool.datacenterId || pool.datacenter_id,
+    },
+    children: [],
+  };
+
+  // Add computes as children
+  if (pool.computes && Array.isArray(pool.computes)) {
+    pool.computes.forEach((compute: any) => {
+      poolNode.children!.push(transformComputeToTreeNode(compute));
+    });
+  }
+
+  return poolNode;
 }
 
 function transformRackToTreeNode(rack: any): TreeNode {

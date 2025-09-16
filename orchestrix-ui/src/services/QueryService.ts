@@ -31,7 +31,7 @@ class QueryService {
     }
 
     try {
-      const response = await StellarClient.post<QueryResponse<T>>('/stellar/query', query);
+      const response = await StellarClient.post<QueryResponse<T>>('stellar/query', query);
       
       // Publish query success event if in debug mode
       if (this.debugMode) {

@@ -5,8 +5,10 @@ class StellarClient {
   private client: AxiosInstance;
 
   constructor() {
+    const baseURL = config.getApiEndpoint('');
+    console.log('🔧 StellarClient baseURL:', baseURL);
     this.client = axios.create({
-      baseURL: config.getApiEndpoint(''),
+      baseURL: baseURL,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
@@ -42,7 +44,11 @@ class StellarClient {
   }
 
   async post<T = any>(endpoint: string, data: any): Promise<T> {
+    console.log('🚀 StellarClient POST to:', this.client.defaults.baseURL + endpoint);
+    console.log('📦 Request data:', data);
     const response = await this.client.post(endpoint, data);
+    console.log('✅ Response:', response);
+    console.log('📊 Response data:', response.data);
     return response.data;
   }
 

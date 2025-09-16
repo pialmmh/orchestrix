@@ -56,7 +56,7 @@ import config from '../config';
 interface TreeNode {
   id: string;
   name: string;
-  type: 'organization' | 'environment' | 'cloud' | 'region' | 'az' | 'datacenter' | 'pool' | 'compute' | 'container' | 'resource-group' | 'service' | 'network-device' | 'partner';
+  type: 'organization' | 'environment' | 'cloud' | 'region' | 'az' | 'datacenter' | 'pool' | 'resourcepool' | 'compute' | 'container' | 'resource-group' | 'service' | 'network-device' | 'partner';
   data?: any;
   children?: TreeNode[];
   metadata?: {
@@ -119,6 +119,7 @@ const InfrastructureCloudNative: React.FC = () => {
   }>({ anchorEl: null, node: null });
 
   useEffect(() => {
+    console.log('🏗️ InfrastructureCloudNative mounted, tenant:', tenant);
     config.printConfiguration();
     fetchInfrastructureData();
     fetchPartners();
@@ -154,6 +155,8 @@ const InfrastructureCloudNative: React.FC = () => {
     setLoading(true);
     try {
       console.log('🔍 fetchInfrastructureData - using Stellar store, tenant:', tenant);
+      console.log('🔍 Starting infrastructure data load...');
+      console.log('🔍 Current time:', new Date().toISOString());
 
       // Use Stellar store to load infrastructure tree
       // Map 'organization' to 'self' for the store

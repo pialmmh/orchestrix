@@ -30,7 +30,7 @@ class MutationService {
     }
 
     try {
-      const response = await StellarClient.post<MutationResponse>('/stellar/modify', request);
+      const response = await StellarClient.post<MutationResponse>('stellar/modify', request);
       
       // Publish mutation success event if in debug mode
       if (this.debugMode) {

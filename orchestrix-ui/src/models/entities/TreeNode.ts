@@ -1,8 +1,8 @@
 export interface TreeNode {
   id: string;
   name: string;
-  type: 'partner' | 'organization' | 'environment' | 'cloud' | 'region' | 'az' | 'datacenter' | 
-        'pool' | 'compute' | 'container' | 'resource-group' | 'service' | 'network-device';
+  type: 'partner' | 'organization' | 'environment' | 'cloud' | 'region' | 'az' | 'datacenter' |
+        'pool' | 'resourcepool' | 'compute' | 'container' | 'resource-group' | 'service' | 'network-device';
   data?: any;
   children?: TreeNode[];
   metadata?: {

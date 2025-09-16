@@ -194,6 +194,8 @@ export class OrganizationInfraStore extends StellarStore {
   }
 
   async loadInfrastructureTree(partner: string = 'self') {
+    console.log('🚀 loadInfrastructureTree called with partner:', partner);
+
     // Build criteria based on partner parameter
     const criteria: any = {};
 
@@ -207,106 +209,132 @@ export class OrganizationInfraStore extends StellarStore {
       criteria.name = partner;
     }
 
-    const query: QueryNode = {
+    console.log('🔍 Using criteria:', criteria);
+
+    // Query environments and clouds separately to avoid conflicts
+    // We'll make two separate queries and merge the results
+    const envQuery: QueryNode = {
       kind: 'partner',
       ...(Object.keys(criteria).length > 0 && { criteria }),
-      page: { limit: 10 },
+      page: { limit: 10, offset: 0 },
       include: [
         {
           kind: 'environment',
-          page: { limit: 20 },
-        },
-        {
-          kind: 'cloud',
-          page: { limit: 20 },
+          page: { limit: 20, offset: 0 },
           include: [
             {
               kind: 'datacenter',
-              page: { limit: 50 },
+              page: { limit: 100, offset: 0 },
               include: [
                 {
-                  kind: 'availabilityzone',
-                  page: { limit: 10 },
-                },
-                {
-                  kind: 'rack',
-                  page: { limit: 100 },
-                  include: [
-                    {
-                      kind: 'compute',
-                      page: { limit: 200 },
-                      include: [
-                        {
-                          kind: 'container',
-                          page: { limit: 50 },
-                        },
-                        {
-                          kind: 'ipaddress',
-                          page: { limit: 10 },
-                        },
-                      ],
-                    },
-                    {
-                      kind: 'networkdevice',
-                      page: { limit: 100 },
-                      include: [
-                        {
-                          kind: 'ipaddress',
-                          page: { limit: 10 },
-                        },
-                      ],
-                    },
-                  ],
-                },
-                {
                   kind: 'compute',
-                  page: { limit: 200 },
-                  include: [
-                    {
-                      kind: 'container',
-                      page: { limit: 50 },
-                    },
-                  ],
-                },
-                {
-                  kind: 'networkdevice',
-                  page: { limit: 100 },
-                },
-                {
-                  kind: 'storage',
-                  page: { limit: 50 },
-                },
-                {
-                  kind: 'virtualnetwork',
-                  page: { limit: 50 },
+                  page: { limit: 500, offset: 0 },
                 },
               ],
-            },
-            {
-              kind: 'virtualnetwork',
-              page: { limit: 50 },
             },
           ],
         },
       ],
     };
 
-    const data = await this.executeQuery(query);
+    const cloudQuery: QueryNode = {
+      kind: 'partner',
+      ...(Object.keys(criteria).length > 0 && { criteria }),
+      page: { limit: 10, offset: 0 },
+      include: [
+        {
+          kind: 'cloud',
+          page: { limit: 20, offset: 0 },
+          include: [
+            {
+              kind: 'region',
+              page: { limit: 50, offset: 0 },
+              include: [
+                {
+                  kind: 'availabilityzone',
+                  page: { limit: 100, offset: 0 },
+                  include: [
+                    {
+                      kind: 'datacenter',
+                      page: { limit: 200, offset: 0 },
+                      include: [
+                        {
+                          kind: 'compute',
+                          page: { limit: 500, offset: 0 },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
 
-    console.log('📊 Stellar API returned:', JSON.stringify(data, null, 2));
+    try {
+      // First load environments with their datacenters
+      console.log('📡 Loading environments...');
+      const envData = await this.executeQuery(envQuery);
 
-    if (data) {
-      runInAction(() => {
-        this.treeData = transformStellarToTree(data);
-        console.log('🌲 Transformed tree:', JSON.stringify(this.treeData, null, 2));
-        // Auto-expand first few levels
-        this.treeData.forEach(partner => {
-          this.expandNode(partner.id);
-          partner.children?.forEach(cloud => {
-            this.expandNode(cloud.id);
+      // Then load cloud hierarchy
+      console.log('📡 Loading cloud hierarchy...');
+      const cloudData = await this.executeQuery(cloudQuery);
+
+      console.log('📊 Environment data:', JSON.stringify(envData, null, 2));
+      console.log('📊 Cloud data:', JSON.stringify(cloudData, null, 2));
+
+      if (envData || cloudData) {
+        runInAction(() => {
+          // Merge both hierarchies
+          const envTree = envData ? transformStellarToTree(envData) : [];
+          const cloudTree = cloudData ? transformStellarToTree(cloudData) : [];
+
+          // If both have the same partner root, merge children
+          if (envTree.length > 0 && cloudTree.length > 0 &&
+              envTree[0].data.id === cloudTree[0].data.id) {
+            // Combine children from both trees
+            this.treeData = [{
+              ...envTree[0],
+              children: [
+                ...(envTree[0].children || []),
+                ...(cloudTree[0].children || [])
+              ]
+            }];
+          } else {
+            // Just use whichever is available
+            this.treeData = envTree.length > 0 ? envTree : cloudTree;
+          }
+
+          console.log('🌲 Merged tree:', JSON.stringify(this.treeData, null, 2));
+
+          // Auto-expand first few levels
+          this.treeData.forEach(partner => {
+            this.expandNode(partner.id);
+            partner.children?.forEach(child => {
+              this.expandNode(child.id);
+              // Expand one more level for regions
+              if (child.type === 'cloud') {
+                child.children?.forEach(region => {
+                  this.expandNode(region.id);
+                });
+              }
+            });
           });
         });
+      } else {
+        console.warn('⚠️ No data returned from Stellar API');
+        runInAction(() => {
+          this.treeData = [];
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error in loadInfrastructureTree:', error);
+      runInAction(() => {
+        this.treeData = [];
       });
+      throw error;
     }
   }
 

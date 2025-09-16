@@ -87,6 +87,7 @@ export abstract class StellarStore {
       this.lastQuery = query;
 
       const response = await this.queryService.executeQuery<T>(query);
+      console.log('🔍 StellarStore executeQuery response:', response);
 
       if (response.success && response.data) {
         runInAction(() => {
