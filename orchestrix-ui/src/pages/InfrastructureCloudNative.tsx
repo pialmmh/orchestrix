@@ -27,6 +27,9 @@ import {
   DialogActions,
   TextField,
   Tooltip,
+  Select,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import {
   Refresh,
@@ -111,12 +114,15 @@ const InfrastructureCloudNative: React.FC = () => {
   const [computeEditData, setComputeEditData] = useState<any>(null);
   const [openNetworkDeviceEditDialog, setOpenNetworkDeviceEditDialog] = useState(false);
   const [networkDeviceEditData, setNetworkDeviceEditData] = useState<any>(null);
-  
+
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
     anchorEl: HTMLElement | null;
     node: TreeNode | null;
   }>({ anchorEl: null, node: null });
+
+  // Environment filter state
+  const [environmentFilter, setEnvironmentFilter] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('🏗️ InfrastructureCloudNative mounted, tenant:', tenant);
@@ -151,6 +157,14 @@ const InfrastructureCloudNative: React.FC = () => {
     }
   };
 
+  const handleEnvironmentFilterChange = (env: string | null) => {
+    setEnvironmentFilter(env);
+    organizationInfraStore.setEnvironmentFilter(env);
+    // Refresh tree display
+    const displayData = organizationInfraStore.displayTreeData;
+    setTreeData(displayData);
+  };
+
   const fetchInfrastructureData = async () => {
     setLoading(true);
     try {
@@ -172,7 +186,9 @@ const InfrastructureCloudNative: React.FC = () => {
       console.log('🔍 fetchInfrastructureData - partners from store:', partnersFromStore);
 
       // Update local state with data from Stellar store
-      setTreeData(treeDataFromStore);
+      // Get filtered data if environment filter is active
+      const displayData = organizationInfraStore.displayTreeData;
+      setTreeData(displayData);
       setPartners(partnersFromStore);
       setError(null);
 
@@ -1054,6 +1070,26 @@ const InfrastructureCloudNative: React.FC = () => {
                     Partners
                   </ToggleButton>
                 </ToggleButtonGroup>
+
+                {/* Environment Filter */}
+                <FormControl size="small" sx={{ minWidth: 180 }}>
+                  <InputLabel id="env-filter-label">Environment Filter</InputLabel>
+                  <Select
+                    labelId="env-filter-label"
+                    value={environmentFilter || ''}
+                    label="Environment Filter"
+                    onChange={(e) => handleEnvironmentFilterChange(e.target.value || null)}
+                  >
+                    <MenuItem value="">
+                      <em>All Environments</em>
+                    </MenuItem>
+                    <MenuItem value="PRODUCTION">Production</MenuItem>
+                    <MenuItem value="STAGING">Staging</MenuItem>
+                    <MenuItem value="DEVELOPMENT">Development</MenuItem>
+                    <MenuItem value="TESTING">Testing</MenuItem>
+                  </Select>
+                </FormControl>
+
                 <Box sx={{ display: 'flex', gap: 0.5 }}>
                   <Tooltip title="Expand All">
                     <IconButton onClick={handleExpandAll} size="small">

@@ -17,6 +17,8 @@ export interface TreeNode {
     resourceGroup?: string;
     hostname?: string;
     ipAddress?: string;
+    environment?: string;
+    environmentId?: number;
   };
 }
 

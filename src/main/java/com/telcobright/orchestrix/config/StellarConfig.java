@@ -40,7 +40,7 @@ public class StellarConfig {
                 List.of("id", "name", "container_id", "container_type", "image", "image_version", "status", "ip_address", "cpu_limit", "memory_limit", "memory_limit_mb", "exposed_ports", "mount_points", "environment_vars", "auto_start", "description", "compute_id", "created_at", "updated_at"))
 
             .entity("networkdevice", "network_devices", "nd",
-                List.of("id", "name", "device_type", "manufacturer", "model", "serial_number", "management_ip", "status", "datacenter_id", "created_at", "updated_at"))
+                List.of("id", "name", "device_type", "vendor", "model", "serial_number", "management_ip", "status", "datacenter_id", "created_at", "updated_at"))
 
             .entity("resourcegroup", "resource_groups", "rg",
                 List.of("id", "name", "display_name", "category", "description", "icon", "color", "sort_order", "is_active", "created_at", "updated_at"))

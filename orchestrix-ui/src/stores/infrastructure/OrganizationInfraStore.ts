@@ -7,11 +7,13 @@ import { transformStellarToTree, findNodeById, getNodePath } from '../../utils/s
 
 export class OrganizationInfraStore extends StellarStore {
   treeData: TreeNode[] = [];
+  filteredTreeData: TreeNode[] = [];
   selectedNode: TreeNode | null = null;
   selectedNodePath: TreeNode[] = [];
   expandedNodeIds: string[] = [];
   partners: Partner[] = [];
   environments: any[] = [];
+  selectedEnvironmentFilter: string | null = null;
   
   // List view data for right pane
   selectedNodeChildren: any[] = [];
@@ -25,11 +27,13 @@ export class OrganizationInfraStore extends StellarStore {
     super();
     makeObservable(this, {
       treeData: observable,
+      filteredTreeData: observable,
       selectedNode: observable,
       selectedNodePath: observable,
       expandedNodeIds: observable,
       partners: observable,
       environments: observable,
+      selectedEnvironmentFilter: observable,
       selectedNodeChildren: observable,
       selectedNodeChildrenLoading: observable,
       selectedNodeChildrenError: observable,
@@ -42,6 +46,8 @@ export class OrganizationInfraStore extends StellarStore {
       expandNode: action,
       collapseNode: action,
       loadInfrastructureTree: action,
+      setEnvironmentFilter: action,
+      applyEnvironmentFilter: action,
       loadSelectedNodeChildren: action,
       setSelectedNodeChildrenPage: action,
       createCompute: action,
@@ -51,6 +57,7 @@ export class OrganizationInfraStore extends StellarStore {
       updateNetworkDevice: action,
       deleteNetworkDevice: action,
       isNodeExpanded: computed,
+      displayTreeData: computed,
     });
 
     // Initialize with some default expanded nodes
@@ -61,14 +68,58 @@ export class OrganizationInfraStore extends StellarStore {
     return (nodeId: string) => this.expandedNodeIds.includes(nodeId);
   }
 
+  get displayTreeData() {
+    return this.selectedEnvironmentFilter ? this.filteredTreeData : this.treeData;
+  }
+
   setTreeData(data: TreeNode[]) {
     this.treeData = data;
+    this.applyEnvironmentFilter();
+  }
+
+  setEnvironmentFilter(environmentType: string | null) {
+    this.selectedEnvironmentFilter = environmentType;
+    this.applyEnvironmentFilter();
+  }
+
+  applyEnvironmentFilter() {
+    if (!this.selectedEnvironmentFilter) {
+      this.filteredTreeData = this.treeData;
+      return;
+    }
+
+    // Deep filter tree to only show datacenters with matching environment
+    const filterTree = (nodes: TreeNode[]): TreeNode[] => {
+      return nodes.map(node => {
+        if (node.type === 'datacenter') {
+          // Check if this datacenter matches the filter
+          const envType = node.metadata?.environment;
+          if (!envType || envType !== this.selectedEnvironmentFilter) {
+            return null; // Will be filtered out
+          }
+          return node;
+        }
+
+        // For non-datacenter nodes, recursively filter children
+        if (node.children && node.children.length > 0) {
+          const filteredChildren = filterTree(node.children).filter(Boolean);
+          if (filteredChildren.length > 0) {
+            return { ...node, children: filteredChildren };
+          }
+          return null; // Node has no matching children
+        }
+
+        return node;
+      }).filter(Boolean) as TreeNode[];
+    };
+
+    this.filteredTreeData = filterTree(this.treeData);
   }
 
   setSelectedNode(node: TreeNode | null) {
     this.selectedNode = node;
     if (node) {
-      this.selectedNodePath = getNodePath(this.treeData, node.id);
+      this.selectedNodePath = getNodePath(this.displayTreeData, node.id);
       // Automatically load children when a node is selected
       this.loadSelectedNodeChildren();
     } else {
@@ -211,9 +262,8 @@ export class OrganizationInfraStore extends StellarStore {
 
     console.log('🔍 Using criteria:', criteria);
 
-    // Query environments and clouds separately to avoid conflicts
-    // We'll make two separate queries and merge the results
-    const envQuery: QueryNode = {
+    // Single unified query that loads cloud hierarchy with datacenter environment info
+    const unifiedQuery: QueryNode = {
       kind: 'partner',
       ...(Object.keys(criteria).length > 0 && { criteria }),
       page: { limit: 10, offset: 0 },
@@ -221,27 +271,7 @@ export class OrganizationInfraStore extends StellarStore {
         {
           kind: 'environment',
           page: { limit: 20, offset: 0 },
-          include: [
-            {
-              kind: 'datacenter',
-              page: { limit: 100, offset: 0 },
-              include: [
-                {
-                  kind: 'compute',
-                  page: { limit: 500, offset: 0 },
-                },
-              ],
-            },
-          ],
         },
-      ],
-    };
-
-    const cloudQuery: QueryNode = {
-      kind: 'partner',
-      ...(Object.keys(criteria).length > 0 && { criteria }),
-      page: { limit: 10, offset: 0 },
-      include: [
         {
           kind: 'cloud',
           page: { limit: 20, offset: 0 },
@@ -262,6 +292,10 @@ export class OrganizationInfraStore extends StellarStore {
                           kind: 'compute',
                           page: { limit: 500, offset: 0 },
                         },
+                        {
+                          kind: 'networkdevice',
+                          page: { limit: 200, offset: 0 },
+                        },
                       ],
                     },
                   ],
@@ -274,40 +308,23 @@ export class OrganizationInfraStore extends StellarStore {
     };
 
     try {
-      // First load environments with their datacenters
-      console.log('📡 Loading environments...');
-      const envData = await this.executeQuery(envQuery);
+      console.log('📡 Loading unified infrastructure hierarchy...');
+      const data = await this.executeQuery(unifiedQuery);
 
-      // Then load cloud hierarchy
-      console.log('📡 Loading cloud hierarchy...');
-      const cloudData = await this.executeQuery(cloudQuery);
+      console.log('📊 Unified data:', JSON.stringify(data, null, 2));
 
-      console.log('📊 Environment data:', JSON.stringify(envData, null, 2));
-      console.log('📊 Cloud data:', JSON.stringify(cloudData, null, 2));
-
-      if (envData || cloudData) {
+      if (data) {
         runInAction(() => {
-          // Merge both hierarchies
-          const envTree = envData ? transformStellarToTree(envData) : [];
-          const cloudTree = cloudData ? transformStellarToTree(cloudData) : [];
-
-          // If both have the same partner root, merge children
-          if (envTree.length > 0 && cloudTree.length > 0 &&
-              envTree[0].data.id === cloudTree[0].data.id) {
-            // Combine children from both trees
-            this.treeData = [{
-              ...envTree[0],
-              children: [
-                ...(envTree[0].children || []),
-                ...(cloudTree[0].children || [])
-              ]
-            }];
-          } else {
-            // Just use whichever is available
-            this.treeData = envTree.length > 0 ? envTree : cloudTree;
+          // Store environments separately for reference
+          if (data[0]?.environments) {
+            this.environments = data[0].environments;
           }
 
-          console.log('🌲 Merged tree:', JSON.stringify(this.treeData, null, 2));
+          // Transform to tree with environment metadata added
+          this.treeData = transformStellarToTree(data, this.environments);
+          this.applyEnvironmentFilter();
+
+          console.log('🌲 Unified tree:', JSON.stringify(this.treeData, null, 2));
 
           // Auto-expand first few levels
           this.treeData.forEach(partner => {
@@ -473,11 +490,11 @@ export class OrganizationInfraStore extends StellarStore {
 
   // Utility methods
   findNode(nodeId: string): TreeNode | null {
-    return findNodeById(this.treeData, nodeId);
+    return findNodeById(this.displayTreeData, nodeId);
   }
 
   getParentNode(node: TreeNode): TreeNode | null {
-    const path = getNodePath(this.treeData, node.id);
+    const path = getNodePath(this.displayTreeData, node.id);
     return path.length > 1 ? path[path.length - 2] : null;
   }
 }

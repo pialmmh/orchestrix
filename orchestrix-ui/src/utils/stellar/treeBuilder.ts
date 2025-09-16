@@ -1,7 +1,7 @@
 import { TreeNode, Partner, Cloud, Datacenter, Compute, NetworkDevice } from '../../models/entities/TreeNode';
 
-export function transformStellarToTree(data: any): TreeNode[] {
-  console.log('🎯 transformStellarToTree called with:', data);
+export function transformStellarToTree(data: any, environments?: any[]): TreeNode[] {
+  console.log('🎯 transformStellarToTree called with:', data, 'environments:', environments);
 
   // Handle both direct array and response object with data property
   let dataArray = data;
@@ -22,18 +22,26 @@ export function transformStellarToTree(data: any): TreeNode[] {
 
   console.log(`📊 transformStellarToTree: Processing ${dataArray.length} partners`);
 
+  // Create environment map for quick lookup
+  const environmentMap = new Map<number, any>();
+  if (environments && Array.isArray(environments)) {
+    environments.forEach(env => {
+      environmentMap.set(env.id, env);
+    });
+  }
+
   // The API now returns hierarchical data directly, not flat data with prefixes
   // Data structure is an array of partners with nested clouds, datacenters, etc.
   const result = dataArray.map((partner, index) => {
     console.log(`  🏢 Processing partner ${index + 1}:`, partner.name || partner.id);
-    return transformPartnerToTreeNode(partner);
+    return transformPartnerToTreeNode(partner, environmentMap);
   });
 
   console.log('✅ transformStellarToTree result:', JSON.stringify(result, null, 2));
   return result;
 }
 
-function transformPartnerToTreeNode(partner: any): TreeNode {
+function transformPartnerToTreeNode(partner: any, environmentMap?: Map<number, any>): TreeNode {
   const partnerNode: TreeNode = {
     id: `partner-${partner.id}`,
     name: partner.displayName || partner.name,
@@ -51,24 +59,27 @@ function transformPartnerToTreeNode(partner: any): TreeNode {
     children: [],
   };
 
-  // Add environments as children
+  // Store environments for reference but don't add as separate nodes
+  // They'll be shown as metadata on datacenters
   if (partner.environments && Array.isArray(partner.environments)) {
     partner.environments.forEach((env: any) => {
-      partnerNode.children!.push(transformEnvironmentToTreeNode(env));
+      if (environmentMap) {
+        environmentMap.set(env.id, env);
+      }
     });
   }
 
-  // Add clouds as children
+  // Add clouds as children - these form the primary hierarchy
   if (partner.clouds && Array.isArray(partner.clouds)) {
     partner.clouds.forEach((cloud: any) => {
-      partnerNode.children!.push(transformCloudToTreeNode(cloud));
+      partnerNode.children!.push(transformCloudToTreeNode(cloud, environmentMap));
     });
   }
 
   return partnerNode;
 }
 
-function transformCloudToTreeNode(cloud: any): TreeNode {
+function transformCloudToTreeNode(cloud: any, environmentMap?: Map<number, any>): TreeNode {
   const cloudNode: TreeNode = {
     id: `cloud-${cloud.id}`,
     name: cloud.name,
@@ -87,19 +98,19 @@ function transformCloudToTreeNode(cloud: any): TreeNode {
   // Add regions as children
   if (cloud.regions && Array.isArray(cloud.regions)) {
     cloud.regions.forEach((region: any) => {
-      cloudNode.children!.push(transformRegionToTreeNode(region));
+      cloudNode.children!.push(transformRegionToTreeNode(region, environmentMap));
     });
   }
 
   // Add datacenters as direct children (if not under regions)
   if (cloud.datacenters && Array.isArray(cloud.datacenters)) {
-    cloudNode.children!.push(...cloud.datacenters.map((dc: any) => transformDatacenterToTreeNode(dc)));
+    cloudNode.children!.push(...cloud.datacenters.map((dc: any) => transformDatacenterToTreeNode(dc, environmentMap)));
   }
 
   return cloudNode;
 }
 
-function transformRegionToTreeNode(region: any): TreeNode {
+function transformRegionToTreeNode(region: any, environmentMap?: Map<number, any>): TreeNode {
   const regionNode: TreeNode = {
     id: `region-${region.id}`,
     name: region.name,
@@ -119,17 +130,24 @@ function transformRegionToTreeNode(region: any): TreeNode {
   // Add availability zones as children
   if (region.availabilityzones && Array.isArray(region.availabilityzones)) {
     region.availabilityzones.forEach((az: any) => {
-      regionNode.children!.push(transformAvailabilityZoneToTreeNode(az));
+      regionNode.children!.push(transformAvailabilityZoneToTreeNode(az, environmentMap));
     });
   }
 
   return regionNode;
 }
 
-function transformDatacenterToTreeNode(datacenter: any): TreeNode {
+function transformDatacenterToTreeNode(datacenter: any, environmentMap?: Map<number, any>): TreeNode {
+  // Get environment info if available
+  let environmentInfo = null;
+  const envId = datacenter.environmentId || datacenter.environment_id;
+  if (environmentMap && envId) {
+    environmentInfo = environmentMap.get(envId);
+  }
+
   const dcNode: TreeNode = {
     id: `datacenter-${datacenter.id}`,
-    name: datacenter.name,
+    name: environmentInfo ? `${datacenter.name} (${environmentInfo.type || environmentInfo.name})` : datacenter.name,
     type: 'datacenter',
     data: {
       id: datacenter.id,
@@ -138,10 +156,14 @@ function transformDatacenterToTreeNode(datacenter: any): TreeNode {
       status: datacenter.status,
       cloudId: datacenter.cloudId,
       tier: datacenter.tier,
-    } as Datacenter,
+      environmentId: envId,
+      environment: environmentInfo,
+    } as Datacenter & { environmentId?: number; environment?: any },
     children: [],
     metadata: {
       tier: datacenter.tier,
+      environment: environmentInfo?.type || environmentInfo?.name,
+      environmentId: envId,
     },
   };
 
@@ -270,7 +292,7 @@ function transformEnvironmentToTreeNode(env: any): TreeNode {
   return envNode;
 }
 
-function transformAvailabilityZoneToTreeNode(az: any): TreeNode {
+function transformAvailabilityZoneToTreeNode(az: any, environmentMap?: Map<number, any>): TreeNode {
   const azNode: TreeNode = {
     id: `az-${az.id}`,
     name: az.name || az.code || `AZ-${az.id}`,
@@ -291,7 +313,7 @@ function transformAvailabilityZoneToTreeNode(az: any): TreeNode {
   // Add datacenters as children
   if (az.datacenters && Array.isArray(az.datacenters)) {
     az.datacenters.forEach((dc: any) => {
-      azNode.children!.push(transformDatacenterToTreeNode(dc));
+      azNode.children!.push(transformDatacenterToTreeNode(dc, environmentMap));
     });
   }
 
