@@ -1035,11 +1035,11 @@ const InfrastructureCloudNative: React.FC = () => {
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <Paper sx={{ px: 3, py: 0.75, marginTop: 0, display: 'flex', alignItems: 'baseline', gap: 1 }}>
-        <Typography variant="h5" sx={{ fontWeight: 'medium' }}>
+      <Paper sx={{ px: 3, py: 1, marginTop: 0, display: 'flex', alignItems: 'baseline', gap: 1.5 }}>
+        <Typography variant="h4">
           Manage Infrastructure
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+        <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic' }}>
           — Hierarchical view of your cloud-native infrastructure across environments, regions, and availability zones
         </Typography>
       </Paper>
