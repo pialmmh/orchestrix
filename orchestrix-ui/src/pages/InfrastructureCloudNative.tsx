@@ -1039,7 +1039,7 @@ const InfrastructureCloudNative: React.FC = () => {
         <Typography variant="h4">
           Manage Infrastructure
         </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+        <Typography variant="body1" color="text.secondary">
           — Hierarchical view of your cloud-native infrastructure across environments, regions, and availability zones
         </Typography>
       </Paper>
