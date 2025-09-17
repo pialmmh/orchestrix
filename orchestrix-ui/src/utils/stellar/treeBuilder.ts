@@ -234,7 +234,7 @@ function transformComputeToTreeNode(compute: any, environmentMap?: Map<number, a
     metadata: {
       hostname: compute.hostname,
       ipAddress: compute.ipAddress,
-      environments: envDisplay,
+      environment: envDisplay,
     },
     children: [],
   };
