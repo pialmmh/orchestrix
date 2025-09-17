@@ -244,4 +244,282 @@ public class MikroTikIpsecManager {
     public CompletableFuture<String> listTunnels() {
         return router.executeCustomCommand("/ip ipsec peer print");
     }
+
+    /**
+     * Get comprehensive IPsec configuration status
+     * Useful for debugging and monitoring
+     */
+    public CompletableFuture<String> getFullIpsecStatus() {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                StringBuilder status = new StringBuilder();
+                status.append("========================================\n");
+                status.append("     FULL IPsec CONFIGURATION STATUS    \n");
+                status.append("========================================\n\n");
+
+                // 1. IPsec Peers
+                String peers = router.executeCustomCommand("/ip ipsec peer print detail")
+                    .get(5, TimeUnit.SECONDS);
+                status.append("📋 IPsec PEERS (Phase 1 - IKE):\n");
+                status.append("----------------------------------------\n");
+                status.append(peers).append("\n\n");
+
+                // 2. IPsec Identities
+                String identities = router.executeCustomCommand("/ip ipsec identity print detail")
+                    .get(5, TimeUnit.SECONDS);
+                status.append("🔑 IPsec IDENTITIES:\n");
+                status.append("----------------------------------------\n");
+                status.append(identities).append("\n\n");
+
+                // 3. IPsec Policies
+                String policies = router.executeCustomCommand("/ip ipsec policy print detail")
+                    .get(5, TimeUnit.SECONDS);
+                status.append("📜 IPsec POLICIES (Encryption Domains):\n");
+                status.append("----------------------------------------\n");
+                status.append(policies).append("\n\n");
+
+                // 4. IPsec Proposals
+                String proposals = router.executeCustomCommand("/ip ipsec proposal print")
+                    .get(5, TimeUnit.SECONDS);
+                status.append("🔧 IPsec PROPOSALS (Phase 2 - ESP):\n");
+                status.append("----------------------------------------\n");
+                status.append(proposals).append("\n\n");
+
+                // 5. IPsec Profiles
+                String profiles = router.executeCustomCommand("/ip ipsec profile print")
+                    .get(5, TimeUnit.SECONDS);
+                status.append("⚙️  IPsec PROFILES (Phase 1 Parameters):\n");
+                status.append("----------------------------------------\n");
+                status.append(profiles).append("\n\n");
+
+                // 6. Active Peers (Connection Status)
+                String activePeers = router.executeCustomCommand("/ip ipsec active-peers print detail")
+                    .get(5, TimeUnit.SECONDS);
+                status.append("✅ ACTIVE PEERS (Live Connections):\n");
+                status.append("----------------------------------------\n");
+                status.append(activePeers).append("\n\n");
+
+                // 7. Installed SAs
+                String installedSA = router.executeCustomCommand("/ip ipsec installed-sa print detail")
+                    .get(5, TimeUnit.SECONDS);
+                status.append("🔐 INSTALLED SAs (Security Associations):\n");
+                status.append("----------------------------------------\n");
+                status.append(installedSA).append("\n\n");
+
+                // 8. IPsec Statistics
+                String stats = router.executeCustomCommand("/ip ipsec statistics print")
+                    .get(5, TimeUnit.SECONDS);
+                status.append("📊 IPsec STATISTICS:\n");
+                status.append("----------------------------------------\n");
+                status.append(stats).append("\n");
+
+                return status.toString();
+
+            } catch (Exception e) {
+                log.error("Failed to get full IPsec status: {}", e.getMessage());
+                return "Error getting full IPsec status: " + e.getMessage();
+            }
+        });
+    }
+
+    /**
+     * Get quick IPsec connection status
+     * Shows only the most important runtime information
+     */
+    public CompletableFuture<String> getQuickStatus() {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                StringBuilder status = new StringBuilder();
+                status.append("========================================\n");
+                status.append("       QUICK IPsec STATUS CHECK        \n");
+                status.append("========================================\n\n");
+
+                // Active connections
+                String activePeers = router.executeCustomCommand("/ip ipsec active-peers print")
+                    .get(5, TimeUnit.SECONDS);
+                status.append("🟢 ACTIVE CONNECTIONS:\n");
+                status.append(activePeers).append("\n\n");
+
+                // Installed SAs (brief)
+                String sas = router.executeCustomCommand("/ip ipsec installed-sa print")
+                    .get(5, TimeUnit.SECONDS);
+                status.append("🔐 SECURITY ASSOCIATIONS:\n");
+                status.append(sas).append("\n\n");
+
+                // Check for any errors in remote-peers
+                String remotePeers = router.executeCustomCommand("/ip ipsec remote-peers print")
+                    .get(5, TimeUnit.SECONDS);
+                status.append("🌐 REMOTE PEERS STATUS:\n");
+                status.append(remotePeers).append("\n");
+
+                return status.toString();
+
+            } catch (Exception e) {
+                log.error("Failed to get quick status: {}", e.getMessage());
+                return "Error getting quick status: " + e.getMessage();
+            }
+        });
+    }
+
+    /**
+     * Get CLI commands for manual verification
+     * Returns a list of useful MikroTik CLI commands
+     */
+    public static String getUsefulCliCommands() {
+        StringBuilder commands = new StringBuilder();
+        commands.append("========================================\n");
+        commands.append("  USEFUL MIKROTIK CLI COMMANDS FOR IPsec\n");
+        commands.append("========================================\n\n");
+
+        commands.append("📋 CONFIGURATION CHECKS:\n");
+        commands.append("----------------------------------------\n");
+        commands.append("# View all IPsec peers (Phase 1):\n");
+        commands.append("/ip ipsec peer print detail\n\n");
+
+        commands.append("# View IPsec identities (PSK):\n");
+        commands.append("/ip ipsec identity print detail\n\n");
+
+        commands.append("# View IPsec policies (encryption domains):\n");
+        commands.append("/ip ipsec policy print detail\n\n");
+
+        commands.append("# View IPsec proposals (Phase 2):\n");
+        commands.append("/ip ipsec proposal print detail\n\n");
+
+        commands.append("# View IPsec profiles (Phase 1 crypto):\n");
+        commands.append("/ip ipsec profile print detail\n\n");
+
+        commands.append("\n🔍 STATUS CHECKS:\n");
+        commands.append("----------------------------------------\n");
+        commands.append("# Check active IPsec connections:\n");
+        commands.append("/ip ipsec active-peers print detail\n\n");
+
+        commands.append("# Check installed Security Associations:\n");
+        commands.append("/ip ipsec installed-sa print detail\n\n");
+
+        commands.append("# Check remote peers status:\n");
+        commands.append("/ip ipsec remote-peers print\n\n");
+
+        commands.append("# View IPsec statistics:\n");
+        commands.append("/ip ipsec statistics print\n\n");
+
+        commands.append("\n🛠️ TROUBLESHOOTING:\n");
+        commands.append("----------------------------------------\n");
+        commands.append("# Enable IPsec debug logging:\n");
+        commands.append("/system logging add topics=ipsec,!packet\n\n");
+
+        commands.append("# View IPsec logs:\n");
+        commands.append("/log print where topics~\"ipsec\"\n\n");
+
+        commands.append("# Flush all SAs (force reconnect):\n");
+        commands.append("/ip ipsec installed-sa flush\n\n");
+
+        commands.append("# Disable/Enable a peer:\n");
+        commands.append("/ip ipsec peer disable [find name=\"TUNNEL-NAME\"]\n");
+        commands.append("/ip ipsec peer enable [find name=\"TUNNEL-NAME\"]\n\n");
+
+        commands.append("\n🗑️ CLEANUP COMMANDS:\n");
+        commands.append("----------------------------------------\n");
+        commands.append("# Remove specific tunnel completely:\n");
+        commands.append("/ip ipsec policy remove [find peer=\"TUNNEL-NAME\"]\n");
+        commands.append("/ip ipsec identity remove [find peer=\"TUNNEL-NAME\"]\n");
+        commands.append("/ip ipsec peer remove [find name=\"TUNNEL-NAME\"]\n");
+        commands.append("/ip ipsec proposal remove [find name=\"TUNNEL-NAME-proposal\"]\n");
+        commands.append("/ip ipsec profile remove [find name=\"TUNNEL-NAME-profile\"]\n\n");
+
+        commands.append("\n📊 MONITORING:\n");
+        commands.append("----------------------------------------\n");
+        commands.append("# Monitor IPsec in real-time:\n");
+        commands.append("/ip ipsec active-peers print interval=1\n\n");
+
+        commands.append("# Check IPsec packet counters:\n");
+        commands.append("/ip ipsec policy print stats\n\n");
+
+        return commands.toString();
+    }
+
+    /**
+     * Troubleshoot IPsec connection issues
+     * Provides diagnostic information
+     */
+    public CompletableFuture<String> troubleshootConnection(String tunnelName) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                StringBuilder report = new StringBuilder();
+                report.append("========================================\n");
+                report.append("   IPsec TROUBLESHOOTING REPORT\n");
+                report.append("   Tunnel: ").append(tunnelName).append("\n");
+                report.append("========================================\n\n");
+
+                // 1. Check if peer exists
+                String peer = router.executeCustomCommand(
+                    String.format("/ip ipsec peer print detail where name=%s", tunnelName))
+                    .get(5, TimeUnit.SECONDS);
+
+                if (peer == null || peer.trim().isEmpty()) {
+                    report.append("❌ ERROR: Peer '").append(tunnelName).append("' not found!\n");
+                    return report.toString();
+                }
+
+                report.append("✅ Peer Configuration:\n");
+                report.append(peer).append("\n\n");
+
+                // 2. Check identity
+                String identity = router.executeCustomCommand(
+                    String.format("/ip ipsec identity print detail where peer=%s", tunnelName))
+                    .get(5, TimeUnit.SECONDS);
+                report.append("🔑 Identity Configuration:\n");
+                report.append(identity.isEmpty() ? "⚠️ No identity configured!\n" : identity).append("\n\n");
+
+                // 3. Check policy
+                String policy = router.executeCustomCommand(
+                    String.format("/ip ipsec policy print detail where peer=%s", tunnelName))
+                    .get(5, TimeUnit.SECONDS);
+                report.append("📜 Policy Configuration:\n");
+                report.append(policy.isEmpty() ? "⚠️ No policy configured!\n" : policy).append("\n\n");
+
+                // 4. Check if peer is active
+                String activePeer = router.executeCustomCommand(
+                    "/ip ipsec active-peers print detail")
+                    .get(5, TimeUnit.SECONDS);
+                report.append("🔌 Connection Status:\n");
+                if (activePeer.contains(tunnelName) || activePeer.contains("220.247.164.172")) {
+                    report.append("✅ Peer is attempting to connect\n");
+                    report.append(activePeer).append("\n\n");
+                } else {
+                    report.append("⚠️ Peer is not actively connecting\n\n");
+                }
+
+                // 5. Check recent logs
+                String logs = router.executeCustomCommand(
+                    "/log print where topics~\"ipsec\" last=20")
+                    .get(5, TimeUnit.SECONDS);
+                report.append("📝 Recent IPsec Logs:\n");
+                report.append(logs).append("\n\n");
+
+                // 6. Recommendations
+                report.append("💡 RECOMMENDATIONS:\n");
+                report.append("----------------------------------------\n");
+
+                if (!activePeer.contains("established")) {
+                    report.append("• Tunnel is not established. Possible causes:\n");
+                    report.append("  - Remote side not configured\n");
+                    report.append("  - PSK mismatch\n");
+                    report.append("  - Firewall blocking UDP 500/4500\n");
+                    report.append("  - NAT-T issues\n");
+                    report.append("  - Phase 1/2 parameter mismatch\n\n");
+
+                    report.append("• Try these commands:\n");
+                    report.append("  /ip ipsec installed-sa flush\n");
+                    report.append("  /ip ipsec peer disable [find name=\"").append(tunnelName).append("\"]\n");
+                    report.append("  /ip ipsec peer enable [find name=\"").append(tunnelName).append("\"]\n");
+                }
+
+                return report.toString();
+
+            } catch (Exception e) {
+                log.error("Failed to troubleshoot connection: {}", e.getMessage());
+                return "Error during troubleshooting: " + e.getMessage();
+            }
+        });
+    }
 }

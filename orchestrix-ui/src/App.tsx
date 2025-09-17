@@ -20,6 +20,7 @@ import Settings from './pages/Settings';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Layout from './components/Layout';
+import LayoutNew from './components/LayoutNew';
 import PrivateRoute from './components/PrivateRoute';
 import Datacenters from './pages/resources/DatacentersNew';
 import Compute from './pages/resources/Compute';
@@ -50,7 +51,7 @@ function App() {
               path="/"
               element={
                 <PrivateRoute>
-                  <Layout />
+                  <LayoutNew />
                 </PrivateRoute>
               }
             >
