@@ -1054,9 +1054,12 @@ const InfrastructureCloudNative: React.FC = () => {
                 py: 0.75,
                 mb: 0
               }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
-                  Infrastructure Tree
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <AccountTreeIcon sx={{ fontSize: 20, color: 'primary.main' }} />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
+                    Infrastructure Tree
+                  </Typography>
+                </Box>
                 <Box sx={{ display: 'flex', gap: 0.5 }}>
                   <Tooltip title="Expand All">
                     <IconButton onClick={handleExpandAll} size="small">
