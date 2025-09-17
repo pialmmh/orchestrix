@@ -16,8 +16,6 @@ import {
   Link,
   Tabs,
   Tab,
-  ToggleButton,
-  ToggleButtonGroup,
   Menu,
   MenuItem,
   Divider,
@@ -1051,23 +1049,7 @@ const InfrastructureCloudNative: React.FC = () => {
         {/* Tree View */}
         <Box sx={{ width: '35%', height: '100%' }}>
           <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                {/* Tenant Toggle */}
-                <ToggleButtonGroup
-                  value={tenant}
-                  exclusive
-                  onChange={handleTenantChange}
-                  aria-label="tenant selection"
-                  size="small"
-                >
-                  <ToggleButton value="organization" aria-label="organization">
-                    Organization
-                  </ToggleButton>
-                  <ToggleButton value="partners" aria-label="partners">
-                    Partners
-                  </ToggleButton>
-                </ToggleButtonGroup>
-
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', mb: 2 }}>
                 <Box sx={{ display: 'flex', gap: 0.5 }}>
                   <Tooltip title="Expand All">
                     <IconButton onClick={handleExpandAll} size="small">
