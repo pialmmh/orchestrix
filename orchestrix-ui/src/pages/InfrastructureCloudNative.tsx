@@ -1056,7 +1056,7 @@ const InfrastructureCloudNative: React.FC = () => {
                 py: 0.75,
                 mb: 0
               }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                   Infrastructure Tree
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -1138,12 +1138,18 @@ const InfrastructureCloudNative: React.FC = () => {
                         <EditIcon />
                       </IconButton>
                       <IconButton
-                        color="error"
                         size="small"
                         onClick={handleDelete}
                         title="Delete"
+                        sx={{
+                          color: 'text.secondary',
+                          '&:hover': {
+                            color: 'error.main',
+                            backgroundColor: 'error.light'
+                          }
+                        }}
                       >
-                        <DeleteIcon />
+                        <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Box>
                   )}
