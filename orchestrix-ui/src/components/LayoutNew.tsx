@@ -202,36 +202,39 @@ const LayoutNew: React.FC = observer(() => {
           boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
         }}
       >
-        <Toolbar>
+        <Toolbar variant="dense" sx={{ minHeight: 48, height: 48 }}>
           {/* Sidebar Toggle */}
           <IconButton
             color="inherit"
             aria-label="toggle sidebar"
             onClick={handleSidebarToggle}
             edge="start"
-            sx={{ mr: 2 }}
+            sx={{ mr: 1, p: 0.5 }}
           >
             <MenuIcon />
           </IconButton>
 
           {/* Logo and Brand */}
-          <Box sx={{ display: 'flex', alignItems: 'center', mr: 4 }}>
-            <OrchestrixLogo sx={{ mr: 1 }} fontSize="large" />
-            <Typography variant="h6" noWrap component="div">
+          <Box sx={{ display: 'flex', alignItems: 'center', mr: 3 }}>
+            <OrchestrixLogo sx={{ mr: 0.5, fontSize: 24 }} />
+            <Typography variant="subtitle1" noWrap component="div" sx={{ fontWeight: 'medium' }}>
               Orchestrix
             </Typography>
             {storeDebugMode && (
               <Chip
-                icon={<BugReport />}
+                icon={<BugReport sx={{ fontSize: 16 }} />}
                 label="DEBUG"
                 size="small"
                 sx={{
-                  ml: 2,
+                  ml: 1.5,
+                  height: 22,
+                  fontSize: '0.7rem',
                   backgroundColor: '#ff9800',
                   color: 'white',
                   fontWeight: 'bold',
                   '& .MuiChip-icon': {
                     color: 'white',
+                    marginLeft: '4px',
                   },
                 }}
               />
@@ -248,7 +251,10 @@ const LayoutNew: React.FC = observer(() => {
                   endIcon={<KeyboardArrowDown />}
                   sx={{
                     textTransform: 'none',
-                    fontSize: '0.95rem',
+                    fontSize: '0.875rem',
+                    py: 0.5,
+                    px: 1,
+                    minHeight: 32,
                     '&:hover': {
                       backgroundColor: alpha(theme.palette.common.white, 0.1),
                     },
@@ -290,9 +296,9 @@ const LayoutNew: React.FC = observer(() => {
           {/* Right Side Icons */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Tooltip title="Notifications">
-              <IconButton color="inherit">
+              <IconButton color="inherit" size="small">
                 <Badge badgeContent={4} color="error">
-                  <Notifications />
+                  <Notifications sx={{ fontSize: 20 }} />
                 </Badge>
               </IconButton>
             </Tooltip>
@@ -301,15 +307,15 @@ const LayoutNew: React.FC = observer(() => {
               <IconButton
                 onClick={handleProfileMenuOpen}
                 size="small"
-                sx={{ ml: 2 }}
+                sx={{ ml: 1 }}
                 aria-controls={Boolean(profileAnchor) ? 'profile-menu' : undefined}
                 aria-haspopup="true"
                 aria-expanded={Boolean(profileAnchor) ? 'true' : undefined}
               >
                 <Avatar
                   sx={{
-                    width: 32,
-                    height: 32,
+                    width: 28,
+                    height: 28,
                     bgcolor: theme.palette.secondary.main,
                   }}
                 >
@@ -372,7 +378,7 @@ const LayoutNew: React.FC = observer(() => {
         open={sidebarOpen}
         onClose={handleSidebarToggle}
       >
-        <Toolbar />
+        <Toolbar variant="dense" sx={{ minHeight: 48 }} />
 
         <Box sx={{ p: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -503,7 +509,7 @@ const LayoutNew: React.FC = observer(() => {
           minHeight: '100vh',
         }}
       >
-        <Toolbar />
+        <Toolbar variant="dense" sx={{ minHeight: 48 }} />
         <Outlet />
       </Box>
     </Box>
