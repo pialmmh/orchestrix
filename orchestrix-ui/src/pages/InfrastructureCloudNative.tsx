@@ -1033,16 +1033,14 @@ const InfrastructureCloudNative: React.FC = () => {
   };
 
   return (
-    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', p: 2 }}>
       {/* Header */}
-      <Paper sx={{ px: 3, py: 1.5, marginTop: 0 }}>
-        <Typography variant="h4" gutterBottom>
-          Manage Infrastructure
-        </Typography>
-      </Paper>
+      <Typography variant="h4" gutterBottom>
+        Manage Infrastructure
+      </Typography>
 
       {/* Main Content */}
-      <Box sx={{ flexGrow: 1, display: 'flex', mt: 1, gap: 2 }}>
+      <Box sx={{ flexGrow: 1, display: 'flex', gap: 2 }}>
         {/* Tree View */}
         <Box sx={{ width: '35%', height: '100%' }}>
           <Paper sx={{ p: 0, height: '100%', overflow: 'auto' }}>

@@ -404,35 +404,45 @@ public class EntityModificationService {
      * Get table name for entity
      */
     private String getTableName(String entityName) {
-        // Northwind uses singular table names
+        // Orchestrix table mappings
         Map<String, String> tableNames = Map.of(
-            "category", "category",
-            "product", "product",
-            "customer", "customer",
-            "salesorder", "salesorder",
-            "orderdetail", "orderdetail",
-            "employee", "employee",
-            "shipper", "shipper",
-            "supplier", "supplier"
+            "partner", "partners",
+            "environment", "environments",
+            "cloud", "clouds",
+            "region", "regions",
+            "availabilityzone", "availability_zones",
+            "datacenter", "datacenters",
+            "compute", "computes",
+            "container", "containers",
+            "networkdevice", "network_devices",
+            "resourcepool", "resource_pools"
         );
-        return tableNames.getOrDefault(entityName.toLowerCase(), entityName.toLowerCase());
+
+        // Also handle additional tables
+        Map<String, String> additionalTables = Map.of(
+            "environmentassociation", "environment_associations",
+            "computeworkload", "compute_workloads",
+            "computecapability", "compute_capabilities",
+            "resourcegroup", "resource_groups"
+        );
+
+        String tableName = tableNames.get(entityName.toLowerCase());
+        if (tableName == null) {
+            tableName = additionalTables.get(entityName.toLowerCase());
+        }
+        if (tableName == null) {
+            // Default: assume plural form by adding 's'
+            tableName = entityName.toLowerCase() + "s";
+        }
+        return tableName;
     }
     
     /**
      * Get primary key column for entity
      */
     private String getPrimaryKey(String entityName) {
-        Map<String, String> primaryKeys = Map.of(
-            "category", "CategoryID",
-            "product", "ProductID",
-            "customer", "CustomerID",
-            "salesorder", "OrderID",
-            "orderdetail", "OrderID", // Composite with ProductID
-            "employee", "EmployeeID",
-            "shipper", "ShipperID",
-            "supplier", "SupplierID"
-        );
-        return primaryKeys.getOrDefault(entityName.toLowerCase(), entityName + "ID");
+        // All Orchestrix entities use 'id' as primary key
+        return "id";
     }
     
     /**
@@ -440,19 +450,36 @@ public class EntityModificationService {
      */
     private String getForeignKeyColumn(String parentEntity, String childEntity) {
         String key = parentEntity.toLowerCase() + "-" + childEntity.toLowerCase();
+
+        // Orchestrix foreign key mappings
         Map<String, String> foreignKeys = Map.of(
-            "category-product", "CategoryID",
-            "supplier-product", "SupplierID",
-            "product-orderdetail", "ProductID",
-            "salesorder-orderdetail", "OrderID",
-            "customer-salesorder", "CustomerID",
-            "employee-salesorder", "EmployeeID",
-            "shipper-salesorder", "ShipperID"
+            "partner-cloud", "partner_id",
+            "partner-environment", "partner_id",
+            "cloud-region", "cloud_id",
+            "cloud-datacenter", "cloud_id",
+            "region-availabilityzone", "region_id",
+            "availabilityzone-datacenter", "availability_zone_id",
+            "datacenter-compute", "datacenter_id",
+            "datacenter-networkdevice", "datacenter_id",
+            "compute-container", "compute_id"
         );
-        
+
+        // Also check reverse relationships
+        Map<String, String> additionalKeys = Map.of(
+            "datacenter-resourcepool", "datacenter_id",
+            "resourcepool-compute", "resource_pool_id",
+            "environment-environmentassociation", "environment_id",
+            "compute-computeworkload", "compute_id",
+            "compute-computecapability", "compute_id"
+        );
+
         String fk = foreignKeys.get(key);
         if (fk == null) {
-            throw new IllegalArgumentException("No foreign key mapping for: " + key);
+            fk = additionalKeys.get(key);
+        }
+        if (fk == null) {
+            // Default pattern: parent_entity + "_id"
+            fk = parentEntity.toLowerCase() + "_id";
         }
         return fk;
     }
