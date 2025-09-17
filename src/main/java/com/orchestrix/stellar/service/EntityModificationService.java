@@ -404,35 +404,23 @@ public class EntityModificationService {
      * Get table name for entity
      */
     private String getTableName(String entityName) {
-        // Orchestrix table mappings
-        Map<String, String> tableNames = Map.of(
-            "partner", "partners",
-            "environment", "environments",
-            "cloud", "clouds",
-            "region", "regions",
-            "availabilityzone", "availability_zones",
-            "datacenter", "datacenters",
-            "compute", "computes",
-            "container", "containers",
-            "networkdevice", "network_devices",
-            "resourcepool", "resource_pools"
+        // All Orchestrix tables now use singular names matching the entity names
+        // Special cases for underscored table names
+        Map<String, String> specialCases = Map.of(
+            "availabilityzone", "availability_zone",
+            "networkdevice", "network_device",
+            "resourcepool", "resource_pool",
+            "resourcegroup", "resource_group",
+            "environmentassociation", "environment_association",
+            "computeworkload", "compute_workload",
+            "computecapability", "compute_capability",
+            "datacenterresourcegroup", "datacenter_resource_group"
         );
 
-        // Also handle additional tables
-        Map<String, String> additionalTables = Map.of(
-            "environmentassociation", "environment_associations",
-            "computeworkload", "compute_workloads",
-            "computecapability", "compute_capabilities",
-            "resourcegroup", "resource_groups"
-        );
-
-        String tableName = tableNames.get(entityName.toLowerCase());
+        String tableName = specialCases.get(entityName.toLowerCase());
         if (tableName == null) {
-            tableName = additionalTables.get(entityName.toLowerCase());
-        }
-        if (tableName == null) {
-            // Default: assume plural form by adding 's'
-            tableName = entityName.toLowerCase() + "s";
+            // Default: use entity name as-is (singular)
+            tableName = entityName.toLowerCase();
         }
         return tableName;
     }

@@ -1033,9 +1033,9 @@ const InfrastructureCloudNative: React.FC = () => {
   };
 
   return (
-    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', p: 2 }}>
+    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', px: 2, pt: 1, pb: 2 }}>
       {/* Header */}
-      <Typography variant="h4" gutterBottom>
+      <Typography variant="h4" gutterBottom sx={{ mb: 1 }}>
         Manage Infrastructure
       </Typography>
 
