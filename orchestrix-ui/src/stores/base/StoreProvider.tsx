@@ -2,7 +2,7 @@ import React, { createContext, useContext, ReactNode } from 'react';
 import { RootStore } from '../RootStore';
 import rootStore from '../RootStore';
 
-const StoreContext = createContext<RootStore | null>(null);
+export const StoreContext = createContext<RootStore | null>(null);
 
 interface StoreProviderProps {
   children: ReactNode;
