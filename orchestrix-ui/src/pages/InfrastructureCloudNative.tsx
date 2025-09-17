@@ -1035,12 +1035,9 @@ const InfrastructureCloudNative: React.FC = () => {
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <Paper sx={{ px: 3, py: 1, marginTop: 0, display: 'flex', alignItems: 'baseline', gap: 1.5 }}>
-        <Typography variant="h4">
+      <Paper sx={{ px: 3, py: 1.5, marginTop: 0 }}>
+        <Typography variant="h4" gutterBottom>
           Manage Infrastructure
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          — Hierarchical view of your cloud-native infrastructure across environments, regions, and availability zones
         </Typography>
       </Paper>
 
