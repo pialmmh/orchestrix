@@ -1035,21 +1035,33 @@ const InfrastructureCloudNative: React.FC = () => {
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <Paper sx={{ px: 3, py: 1.5, marginTop: 0 }}>
-        <Typography variant="h4" gutterBottom>
+      <Paper sx={{ px: 3, py: 0.75, marginTop: 0, display: 'flex', alignItems: 'baseline', gap: 1 }}>
+        <Typography variant="h5" sx={{ fontWeight: 'medium' }}>
           Manage Infrastructure
         </Typography>
-        <Typography variant="body1" color="text.secondary" gutterBottom>
-          Hierarchical view of your cloud-native infrastructure across environments, regions, and availability zones
+        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+          — Hierarchical view of your cloud-native infrastructure across environments, regions, and availability zones
         </Typography>
       </Paper>
 
       {/* Main Content */}
-      <Box sx={{ flexGrow: 1, display: 'flex', mt: 2, gap: 2 }}>
+      <Box sx={{ flexGrow: 1, display: 'flex', mt: 1, gap: 2 }}>
         {/* Tree View */}
         <Box sx={{ width: '35%', height: '100%' }}>
-          <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', mb: 2 }}>
+          <Paper sx={{ p: 0, height: '100%', overflow: 'auto' }}>
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+                px: 2,
+                py: 0.75,
+                mb: 0
+              }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>
+                  Infrastructure Tree
+                </Typography>
                 <Box sx={{ display: 'flex', gap: 0.5 }}>
                   <Tooltip title="Expand All">
                     <IconButton onClick={handleExpandAll} size="small">
@@ -1069,6 +1081,7 @@ const InfrastructureCloudNative: React.FC = () => {
                 </Box>
               </Box>
 
+              <Box sx={{ p: 2 }}>
               {error && (
                 <Alert severity="error" sx={{ mb: 2 }}>
                   {error}
@@ -1100,6 +1113,7 @@ const InfrastructureCloudNative: React.FC = () => {
                   {renderTreeItems(treeData)}
                 </TreeView>
               )}
+              </Box>
           </Paper>
         </Box>
 
