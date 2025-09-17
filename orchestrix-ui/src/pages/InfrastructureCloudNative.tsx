@@ -27,9 +27,6 @@ import {
   DialogActions,
   TextField,
   Tooltip,
-  Select,
-  FormControl,
-  InputLabel,
 } from '@mui/material';
 import {
   Refresh,
@@ -1052,7 +1049,7 @@ const InfrastructureCloudNative: React.FC = () => {
       {/* Main Content */}
       <Box sx={{ flexGrow: 1, display: 'flex', mt: 2, gap: 2 }}>
         {/* Tree View */}
-        <Box sx={{ width: '50%', height: '100%' }}>
+        <Box sx={{ width: '35%', height: '100%' }}>
           <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                 {/* Tenant Toggle */}
@@ -1070,25 +1067,6 @@ const InfrastructureCloudNative: React.FC = () => {
                     Partners
                   </ToggleButton>
                 </ToggleButtonGroup>
-
-                {/* Environment Filter */}
-                <FormControl size="small" sx={{ minWidth: 180 }}>
-                  <InputLabel id="env-filter-label">Environment Filter</InputLabel>
-                  <Select
-                    labelId="env-filter-label"
-                    value={environmentFilter || ''}
-                    label="Environment Filter"
-                    onChange={(e) => handleEnvironmentFilterChange(e.target.value || null)}
-                  >
-                    <MenuItem value="">
-                      <em>All Environments</em>
-                    </MenuItem>
-                    <MenuItem value="PRODUCTION">Production</MenuItem>
-                    <MenuItem value="STAGING">Staging</MenuItem>
-                    <MenuItem value="DEVELOPMENT">Development</MenuItem>
-                    <MenuItem value="TESTING">Testing</MenuItem>
-                  </Select>
-                </FormControl>
 
                 <Box sx={{ display: 'flex', gap: 0.5 }}>
                   <Tooltip title="Expand All">
@@ -1144,7 +1122,7 @@ const InfrastructureCloudNative: React.FC = () => {
         </Box>
 
         {/* Details View */}
-        <Box sx={{ width: '50%', height: '100%' }}>
+        <Box sx={{ width: '65%', height: '100%' }}>
           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               {/* Action Buttons */}
               <Paper sx={{ p: 2, mb: 2 }}>
