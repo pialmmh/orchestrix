@@ -34,7 +34,7 @@ import {
   Computer,
   Public as PublicIcon,
   RouterOutlined as RouterIcon,
-  Domain as DataCenterIcon,
+  AccountTree,
   Settings as SettingsIcon,
   AccountTree as AccountTreeIcon,
   DataObject,
@@ -1055,7 +1055,7 @@ const InfrastructureCloudNative: React.FC = () => {
                 mb: 0
               }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <AccountTreeIcon sx={{ fontSize: 20, color: 'primary.main' }} />
+                  <AccountTree sx={{ fontSize: 20, color: '#1976d2' }} />
                   <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                     Infrastructure Tree
                   </Typography>
