@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
+import { useLocation } from 'react-router-dom';
 import { useOrganizationInfraStore } from '../stores/base/StoreProvider';
 import { TreeNode as StellarTreeNode } from '../models/entities/TreeNode';
 import {
@@ -30,6 +31,7 @@ import {
   Refresh,
   NavigateNext,
   Cloud as CloudIcon,
+  CloudQueue as CloudQueueIcon,
   Business,
   Computer,
   Public as PublicIcon,
@@ -43,6 +45,20 @@ import {
   Add,
   ExpandMore,
   ChevronRight,
+  Storage as StorageIcon,
+  Memory as ServerIcon,
+  Dns as DnsIcon,
+  Hub as HubIcon,
+  Lan as LanIcon,
+  DeviceHub as DeviceHubIcon,
+  CellTower as CellTowerIcon,
+  LocationCity as LocationCityIcon,
+  Map as MapIcon,
+  Layers as LayersIcon,
+  DeveloperBoard as DeveloperBoardIcon,
+  Apartment as ApartmentIcon,
+  Groups as GroupsIcon,
+  Group as GroupIcon,
 } from '@mui/icons-material';
 import { TreeView } from '@mui/x-tree-view/TreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
@@ -81,16 +97,18 @@ interface Partner {
 
 const InfrastructureCloudNative: React.FC = () => {
   const organizationInfraStore = useOrganizationInfraStore();
+  const location = useLocation();
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('');
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
   const [selectedNodePath, setSelectedNodePath] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<string[]>(['org-root', 'environments']);
-  
-  // Tenant state - default to organization to show self partner's infrastructure
-  const [tenant, setTenant] = useState<'organization' | 'partners'>('organization');
+  // Determine tenant based on the route
+  const tenant = location.pathname.includes('/partners') ? 'partners' : 'organization';
+
+  // Initialize expanded state - start fully collapsed for all views
+  const [expanded, setExpanded] = useState<string[]>([]);
   
   // Dialog states
   const [openDialog, setOpenDialog] = useState(false);
@@ -122,6 +140,8 @@ const InfrastructureCloudNative: React.FC = () => {
   useEffect(() => {
     console.log('🏗️ InfrastructureCloudNative mounted, tenant:', tenant);
     config.printConfiguration();
+    // Always start with fully collapsed tree showing only root level nodes
+    setExpanded([]);
     fetchInfrastructureData();
     fetchPartners();
     fetchEnvironments();
@@ -187,8 +207,8 @@ const InfrastructureCloudNative: React.FC = () => {
       setPartners(partnersFromStore);
       setError(null);
 
-      // Synchronize expanded state with store's expandedNodeIds
-      setExpanded([...organizationInfraStore.expandedNodeIds]);
+      // Keep tree fully collapsed by default - don't sync with store's expandedNodeIds
+      // setExpanded([...organizationInfraStore.expandedNodeIds]);
     } catch (error) {
       console.error('❌ Error fetching infrastructure data:', error);
       setTreeData([]);
@@ -219,7 +239,12 @@ const InfrastructureCloudNative: React.FC = () => {
     
     if (tenantType === 'organization') {
       // Show Telcobright's own infrastructure (partners with 'self' role)
-      const selfPartners = partners.filter(p => p.roles && p.roles.includes('self'));
+      const selfPartners = partners.filter(p => {
+        // Handle roles as either array or JSON string
+        const rolesArray = Array.isArray(p.roles) ? p.roles :
+                          (typeof p.roles === 'string' ? JSON.parse(p.roles) : []);
+        return rolesArray.includes('self');
+      });
       console.log('🏢 Organization mode - selfPartners:', selfPartners);
       
       if (selfPartners.length === 0) {
@@ -258,7 +283,12 @@ const InfrastructureCloudNative: React.FC = () => {
       }));
     } else {
       // Show other partners' infrastructure (partners without 'self' role)
-      const otherPartners = partners.filter(p => !p.roles.includes('self'));
+      const otherPartners = partners.filter(p => {
+        // Handle roles as either array or JSON string
+        const rolesArray = Array.isArray(p.roles) ? p.roles :
+                          (typeof p.roles === 'string' ? JSON.parse(p.roles) : []);
+        return !rolesArray.includes('self');
+      });
       
       if (otherPartners.length === 0) {
         // No partners available - show infrastructure directly
@@ -598,18 +628,23 @@ const InfrastructureCloudNative: React.FC = () => {
     organizationInfraStore.expandedNodeIds = [];
   };
 
-  const handleTenantChange = (event: React.MouseEvent<HTMLElement>, newTenant: 'organization' | 'partners' | null) => {
-    if (newTenant !== null) {
-      setTenant(newTenant);
-    }
-  };
 
   const handleAdd = (type: 'cloud' | 'region' | 'az' | 'datacenter' | 'compute' | 'network-device', parentNode?: TreeNode) => {
     if (type === 'compute') {
-      setComputeEditData({});
+      // Include datacenter ID when adding compute under a datacenter
+      const computeData: any = {};
+      if (parentNode?.type === 'datacenter') {
+        computeData.datacenterId = parentNode.data?.id;
+      }
+      setComputeEditData(computeData);
       setOpenComputeEditDialog(true);
     } else if (type === 'network-device') {
-      setNetworkDeviceEditData({});
+      // Include datacenter ID when adding network device under a datacenter
+      const networkDeviceData: any = {};
+      if (parentNode?.type === 'datacenter') {
+        networkDeviceData.datacenterId = parentNode.data?.id;
+      }
+      setNetworkDeviceEditData(networkDeviceData);
       setOpenNetworkDeviceEditDialog(true);
     } else {
       setDialogType(type);
@@ -894,30 +929,106 @@ const InfrastructureCloudNative: React.FC = () => {
   };
 
   const getIconForNodeType = (type: string, metadata?: any) => {
+    const iconStyle = {
+      fontSize: 20,
+      filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.08))',
+      transition: 'all 0.2s ease'
+    };
+
     switch (type) {
       case 'organization':
-        return <Business />;
+        return <GroupsIcon sx={{
+          ...iconStyle,
+          background: 'linear-gradient(135deg, #56CCF2 0%, #2F80ED 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text'
+        }} />;
+      case 'partner':
+        return <GroupIcon sx={{
+          ...iconStyle,
+          color: '#1976d2',
+          opacity: 0.9
+        }} />;
       case 'environment':
-        return <PublicIcon />;
+        const envColor = metadata?.type === 'PRODUCTION' ? '#F44336' :
+                        metadata?.type === 'STAGING' ? '#FF9800' : '#2196F3';
+        return <LayersIcon sx={{
+          ...iconStyle,
+          color: envColor,
+          opacity: 0.9
+        }} />;
       case 'cloud':
-        return <CloudIcon />;
+        return <CloudQueueIcon sx={{
+          ...iconStyle,
+          color: '#64B5F6',
+          opacity: 0.85
+        }} />;
       case 'region':
-        return <PublicIcon />;
+        return <MapIcon sx={{
+          ...iconStyle,
+          color: '#9e9e9e',
+          opacity: 0.9
+        }} />;
       case 'az':
-        return <DataCenterIcon />;
+        return <CellTowerIcon sx={{
+          ...iconStyle,
+          color: '#5C6BC0',
+          opacity: 0.85
+        }} />;
       case 'datacenter':
-        return <DataCenterIcon />;
+        return <LocationCityIcon sx={{
+          ...iconStyle,
+          color: '#90a4ae',
+          opacity: 0.9
+        }} />;
       case 'resource-group':
-        return metadata?.icon === 'cloud' ? <CloudIcon /> : 
-               metadata?.icon === 'router' ? <RouterIcon /> : <AccountTreeIcon />;
+        return metadata?.icon === 'cloud' ?
+               <CloudIcon sx={{ ...iconStyle, color: '#64B5F6', opacity: 0.9 }} /> :
+               metadata?.icon === 'router' ?
+               <HubIcon sx={{ ...iconStyle, color: '#FFB74D', opacity: 0.9 }} /> :
+               <DeviceHubIcon sx={{ ...iconStyle, color: '#9E9E9E', opacity: 0.9 }} />;
       case 'service':
-        return <SettingsIcon />;
+        return <SettingsIcon sx={{
+          ...iconStyle,
+          color: '#78909C',
+          opacity: 0.75
+        }} />;
       case 'compute':
-        return <Computer />;
+        return <ServerIcon sx={{
+          ...iconStyle,
+          background: 'linear-gradient(135deg, #FA8BFF 0%, #2BD2FF 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text'
+        }} />;
       case 'network-device':
-        return <RouterIcon />;
+        return <RouterIcon sx={{
+          ...iconStyle,
+          background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text'
+        }} />;
+      case 'container':
+        return <DnsIcon sx={{
+          ...iconStyle,
+          color: '#00ACC1',
+          opacity: 0.85
+        }} />;
+      case 'pool':
+      case 'resourcepool':
+        return <StorageIcon sx={{
+          ...iconStyle,
+          color: '#a1887f',
+          opacity: 0.9
+        }} />;
       default:
-        return <DataObject />;
+        return <DataObject sx={{
+          ...iconStyle,
+          color: '#9E9E9E',
+          opacity: 0.6
+        }} />;
     }
   };
 
@@ -938,8 +1049,17 @@ const InfrastructureCloudNative: React.FC = () => {
               sx={{ display: 'flex', alignItems: 'center', py: 0.5 }}
               onContextMenu={(e) => handleContextMenu(e, node)}
             >
-              {getIconForNodeType(node.type, node.metadata)}
-              <Typography variant="body2" sx={{ ml: 1 }}>
+              {getIconForNodeType(node.type, node.data)}
+              <Typography
+                variant="body2"
+                sx={{
+                  ml: 1,
+                  fontWeight: 300,
+                  color: 'text.primary',
+                  fontSize: '0.875rem',
+                  letterSpacing: '0.01em'
+                }}
+              >
                 {node.name}
               </Typography>
               {node.metadata?.tier && (
@@ -1033,10 +1153,10 @@ const InfrastructureCloudNative: React.FC = () => {
   };
 
   return (
-    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', px: 2, pt: 1, pb: 2 }}>
+    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', px: 2, pt: 0, pb: 2 }}>
       {/* Header */}
-      <Typography variant="h4" gutterBottom sx={{ mb: 1 }}>
-        Manage Infrastructure
+      <Typography variant="h4" sx={{ mb: 0.5, mt: 0 }}>
+        {tenant === 'organization' ? 'Organization Infrastructure' : 'Partners Infrastructure'}
       </Typography>
 
       {/* Main Content */}
@@ -1055,7 +1175,7 @@ const InfrastructureCloudNative: React.FC = () => {
                 mb: 0
               }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <AccountTree sx={{ fontSize: 20, color: '#1976d2' }} />
+                  <AccountTree sx={{ fontSize: 20, color: '#757575' }} />
                   <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                     Infrastructure Tree
                   </Typography>
@@ -1104,9 +1224,33 @@ const InfrastructureCloudNative: React.FC = () => {
                   onNodeSelect={handleNodeSelect}
                   expanded={expanded}
                   onNodeToggle={handleToggle}
-                  defaultCollapseIcon={<ExpandMore />}
-                  defaultExpandIcon={<ChevronRight />}
-                  sx={{ flexGrow: 1 }}
+                  defaultCollapseIcon={<ExpandMore sx={{ fontSize: 18, opacity: 0.6 }} />}
+                  defaultExpandIcon={<ChevronRight sx={{ fontSize: 18, opacity: 0.6 }} />}
+                  sx={{
+                    flexGrow: 1,
+                    '& .MuiTreeItem-content': {
+                      paddingLeft: '4px',
+                      paddingTop: '3px',
+                      paddingBottom: '3px',
+                      '&:hover': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.03)'
+                      },
+                      '&.Mui-selected': {
+                        backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                        '&:hover': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.12)'
+                        }
+                      }
+                    },
+                    '& .MuiTreeItem-group': {
+                      marginLeft: '12px',
+                      borderLeft: '1px solid rgba(0, 0, 0, 0.05)'
+                    },
+                    '& .MuiTreeItem-label': {
+                      fontSize: '0.875rem',
+                      fontWeight: 300
+                    }
+                  }}
                 >
                   {renderTreeItems(treeData)}
                 </TreeView>
@@ -1464,7 +1608,7 @@ const InfrastructureCloudNative: React.FC = () => {
         formData={computeEditData || {}}
         setFormData={setComputeEditData}
         onSave={handleComputeSave}
-        editMode={true}
+        editMode={!!computeEditData?.id}
       />
 
       <NetworkDeviceEditDialog

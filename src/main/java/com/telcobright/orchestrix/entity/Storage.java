@@ -5,7 +5,7 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "storages")
+@Table(name = "storage")
 public class Storage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

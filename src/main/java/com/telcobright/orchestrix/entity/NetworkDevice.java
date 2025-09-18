@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 @Entity
-@Table(name = "network_devices")
+@Table(name = "network_device")
 @Data
 public class NetworkDevice {
     

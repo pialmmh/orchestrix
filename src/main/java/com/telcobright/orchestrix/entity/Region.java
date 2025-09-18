@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "regions")
+@Table(name = "region")
 @Data
 public class Region {
     @Id

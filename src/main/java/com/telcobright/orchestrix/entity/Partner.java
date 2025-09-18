@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 @Entity
-@Table(name = "partners")
+@Table(name = "partner")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

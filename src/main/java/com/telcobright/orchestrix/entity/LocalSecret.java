@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
  * Entity for storing encrypted secrets locally in the database
  */
 @Entity
-@Table(name = "local_secrets")
+@Table(name = "local_secret")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

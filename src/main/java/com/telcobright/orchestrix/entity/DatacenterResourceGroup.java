@@ -6,7 +6,7 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "datacenter_resource_groups")
+@Table(name = "datacenter_resource_group")
 @Data
 public class DatacenterResourceGroup {
     

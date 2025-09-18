@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "environments")
+@Table(name = "environment")
 @Data
 public class Environment {
     

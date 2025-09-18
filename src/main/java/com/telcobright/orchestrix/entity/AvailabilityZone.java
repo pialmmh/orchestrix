@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "availability_zones")
+@Table(name = "availability_zone")
 @Data
 public class AvailabilityZone {
     @Id

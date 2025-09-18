@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "resource_groups")
+@Table(name = "resource_group")
 @Data
 public class ResourceGroup {
     

@@ -76,8 +76,8 @@ const menuCategories: MenuCategory[] = [
   {
     label: 'Infrastructure',
     items: [
-      { label: 'Organization', path: '/infrastructure', icon: <Cloud /> },
-      { label: 'Partners', path: '/partners', icon: <Public /> },
+      { label: 'Organization', path: '/infrastructure/organization', icon: <Cloud /> },
+      { label: 'Partners', path: '/infrastructure/partners', icon: <Public /> },
       { label: 'Clients', path: '/clients', icon: <BusinessCenter /> },
       { label: 'Datacenters', path: '/resources/datacenters', icon: <Dns /> },
       { label: 'Servers', path: '/servers', icon: <Storage /> },

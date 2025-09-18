@@ -13,7 +13,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "ip_addresses")
+@Table(name = "ip_address")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

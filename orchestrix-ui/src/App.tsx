@@ -57,9 +57,11 @@ function App() {
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="infrastructure" element={<InfrastructureCloudNative />} />
+              <Route path="infrastructure" element={<Navigate to="/infrastructure/organization" replace />} />
+              <Route path="infrastructure/organization" element={<InfrastructureCloudNative />} />
+              <Route path="infrastructure/partners" element={<InfrastructureCloudNative />} />
               <Route path="infrastructure-stellar" element={<InfrastructureStellar />} />
-              <Route path="clouds" element={<Navigate to="/infrastructure" replace />} />
+              <Route path="clouds" element={<Navigate to="/infrastructure/organization" replace />} />
               <Route path="users" element={<Users />} />
               <Route path="users/:id" element={<UserProfile />} />
               <Route path="partners" element={<Partners />} />

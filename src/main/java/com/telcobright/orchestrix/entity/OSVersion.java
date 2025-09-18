@@ -4,7 +4,7 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "os_versions")
+@Table(name = "os_version")
 public class OSVersion {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

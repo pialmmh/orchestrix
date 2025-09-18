@@ -60,8 +60,8 @@ export class OrganizationInfraStore extends StellarStore {
       displayTreeData: computed,
     });
 
-    // Initialize with some default expanded nodes
-    this.expandedNodeIds = ['org-root', 'environments'];
+    // Start with fully collapsed tree - no expanded nodes by default
+    this.expandedNodeIds = [];
   }
 
   get isNodeExpanded() {

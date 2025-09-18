@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.HashMap;
 
 @Entity
-@Table(name = "compute_access_credentials")
+@Table(name = "compute_access_credential")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

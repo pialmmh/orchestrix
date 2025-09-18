@@ -9,7 +9,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
-@Table(name = "states")
+@Table(name = "state")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

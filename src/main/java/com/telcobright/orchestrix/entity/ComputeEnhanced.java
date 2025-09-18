@@ -10,7 +10,7 @@ import java.util.List;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "computes")
+@Table(name = "compute")
 public class ComputeEnhanced {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
