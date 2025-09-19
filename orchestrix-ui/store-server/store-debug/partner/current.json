@@ -1,0 +1,11 @@
+{
+  "entity": "partner",
+  "query": null,
+  "data": [],
+  "meta": {
+    "timestamp": null,
+    "totalCount": 0,
+    "pageSize": 20,
+    "pagesLoaded": []
+  }
+}

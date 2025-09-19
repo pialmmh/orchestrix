@@ -1,0 +1,38 @@
+Orchestrix
+DEBUG
+Infrastructure
+Resources
+Administration
+Analytics
+Developer
+4
+Environment Filter
+All Environments
+Production
+Staging
+Development
+Testing
+ENVIRONMENT SUMMARY
+
+Production: 12 servers
+
+Staging: 8 servers
+
+Development: 15 servers
+
+Testing: 5 servers
+
+ADDITIONAL FILTERS
+Active Resources Only
+Show Shared Resources
+Infrastructure
+Organization
+Partners
+
+Telcobright
+
+Actions
+
+Select a node to see available actions
+
+Select a node to view details
