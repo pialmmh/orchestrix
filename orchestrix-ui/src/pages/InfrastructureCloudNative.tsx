@@ -27,6 +27,7 @@ import {
   TextField,
   Tooltip,
   Fade,
+  Avatar,
 } from '@mui/material';
 import {
   Refresh,
@@ -937,15 +938,28 @@ const InfrastructureCloudNative: React.FC = () => {
       transition: 'all 0.2s ease'
     };
 
+    // Avatar style for text-based icons
+    const avatarStyle = {
+      width: 22,
+      height: 22,
+      fontSize: 11,
+      fontWeight: 600,
+      marginRight: 1,
+      backgroundColor: '#f0f0f0',
+      color: '#616161'
+    };
+
     switch (type) {
       case 'organization':
-        return <GroupsIcon sx={{
-          ...iconStyle,
-          background: 'linear-gradient(135deg, #56CCF2 0%, #2F80ED 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text'
-        }} />;
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#e8eaf6',
+            color: '#5e35b1'
+          }}>
+            O
+          </Avatar>
+        );
       case 'partner':
         return <GroupIcon sx={{
           ...iconStyle,
@@ -953,84 +967,116 @@ const InfrastructureCloudNative: React.FC = () => {
           opacity: 0.9
         }} />;
       case 'environment':
-        const envColor = metadata?.type === 'PRODUCTION' ? '#F44336' :
-                        metadata?.type === 'STAGING' ? '#FF9800' : '#2196F3';
-        return <LayersIcon sx={{
-          ...iconStyle,
-          color: envColor,
-          opacity: 0.9
-        }} />;
+        const envBgColor = metadata?.type === 'PRODUCTION' ? '#ffebee' :
+                        metadata?.type === 'STAGING' ? '#fff3e0' : '#e3f2fd';
+        const envTextColor = metadata?.type === 'PRODUCTION' ? '#c62828' :
+                        metadata?.type === 'STAGING' ? '#ef6c00' : '#1565c0';
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: envBgColor,
+            color: envTextColor
+          }}>
+            E
+          </Avatar>
+        );
       case 'cloud':
         return (
-          <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-            <CloudIcon sx={{
-              ...iconStyle,
-              color: '#90CAF9',
-              opacity: 1
-            }} />
-            <CloudIcon sx={{
-              ...iconStyle,
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              color: 'rgba(255, 255, 255, 0.4)',
-              transform: 'scale(0.85)',
-              opacity: 1
-            }} />
-          </Box>
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#e1f5fe',
+            color: '#0277bd',
+            fontSize: 9
+          }}>
+            CL
+          </Avatar>
         );
       case 'region':
-        return <MapIcon sx={{
-          ...iconStyle,
-          color: '#9e9e9e',
-          opacity: 0.9
-        }} />;
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#f5f5f5',
+            color: '#757575'
+          }}>
+            R
+          </Avatar>
+        );
       case 'az':
-        return <CellTowerIcon sx={{
-          ...iconStyle,
-          color: '#5C6BC0',
-          opacity: 0.85
-        }} />;
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#ede7f6',
+            color: '#512da8',
+            fontSize: 9
+          }}>
+            AZ
+          </Avatar>
+        );
       case 'datacenter':
-        return <LocationCityIcon sx={{
-          ...iconStyle,
-          color: '#90a4ae',
-          opacity: 0.9
-        }} />;
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#eceff1',
+            color: '#546e7a',
+            fontSize: 9
+          }}>
+            DC
+          </Avatar>
+        );
       case 'resource-group':
-        return metadata?.icon === 'cloud' ?
-               <CloudIcon sx={{ ...iconStyle, color: '#64B5F6', opacity: 0.9 }} /> :
-               metadata?.icon === 'router' ?
-               <HubIcon sx={{ ...iconStyle, color: '#FFB74D', opacity: 0.9 }} /> :
-               <DeviceHubIcon sx={{ ...iconStyle, color: '#9E9E9E', opacity: 0.9 }} />;
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#fce4ec',
+            color: '#880e4f',
+            fontSize: 9
+          }}>
+            RG
+          </Avatar>
+        );
       case 'service':
-        return <SettingsIcon sx={{
-          ...iconStyle,
-          color: '#78909C',
-          opacity: 0.75
-        }} />;
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#f3e5f5',
+            color: '#4a148c'
+          }}>
+            S
+          </Avatar>
+        );
       case 'compute':
-        return <ServerIcon sx={{
-          ...iconStyle,
-          background: 'linear-gradient(135deg, #FA8BFF 0%, #2BD2FF 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text'
-        }} />;
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#e0f2f1',
+            color: '#00695c',
+            fontSize: 9
+          }}>
+            VM
+          </Avatar>
+        );
       case 'network-device':
-        return <RouterIcon sx={{
-          ...iconStyle,
-          background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text'
-        }} />;
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#fff8e1',
+            color: '#f57c00',
+            fontSize: 9
+          }}>
+            ND
+          </Avatar>
+        );
       case 'container':
-        return <DnsIcon sx={{
-          ...iconStyle,
-          color: '#00ACC1',
-          opacity: 0.85
-        }} />;
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#e0f7fa',
+            color: '#00838f',
+            fontSize: 9
+          }}>
+            CN
+          </Avatar>
+        );
       case 'pool':
       case 'resourcepool':
         return <StorageIcon sx={{
