@@ -16,9 +16,9 @@ export class LocalStore {
 
   constructor() {
     const config = getStoreDebugConfig();
-    // Only start listening if we're NOT using WebSocket debug mode
-    // In WebSocket mode, the server handles all query processing
-    if (!config.store_debug || config.eventbus !== 'websocket') {
+    // Only start listening if we're NOT in debug mode
+    // In debug mode, the WebSocket server handles all query processing
+    if (!config.store_debug) {
       this.startListening();
     }
   }

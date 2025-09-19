@@ -257,8 +257,10 @@ export class WebSocketEventBus implements IEventBus {
 // Factory to create the appropriate EventBus
 export function createEventBus(): IEventBus {
   const config = getStoreDebugConfig();
-  
-  if (config.store_debug && config.eventbus === 'websocket') {
+
+  // EventBus type is determined by store_debug flag only
+  // When debug is on, use WebSocket; when off, use Local
+  if (config.store_debug) {
     console.log('[EventBus] Creating WebSocketEventBus for debug mode');
     return new WebSocketEventBus();
   } else {

@@ -1,7 +1,6 @@
 // Store Debug Mode Configuration
 export interface StoreDebugConfig {
   store_debug: boolean;
-  eventbus: 'websocket' | 'local';
   websocket_url: string;
   log_retention_hours: number;
   request_timeout_ms: number; // Timeout for EventBus requests
@@ -10,7 +9,6 @@ export interface StoreDebugConfig {
 // Default configuration
 export const defaultStoreDebugConfig: StoreDebugConfig = {
   store_debug: false, // Debug mode disabled
-  eventbus: 'local',
   websocket_url: 'ws://localhost:3013/store-debug',
   log_retention_hours: 24, // Keep logs for 1 day
   request_timeout_ms: 30000, // 30 seconds default timeout
