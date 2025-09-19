@@ -1,4 +1,4 @@
-const { createMachine, interpret } = require('xstate');
+const { createMachine, createActor } = require('xstate');
 const { makeObservable, observable, action, toJS } = require('mobx');
 const HistoryLogger = require('./historyLogger');
 
@@ -130,11 +130,11 @@ const createStoreMachine = (storeName, store = null) => {
     },
   }, {
     actions: {
-      setLoading: (context) => {
+      setLoading: ({ context }) => {
         context.store.setLoading(true);
         context.operationCount++;
       },
-      handleQuerySuccess: (context, event) => {
+      handleQuerySuccess: ({ context, event }) => {
         context.store.setData(event.data.result);
         context.store.setLoading(false);
         context.lastOperation = {
@@ -143,7 +143,7 @@ const createStoreMachine = (storeName, store = null) => {
           success: true,
         };
       },
-      handleMutationSuccess: (context, event) => {
+      handleMutationSuccess: ({ context, event }) => {
         // Update store based on mutation result
         if (event.data.operation === 'INSERT') {
           const currentData = toJS(context.store.data);
@@ -167,7 +167,7 @@ const createStoreMachine = (storeName, store = null) => {
           success: true,
         };
       },
-      handleError: (context, event) => {
+      handleError: ({ context, event }) => {
         context.store.setError(event.data?.message || 'Operation failed');
         context.lastOperation = {
           type: context.lastOperation?.type || 'unknown',
@@ -176,7 +176,7 @@ const createStoreMachine = (storeName, store = null) => {
           error: event.data,
         };
       },
-      handleRestoreSuccess: (context, event) => {
+      handleRestoreSuccess: ({ context, event }) => {
         context.store.restoreSnapshot(event.data.snapshot);
         context.lastOperation = {
           type: 'restore',
@@ -185,21 +185,21 @@ const createStoreMachine = (storeName, store = null) => {
           restoredTo: event.data.timestamp,
         };
       },
-      logEvent: (context, event, meta) => {
+      logEvent: ({ context, event }) => {
         // Log will be handled by the machine service
         // This is just a placeholder for the action
       },
     },
-    services: {
-      executeQuery: async (context, event) => {
+    actors: {
+      executeQuery: async ({ context, event }) => {
         // This will be overridden by the actual implementation
         throw new Error('Query service not implemented');
       },
-      executeMutation: async (context, event) => {
+      executeMutation: async ({ context, event }) => {
         // This will be overridden by the actual implementation
         throw new Error('Mutation service not implemented');
       },
-      restoreFromHistory: async (context, event) => {
+      restoreFromHistory: async ({ context, event }) => {
         // This will be overridden by the actual implementation
         throw new Error('Restore service not implemented');
       },
@@ -220,53 +220,72 @@ class StoreMachineService {
 
   createMachine(sessionId, storeName, store = null) {
     const machine = createStoreMachine(storeName, store);
-    
-    // Create interpreter with custom services
-    const service = interpret(machine.withConfig({
-      services: {
-        executeQuery: async (context, event) => {
+
+    // Create actor with custom services
+    const service = createActor(machine.provide({
+      actors: {
+        executeQuery: ({ input }) => {
           // Implement actual query logic here
-          const StellarClient = require('./unified-store/services/StellarClient');
-          const response = await StellarClient.post('stellar/query', event.query);
-          return { result: response.data };
+          const axios = require('axios');
+          const STELLAR_API_URL = process.env.STELLAR_API_URL || 'http://localhost:8090/api';
+          const url = `${STELLAR_API_URL}/stellar/query`;
+
+          console.log('[XState] Executing query to:', url);
+          console.log('[XState] Query payload:', JSON.stringify(input.query));
+
+          return axios.post(url, input.query).then(response => {
+            console.log('[XState] Query success, response:', response.data);
+            return { result: response.data };
+          }).catch(error => {
+            console.error('[XState] Query error:', error.message);
+            console.error('[XState] Error response:', error.response?.data);
+            console.error('[XState] Error status:', error.response?.status);
+            throw new Error(error.response?.data?.error || error.message || 'Query failed');
+          });
         },
-        executeMutation: async (context, event) => {
+        executeMutation: async ({ context, event }) => {
           // Implement actual mutation logic here
-          const StellarClient = require('./unified-store/services/StellarClient');
-          const response = await StellarClient.post('stellar/modify', event.request);
-          return { 
-            result: response.data,
-            operation: event.request.operation,
-            id: event.request.id,
-          };
+          const axios = require('axios');
+          const STELLAR_API_URL = process.env.STELLAR_API_URL || 'http://localhost:8090/api';
+          try {
+            const response = await axios.post(`${STELLAR_API_URL}/stellar/modify`, event.request);
+            return {
+              result: response.data,
+              operation: event.request.operation,
+              id: event.request.id,
+            };
+          } catch (error) {
+            console.error('[XState] Mutation error:', error.message);
+            throw error;
+          }
         },
-        restoreFromHistory: async (context, event) => {
+        restoreFromHistory: async ({ context, event }) => {
           // Restore from a specific point in history
           const events = await this.historyLogger.searchEvents({
             sessionId: context.sessionId,
             endTime: event.timestamp,
             limit: 1,
           });
-          
+
           if (events.length > 0 && events[0].snapshot) {
             return {
               snapshot: events[0].snapshot,
               timestamp: events[0].timestamp,
             };
           }
-          
+
           throw new Error('No snapshot found for the specified timestamp');
         },
       },
       actions: {
-        logEvent: (context, event, meta) => {
+        logEvent: ({ context, event, self }) => {
           // Log every transition and event
           const logEntry = {
             type: event.type,
             sessionId: context.sessionId || sessionId,
             operation: event.type,
             stateSnapshot: context.store.getSnapshot(),
-            machineState: meta.state.value,
+            machineState: self.getSnapshot().value,
             context: {
               operationCount: context.operationCount,
               lastOperation: context.lastOperation,
@@ -279,9 +298,6 @@ class StoreMachineService {
       },
     }));
 
-    // Set session ID in context
-    service.send({ type: 'SESSION_INIT', sessionId });
-    
     // Start the service
     service.start();
     
@@ -316,7 +332,7 @@ class StoreMachineService {
     }
     
     service.send(event);
-    return service.state.context.store.getSnapshot();
+    return service.getSnapshot().context.store.getSnapshot();
   }
 
   async replayEvents(sessionId, fromTimestamp, toTimestamp) {
@@ -337,7 +353,7 @@ class StoreMachineService {
       }
     }
 
-    return replayService.state.context.store.getSnapshot();
+    return replayService.getSnapshot().context.store.getSnapshot();
   }
 
   async getHistory(sessionId, limit = 100) {
@@ -359,8 +375,8 @@ class StoreMachineService {
         sessionId,
         storeName: machine.storeName,
         createdAt: machine.createdAt,
-        state: machine.service.state.value,
-        operationCount: machine.service.state.context.operationCount,
+        state: machine.service.getSnapshot().value,
+        operationCount: machine.service.getSnapshot().context.operationCount,
       });
     }
 

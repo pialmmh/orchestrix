@@ -88,7 +88,7 @@ async function handleQueryWithXState(event, sessionId) {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     // Get current state snapshot
-    const snapshot = machine.state.context.store.getSnapshot();
+    const snapshot = machine.getSnapshot().context.store.getSnapshot();
 
     // Create response event
     const responseEvent = {
@@ -102,7 +102,7 @@ async function handleQueryWithXState(event, sessionId) {
         duration: Date.now() - event.timestamp,
         serverProcessed: true,
         xstateProcessed: true,
-        machineState: machine.state.value,
+        machineState: machine.getSnapshot().value,
       },
       success: !snapshot.error,
       error: snapshot.error,

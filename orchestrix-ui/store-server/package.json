@@ -6,15 +6,21 @@
   "scripts": {
     "start": "tsx server.js",
     "start:xstate": "tsx serverWithXState.js",
+    "start:simple": "tsx server-simple.ts",
     "dev": "node dev-server.js",
     "dev:xstate": "node dev-server.js --xstate",
+    "dev:simple": "node dev-server-simple.js",
     "dev:nodemon": "nodemon server.js",
     "dev:nodemon:xstate": "nodemon serverWithXState.js",
     "sync": "node ../scripts/sync-store.js",
-    "sync:watch": "node ../scripts/sync-store.js --watch"
+    "sync:watch": "node ../scripts/sync-store.js --watch",
+    "test": "tsx test-runner.ts",
+    "test:stores": "tsx test-runner.ts",
+    "snapshots": "ls -la store-snapshots/"
   },
   "dependencies": {
     "axios": "^1.6.0",
+    "chalk": "^5.6.2",
     "date-fns": "^4.1.0",
     "dotenv": "^16.3.1",
     "mobx": "^6.13.7",
