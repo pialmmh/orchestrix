@@ -48,13 +48,15 @@
     "start:staging": "env-cmd -f .env.staging react-scripts start",
     "start:prod": "env-cmd -f .env.prod react-scripts start",
     "start:mock": "env-cmd -f .env.mock react-scripts start",
-    "build": "react-scripts build",
-    "build:dev": "env-cmd -f .env.dev react-scripts build",
-    "build:staging": "env-cmd -f .env.staging react-scripts build",
-    "build:prod": "env-cmd -f .env.prod react-scripts build",
-    "build:mock": "env-cmd -f .env.mock react-scripts build",
+    "build": "react-scripts build && npm run sync-store",
+    "build:dev": "env-cmd -f .env.dev react-scripts build && npm run sync-store",
+    "build:staging": "env-cmd -f .env.staging react-scripts build && npm run sync-store",
+    "build:prod": "env-cmd -f .env.prod react-scripts build && npm run sync-store",
+    "build:mock": "env-cmd -f .env.mock react-scripts build && npm run sync-store",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "sync-store": "node scripts/sync-store.js",
+    "sync-store:watch": "node scripts/sync-store.js --watch"
   },
   "eslintConfig": {
     "extends": [
