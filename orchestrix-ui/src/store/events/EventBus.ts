@@ -14,6 +14,8 @@ export interface IEventBus {
   subscribe(eventId: string | '*', handler: (event: StoreEvent | StoreEventResponse) => void): void;
   unsubscribe(eventId: string | '*', handler?: (event: StoreEvent | StoreEventResponse) => void): void;
   clear(): void;
+  // New request-response pattern for queries
+  request<T = any>(eventId: string, payload: any): Promise<T>;
 }
 
 // Local EventBus using mitt
@@ -53,6 +55,43 @@ export class LocalEventBus implements IEventBus {
 
   clear(): void {
     this.emitter.all?.clear();
+  }
+
+  async request<T = any>(eventId: string, payload: any): Promise<T> {
+    return new Promise((resolve, reject) => {
+      // Subscribe to response with the same eventId
+      const responseHandler = (event: StoreEvent | StoreEventResponse) => {
+        if (event.id === eventId) {
+          this.unsubscribe(eventId, responseHandler);
+
+          const response = event as StoreEventResponse;
+          if (response.success) {
+            resolve(response.payload as T);
+          } else {
+            reject(new Error(response.error || 'Request failed'));
+          }
+        }
+      };
+
+      this.subscribe(eventId, responseHandler);
+
+      // Publish the request
+      this.publish({
+        id: eventId,
+        timestamp: Date.now(),
+        type: 'query',
+        operation: 'REQUEST',
+        entity: payload.kind || 'unknown',
+        payload,
+        metadata: {}
+      });
+
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        this.unsubscribe(eventId, responseHandler);
+        reject(new Error('Request timeout'));
+      }, 30000);
+    });
   }
 }
 
@@ -148,6 +187,12 @@ export class WebSocketEventBus implements IEventBus {
 
   clear(): void {
     this.localBus.clear();
+  }
+
+  async request<T = any>(eventId: string, payload: any): Promise<T> {
+    // For now, just delegate to local bus
+    // In future, this could send via WebSocket and wait for response
+    return this.localBus.request<T>(eventId, payload);
   }
 
   disconnect(): void {

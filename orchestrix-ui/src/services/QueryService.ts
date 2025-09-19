@@ -4,10 +4,13 @@ import { getEventBus } from '../store/events/EventBus';
 import { StoreEvent, StoreEventResponse } from '../store/events/StoreEvent';
 import { v4 as uuidv4 } from 'uuid';
 import { getStoreDebugConfig } from '../config/storeDebugConfig';
+// Initialize LocalStore to handle events
+import '../store/events/LocalStore';
 
 class QueryService {
   private eventBus = getEventBus();
   private debugMode = getStoreDebugConfig().store_debug;
+  private useEventBus = true; // Toggle to switch between EventBus and direct HTTP
 
   async executeQuery<T = any>(query: QueryNode): Promise<QueryResponse<T>> {
     const eventId = uuidv4();
@@ -31,7 +34,17 @@ class QueryService {
     }
 
     try {
-      const response = await StellarClient.post<QueryResponse<T>>('stellar/query', query);
+      // Use EventBus for queries
+      let response: QueryResponse<T>;
+
+      if (this.useEventBus) {
+        // Send query through EventBus and wait for response
+        const data = await this.eventBus.request<T>(eventId, query);
+        response = { success: true, data } as QueryResponse<T>;
+      } else {
+        // Fallback to direct HTTP call
+        response = await StellarClient.post<QueryResponse<T>>('stellar/query', query);
+      }
       
       // Publish query success event if in debug mode
       if (this.debugMode) {
