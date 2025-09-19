@@ -58,6 +58,8 @@ export class LocalEventBus implements IEventBus {
   }
 
   async request<T = any>(eventId: string, payload: any): Promise<T> {
+    const config = getStoreDebugConfig();
+
     return new Promise((resolve, reject) => {
       let responded = false;
 
@@ -90,14 +92,14 @@ export class LocalEventBus implements IEventBus {
         metadata: {}
       });
 
-      // Timeout after 30 seconds
+      // Timeout after configured duration
       setTimeout(() => {
         if (!responded) {
           responded = true;
           this.unsubscribe(eventId, responseHandler);
           reject(new Error('Request timeout'));
         }
-      }, 30000);
+      }, config.request_timeout_ms);
     });
   }
 }
