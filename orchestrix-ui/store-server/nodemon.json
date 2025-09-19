@@ -1,0 +1,19 @@
+{
+  "watch": [
+    ".",
+    "../src/unified-store/**/*"
+  ],
+  "ext": "js,ts,tsx,json",
+  "ignore": [
+    "node_modules",
+    "logs/*",
+    "*.test.ts",
+    "*.spec.ts"
+  ],
+  "exec": "node ../scripts/sync-store.js && tsx",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": 1000,
+  "verbose": true
+}

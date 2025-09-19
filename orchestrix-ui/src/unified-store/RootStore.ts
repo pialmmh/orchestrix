@@ -11,6 +11,7 @@ export class RootStore {
 
   // Reset all stores
   reset() {
+    console.log('Resetting all stores...');
     this.organizationInfraStore.reset();
   }
 }

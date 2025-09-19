@@ -6,8 +6,12 @@
   "scripts": {
     "start": "tsx server.js",
     "start:xstate": "tsx serverWithXState.js",
-    "dev": "tsx watch server.js",
-    "dev:xstate": "tsx watch serverWithXState.js"
+    "dev": "node dev-server.js",
+    "dev:xstate": "node dev-server.js --xstate",
+    "dev:nodemon": "nodemon server.js",
+    "dev:nodemon:xstate": "nodemon serverWithXState.js",
+    "sync": "node ../scripts/sync-store.js",
+    "sync:watch": "node ../scripts/sync-store.js --watch"
   },
   "dependencies": {
     "axios": "^1.6.0",
@@ -21,6 +25,7 @@
   "devDependencies": {
     "@types/node": "^24.5.2",
     "@types/ws": "^8.18.1",
+    "chokidar": "^4.0.3",
     "nodemon": "^3.0.1",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"
