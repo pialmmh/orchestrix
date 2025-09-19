@@ -39,7 +39,7 @@ function shouldExclude(file) {
   });
 }
 
-// Copy file and transform imports if needed
+// Copy file without transformation
 function syncFile(src, dest) {
   if (shouldExclude(src)) return;
 
@@ -53,59 +53,13 @@ function syncFile(src, dest) {
       syncFile(path.join(src, file), path.join(dest, file));
     });
   } else if (stats.isFile()) {
-    let content = fs.readFileSync(src, 'utf-8');
-
-    // Transform TypeScript to JavaScript compatible code for Node.js
-    if (src.endsWith('.ts') || src.endsWith('.tsx')) {
-      // Basic transformations for Node.js compatibility
-      content = transformForNode(content, src);
-      dest = dest.replace(/\.tsx?$/, '.js');
-    }
-
+    // Copy TypeScript files as-is without transformation
+    const content = fs.readFileSync(src, 'utf-8');
     fs.writeFileSync(dest, content);
     console.log(`  ✓ Synced: ${path.relative(SOURCE_DIR, src)}`);
   }
 }
 
-// Transform TypeScript code for Node.js
-function transformForNode(content, filepath) {
-  // Skip if it's already JavaScript
-  if (!filepath.endsWith('.ts') && !filepath.endsWith('.tsx')) {
-    return content;
-  }
-
-  // Remove TypeScript type annotations (basic transformation)
-  let transformed = content;
-
-  // Convert ES6 imports to CommonJS for Node.js
-  transformed = transformed
-    // import { X } from 'Y' -> const { X } = require('Y')
-    .replace(/^import\s+\{([^}]+)\}\s+from\s+['"]([^'"]+)['"]/gm,
-             "const {$1} = require('$2')")
-    // import X from 'Y' -> const X = require('Y')
-    .replace(/^import\s+(\w+)\s+from\s+['"]([^'"]+)['"]/gm,
-             "const $1 = require('$2')")
-    // export default -> module.exports =
-    .replace(/^export\s+default\s+/gm, 'module.exports = ')
-    // export { -> module.exports = {
-    .replace(/^export\s+\{/gm, 'module.exports = {')
-    // export const/let/var -> exports.
-    .replace(/^export\s+(const|let|var)\s+(\w+)/gm, 'exports.$2')
-    // Remove type imports
-    .replace(/^import\s+type\s+.*$/gm, '')
-    // Remove interface/type definitions
-    .replace(/^(export\s+)?(interface|type)\s+\w+\s*=?\s*{[^}]*}/gm, '')
-    // Remove type annotations from parameters
-    .replace(/:\s*[\w\[\]<>,\s|]+(?=[,\)])/g, '')
-    // Remove generic type parameters
-    .replace(/<[\w\s,]+>/g, '');
-
-  return `// Auto-generated from TypeScript source
-// Original: ${path.relative(SOURCE_DIR, filepath)}
-// Generated: ${new Date().toISOString()}
-
-${transformed}`;
-}
 
 // Main sync function
 function syncStore() {
@@ -140,46 +94,38 @@ function syncStore() {
   console.log('\n✅ Store sync completed!\n');
 }
 
-// Create main index file for Node.js
+// Create main index file for TypeScript Node.js
 function createNodeIndex() {
-  const indexPath = path.join(DEST_DIR, 'index.js');
-  const indexContent = `// Auto-generated index file for Node.js store
+  const indexPath = path.join(DEST_DIR, 'index.ts');
+  const indexContent = `// Auto-generated index file for TypeScript Node.js store
 // This file exports all stores and services for use in the backend
 
-const path = require('path');
+// Base stores
+export * from './base/StellarStore';
+export * from './base/UnifiedStore';
 
-// Export all stores
-module.exports = {
-  // Base stores
-  ...requireIfExists('./base/StellarStore'),
+// Infrastructure stores
+export * from './infrastructure/OrganizationInfraStore';
 
-  // Infrastructure stores
-  ...requireIfExists('./infrastructure/OrganizationInfraStore'),
+// Root store
+export * from './RootStore';
 
-  // Event system
-  ...requireIfExists('./events/EventBus'),
-  ...requireIfExists('./events/LocalStore'),
+// Event system
+export * from './events/EventBus';
+export * from './events/LocalStore';
+export * from './events/StoreEvent';
 
-  // Services
-  ...requireIfExists('./services/QueryService'),
-  ...requireIfExists('./services/MutationService'),
+// Services
+export { default as QueryService } from './services/QueryService';
+export { default as MutationService } from './services/MutationService';
 
-  // Helpers
-  ...requireIfExists('./helpers')
-};
-
-function requireIfExists(modulePath) {
-  try {
-    return require(modulePath);
-  } catch (e) {
-    console.log(\`Module not found: \${modulePath}\`);
-    return {};
-  }
-}
+// React components and hooks (may not be used in backend)
+export * from './base/StoreProvider';
+export * from './base/useStores';
 `;
 
   fs.writeFileSync(indexPath, indexContent);
-  console.log('  ✓ Created index.js for Node.js');
+  console.log('  ✓ Created index.ts for TypeScript Node.js');
 }
 
 // Watch mode for development
@@ -205,7 +151,7 @@ function watchStore() {
     })
     .on('unlink', filepath => {
       console.log(`  ➖ Removed: ${path.relative(SOURCE_DIR, filepath)}`);
-      const dest = filepath.replace(SOURCE_DIR, DEST_DIR).replace(/\.tsx?$/, '.js');
+      const dest = filepath.replace(SOURCE_DIR, DEST_DIR);
       if (fs.existsSync(dest)) {
         fs.unlinkSync(dest);
       }
