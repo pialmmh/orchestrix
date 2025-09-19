@@ -18,10 +18,12 @@ class StellarClient {
     // Add request interceptor for auth if needed
     this.client.interceptors.request.use(
       (config) => {
-        // Add auth token if available
-        const token = localStorage.getItem('authToken');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+        // Add auth token if available (only in browser)
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const token = localStorage.getItem('authToken');
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
         }
         return config;
       },

@@ -1,6 +1,7 @@
 import { OrganizationInfraStore } from '../infrastructure/OrganizationInfraStore';
 import { getEventBus } from '../events/EventBus';
 import { getStoreDebugConfig } from '../../config/storeDebugConfig';
+import { getSimpleStoreLogger } from './SimpleStoreLogger';
 import * as fs from 'fs';
 import * as path from 'path';
 import { reaction, toJS } from 'mobx';
@@ -18,23 +19,18 @@ export class StoreManager {
   private stores: Map<string, any> = new Map();
   private eventBus = getEventBus();
   private debugMode = getStoreDebugConfig().store_debug;
-  private snapshotDir: string;
-  private snapshotInterval?: NodeJS.Timer;
+  private simpleLogger = getSimpleStoreLogger();
   private disposers: Array<() => void> = [];
+  private storeStates: Map<string, any> = new Map();
 
   constructor() {
     // Initialize stores
     this.initializeStores();
 
-    // Setup snapshot directory for backend
-    if (typeof process !== 'undefined' && process.versions?.node) {
-      this.snapshotDir = path.join(process.cwd(), 'store-snapshots');
-      this.ensureSnapshotDir();
-      this.startSnapshotting();
+    // Setup reactive persistence for debug mode
+    if (this.debugMode) {
+      this.setupReactivePersistence();
     }
-
-    // Setup reactive persistence
-    this.setupReactivePersistence();
   }
 
   private initializeStores() {
@@ -42,16 +38,20 @@ export class StoreManager {
     const infraStore = new OrganizationInfraStore();
     this.stores.set('infrastructure', infraStore);
 
+    // Initialize debug logging for each store
+    if (this.debugMode) {
+      this.stores.forEach((store, name) => {
+        const initialState = toJS(store);
+        this.storeStates.set(name, initialState);
+        this.simpleLogger.initializeStore(name, initialState);
+      });
+    }
+
     // Add more stores as needed
     // this.stores.set('order', new OrderStore());
     // this.stores.set('user', new UserStore());
   }
 
-  private ensureSnapshotDir() {
-    if (!fs.existsSync(this.snapshotDir)) {
-      fs.mkdirSync(this.snapshotDir, { recursive: true });
-    }
-  }
 
   private setupReactivePersistence() {
     // React to any store changes and save snapshots
@@ -59,9 +59,19 @@ export class StoreManager {
       const disposer = reaction(
         () => toJS(store),
         (storeData) => {
-          if (this.debugMode && typeof process !== 'undefined') {
-            this.saveSnapshot(name, storeData);
-          }
+          // Get previous state
+          const previousState = this.storeStates.get(name);
+
+          // Log the change
+          this.simpleLogger.logHistory(
+            name,
+            'state_changed',
+            previousState,
+            storeData
+          );
+
+          // Update stored state
+          this.storeStates.set(name, storeData);
         },
         { delay: 1000 } // Debounce for 1 second
       );
@@ -69,78 +79,8 @@ export class StoreManager {
     });
   }
 
-  private saveSnapshot(storeName: string, storeData: any) {
-    if (!this.snapshotDir) return;
 
-    const timestamp = Date.now();
-    const fileName = `${storeName}-latest.json`;
-    const filePath = path.join(this.snapshotDir, fileName);
 
-    const snapshot = {
-      timestamp,
-      storeName,
-      data: storeData,
-      metadata: {
-        debugMode: this.debugMode,
-        nodeVersion: process.version,
-        lastUpdate: new Date(timestamp).toISOString()
-      }
-    };
-
-    try {
-      // Write pretty-printed JSON for readability
-      fs.writeFileSync(filePath, JSON.stringify(snapshot, null, 2));
-
-      // Also write timestamped backup
-      const backupName = `${storeName}-${timestamp}.json`;
-      const backupPath = path.join(this.snapshotDir, 'history', backupName);
-
-      if (!fs.existsSync(path.dirname(backupPath))) {
-        fs.mkdirSync(path.dirname(backupPath), { recursive: true });
-      }
-
-      fs.writeFileSync(backupPath, JSON.stringify(snapshot, null, 2));
-
-      console.log(`💾 Store snapshot saved: ${fileName}`);
-    } catch (error) {
-      console.error('Failed to save snapshot:', error);
-    }
-  }
-
-  private startSnapshotting() {
-    // Save complete snapshot every 30 seconds
-    this.snapshotInterval = setInterval(() => {
-      this.saveCompleteSnapshot();
-    }, 30000);
-  }
-
-  private saveCompleteSnapshot() {
-    if (!this.snapshotDir) return;
-
-    const allStores: Record<string, any> = {};
-    this.stores.forEach((store, name) => {
-      allStores[name] = toJS(store);
-    });
-
-    const snapshot: StoreSnapshot = {
-      timestamp: Date.now(),
-      stores: allStores,
-      metadata: {
-        eventCount: this.eventBus.getEventCount?.() || 0,
-        lastOperation: this.eventBus.getLastOperation?.() || undefined
-      }
-    };
-
-    const fileName = 'all-stores-latest.json';
-    const filePath = path.join(this.snapshotDir, fileName);
-
-    try {
-      fs.writeFileSync(filePath, JSON.stringify(snapshot, null, 2));
-      console.log(`💾 Complete store snapshot saved`);
-    } catch (error) {
-      console.error('Failed to save complete snapshot:', error);
-    }
-  }
 
   getStore<T = any>(name: string): T {
     const store = this.stores.get(name);
@@ -169,29 +109,9 @@ export class StoreManager {
     }
   }
 
-  // Load snapshot from file (useful for testing/debugging)
-  loadSnapshot(storeName: string): any {
-    if (!this.snapshotDir) return null;
-
-    const fileName = `${storeName}-latest.json`;
-    const filePath = path.join(this.snapshotDir, fileName);
-
-    try {
-      const content = fs.readFileSync(filePath, 'utf-8');
-      const snapshot = JSON.parse(content);
-      console.log(`📂 Loaded snapshot for ${storeName}`);
-      return snapshot;
-    } catch (error) {
-      console.error(`Failed to load snapshot for ${storeName}:`, error);
-      return null;
-    }
-  }
 
   // Clean up
   dispose() {
-    if (this.snapshotInterval) {
-      clearInterval(this.snapshotInterval);
-    }
     this.disposers.forEach(disposer => disposer());
     this.disposers = [];
   }

@@ -4,6 +4,7 @@ import WebSocket from 'ws';
 import http from 'http';
 import { getStoreManager } from './unified-store/core/StoreManager';
 import { getEventBus } from './unified-store/events/EventBus';
+import { getEventHistoryLogger } from './unified-store/core/EventHistoryLogger';
 import chalk from 'chalk';
 
 const PORT = process.env.WS_PORT || 8080;
@@ -34,9 +35,10 @@ const wss = new WebSocket.Server({ server });
 console.log(chalk.cyan('🚀 Simple Store Server Starting...'));
 console.log(chalk.gray('━'.repeat(50)));
 
-// Initialize store manager
+// Initialize store manager and logger
 const storeManager = getStoreManager();
 const eventBus = getEventBus();
+const eventLogger = getEventHistoryLogger();
 
 // Track connected clients
 const clients = new Set<WebSocket>();
@@ -68,6 +70,9 @@ wss.on('connection', (ws) => {
       console.log(chalk.blue(`📨 [${messageCount}] Received ${event.type} event`));
       console.log(chalk.gray(`  Operation: ${event.operation}`));
       console.log(chalk.gray(`  Entity: ${event.entity || 'N/A'}`));
+
+      // Log all incoming events
+      eventLogger.logEvent(event);
 
       // Handle different event types
       if (event.type === 'query' && event.operation === 'REQUEST') {
@@ -357,6 +362,16 @@ function broadcast(sender: WebSocket, message: any) {
   });
 }
 
+// Subscribe to all EventBus events for logging
+eventBus.subscribe('*', (event) => {
+  eventLogger.logEvent(event);
+});
+
+// Periodically update consolidated view (every 10 seconds)
+setInterval(async () => {
+  await eventLogger.writeConsolidatedView();
+}, 10000);
+
 // Start server
 server.listen(PORT, () => {
   console.log(chalk.green(`✓ Server listening on port ${PORT}`));
@@ -364,6 +379,7 @@ server.listen(PORT, () => {
   console.log(chalk.gray(`  HTTP: http://localhost:${PORT}/stores`));
   console.log(chalk.gray('━'.repeat(50)));
   console.log(chalk.cyan('📁 Store snapshots will be saved to: ./store-snapshots/'));
+  console.log(chalk.cyan('📝 Event logs will be saved to: ./store-logs/'));
   console.log(chalk.gray('━'.repeat(50)));
 });
 
@@ -379,8 +395,9 @@ process.on('SIGINT', () => {
   // Close servers
   wss.close(() => {
     server.close(() => {
-      // Dispose store manager
+      // Dispose store manager and logger
       storeManager.dispose();
+      eventLogger.destroy();
       console.log(chalk.green('✓ Server shut down gracefully'));
       process.exit(0);
     });

@@ -10,7 +10,7 @@ import '../events/LocalStore';
 class QueryService {
   private eventBus = getEventBus();
   private debugMode = getStoreDebugConfig().store_debug;
-  private useEventBus = true; // Toggle to switch between EventBus and direct HTTP
+  private isBackend = typeof window === 'undefined';
 
   async executeQuery<T = any>(query: QueryNode): Promise<QueryResponse<T>> {
     const eventId = uuidv4();
@@ -34,15 +34,14 @@ class QueryService {
     }
 
     try {
-      // Use EventBus for queries
       let response: QueryResponse<T>;
 
-      if (this.useEventBus) {
-        // Send query through EventBus and wait for response
+      if (this.debugMode && !this.isBackend) {
+        // Frontend in debug mode: use EventBus to communicate with backend
         const data = await this.eventBus.request<T>(eventId, query);
         response = { success: true, data } as QueryResponse<T>;
       } else {
-        // Fallback to direct HTTP call
+        // Backend or production mode: use direct HTTP call
         response = await StellarClient.post<QueryResponse<T>>('stellar/query', query);
       }
       
