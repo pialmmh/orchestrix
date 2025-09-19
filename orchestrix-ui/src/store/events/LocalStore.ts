@@ -3,17 +3,24 @@ import { StoreEvent, StoreEventResponse } from './StoreEvent';
 import StellarClient from '../../services/StellarClient';
 import { QueryNode, QueryResponse } from '../../models/stellar/QueryNode';
 import { EntityModificationRequest, MutationResponse } from '../../models/stellar/MutationRequest';
+import { getStoreDebugConfig } from '../../config/storeDebugConfig';
 
 /**
  * LocalStore handles query execution locally in the browser.
  * It listens for query events from the EventBus and processes them using Stellar.
+ * Only active when NOT in debug mode with WebSocket.
  */
 export class LocalStore {
   private eventBus = getEventBus();
   private isListening = false;
 
   constructor() {
-    this.startListening();
+    const config = getStoreDebugConfig();
+    // Only start listening if we're NOT using WebSocket debug mode
+    // In WebSocket mode, the server handles all query processing
+    if (!config.store_debug || config.eventbus !== 'websocket') {
+      this.startListening();
+    }
   }
 
   /**

@@ -199,9 +199,49 @@ export class WebSocketEventBus implements IEventBus {
   }
 
   async request<T = any>(eventId: string, payload: any): Promise<T> {
-    // For now, just delegate to local bus
-    // In future, this could send via WebSocket and wait for response
-    return this.localBus.request<T>(eventId, payload);
+    const config = getStoreDebugConfig();
+
+    return new Promise((resolve, reject) => {
+      let responded = false;
+
+      // Subscribe to response with the same eventId
+      const responseHandler = (event: StoreEvent | StoreEventResponse) => {
+        // Only handle RESPONSE events, not REQUEST events
+        if (event.id === eventId && event.operation === 'RESPONSE' && !responded) {
+          responded = true;
+          this.unsubscribe(eventId, responseHandler);
+
+          const response = event as StoreEventResponse;
+          if (response.success) {
+            resolve(response.payload as T);
+          } else {
+            reject(new Error(response.error || 'Request failed'));
+          }
+        }
+      };
+
+      this.subscribe(eventId, responseHandler);
+
+      // Publish the request through WebSocket
+      this.publish({
+        id: eventId,
+        timestamp: Date.now(),
+        type: 'query',
+        operation: 'REQUEST',
+        entity: payload.kind || 'unknown',
+        payload,
+        metadata: {}
+      });
+
+      // Timeout after configured duration
+      setTimeout(() => {
+        if (!responded) {
+          responded = true;
+          this.unsubscribe(eventId, responseHandler);
+          reject(new Error('Request timeout'));
+        }
+      }, config.request_timeout_ms);
+    });
   }
 
   disconnect(): void {
