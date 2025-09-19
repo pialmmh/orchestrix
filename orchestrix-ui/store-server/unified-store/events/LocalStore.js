@@ -1,6 +1,6 @@
 // Auto-generated from TypeScript source
 // Original: events/LocalStore.ts
-// Generated: 2025-09-19T03:59:30.867Z
+// Generated: 2025-09-19T10:56:20.505Z
 
 const { getEventBus } = require('./EventBus');
 const { StoreEvent, StoreEventResponse } = require('./StoreEvent');

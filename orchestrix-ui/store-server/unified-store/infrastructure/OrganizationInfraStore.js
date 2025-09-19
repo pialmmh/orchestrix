@@ -1,6 +1,6 @@
 // Auto-generated from TypeScript source
 // Original: infrastructure/OrganizationInfraStore.ts
-// Generated: 2025-09-19T03:59:30.869Z
+// Generated: 2025-09-19T10:56:20.507Z
 
 const { makeObservable, observable, action, computed, runInAction } = require('mobx');
 const { StellarStore } = require('../base/StellarStore');
@@ -547,5 +547,26 @@ export class OrganizationInfraStore extends StellarStore {
   getParentNode(node): TreeNode | null {
     const path = getNodePath(this.displayTreeData, node.id);
     return path.length > 1 ? path[path.length - 2] : null;
+  }
+
+  reset() {
+    runInAction(() => {
+      this.treeData = [];
+      this.filteredTreeData = [];
+      this.selectedNode = null;
+      this.selectedNodePath = [];
+      this.expandedNodeIds = [];
+      this.partners = [];
+      this.environments = [];
+      this.selectedEnvironmentFilter = null;
+      this.selectedNodeChildren = [];
+      this.selectedNodeChildrenLoading = false;
+      this.selectedNodeChildrenError = null;
+      this.selectedNodeChildrenPage = 1;
+      this.selectedNodeChildrenPageSize = 10;
+      this.selectedNodeChildrenTotal = 0;
+      this.loading = false;
+      this.error = null;
+    });
   }
 }

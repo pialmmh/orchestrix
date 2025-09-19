@@ -1,6 +1,6 @@
 // Auto-generated from TypeScript source
 // Original: base/StellarStore.ts
-// Generated: 2025-09-19T03:59:30.865Z
+// Generated: 2025-09-19T10:56:20.503Z
 
 const { makeObservable, observable, action, runInAction } = require('mobx');
 const QueryService = require('../../services/QueryService');

@@ -1,11 +1,11 @@
-import StellarClient from './StellarClient';
-import { QueryNode, QueryResponse } from '../models/stellar/QueryNode';
-import { getEventBus } from '../store/events/EventBus';
-import { StoreEvent, StoreEventResponse } from '../store/events/StoreEvent';
+import StellarClient from '../../services/StellarClient';
+import { QueryNode, QueryResponse } from '../../models/stellar/QueryNode';
+import { getEventBus } from '../../store/events/EventBus';
+import { StoreEvent, StoreEventResponse } from '../events/StoreEvent';
 import { v4 as uuidv4 } from 'uuid';
-import { getStoreDebugConfig } from '../config/storeDebugConfig';
+import { getStoreDebugConfig } from '../../config/storeDebugConfig';
 // Initialize LocalStore to handle events
-import '../store/events/LocalStore';
+import '../events/LocalStore';
 
 class QueryService {
   private eventBus = getEventBus();

@@ -544,4 +544,25 @@ export class OrganizationInfraStore extends StellarStore {
     const path = getNodePath(this.displayTreeData, node.id);
     return path.length > 1 ? path[path.length - 2] : null;
   }
+
+  reset() {
+    runInAction(() => {
+      this.treeData = [];
+      this.filteredTreeData = [];
+      this.selectedNode = null;
+      this.selectedNodePath = [];
+      this.expandedNodeIds = [];
+      this.partners = [];
+      this.environments = [];
+      this.selectedEnvironmentFilter = null;
+      this.selectedNodeChildren = [];
+      this.selectedNodeChildrenLoading = false;
+      this.selectedNodeChildrenError = null;
+      this.selectedNodeChildrenPage = 1;
+      this.selectedNodeChildrenPageSize = 10;
+      this.selectedNodeChildrenTotal = 0;
+      this.loading = false;
+      this.error = null;
+    });
+  }
 }

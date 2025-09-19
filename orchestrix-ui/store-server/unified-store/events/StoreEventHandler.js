@@ -1,6 +1,6 @@
 // Auto-generated from TypeScript source
 // Original: events/StoreEventHandler.ts
-// Generated: 2025-09-19T03:59:30.868Z
+// Generated: 2025-09-19T10:56:20.506Z
 
 // StoreEventHandler - Base implementation for handling store events
 const { StoreEvent, StoreEventResponse, createEventResponse } = require('./StoreEvent');

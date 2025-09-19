@@ -1,6 +1,6 @@
 // Auto-generated from TypeScript source
 // Original: base/useStores.ts
-// Generated: 2025-09-19T03:59:30.866Z
+// Generated: 2025-09-19T10:56:20.504Z
 
 const { useContext } = require('react');
 const { StoreContext } = require('./StoreProvider');

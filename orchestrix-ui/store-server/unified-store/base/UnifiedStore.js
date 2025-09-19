@@ -1,6 +1,6 @@
 // Auto-generated from TypeScript source
 // Original: base/UnifiedStore.ts
-// Generated: 2025-09-19T03:59:30.866Z
+// Generated: 2025-09-19T10:56:20.504Z
 
 const { makeObservable, observable, action, runInAction } = require('mobx');
 const { getEventBus } = require('../events/EventBus');

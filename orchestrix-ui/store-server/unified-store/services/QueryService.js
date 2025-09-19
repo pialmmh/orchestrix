@@ -1,15 +1,15 @@
 // Auto-generated from TypeScript source
 // Original: services/QueryService.ts
-// Generated: 2025-09-19T03:59:30.870Z
+// Generated: 2025-09-19T10:56:20.507Z
 
-const StellarClient = require('./StellarClient');
-const { QueryNode, QueryResponse } = require('../models/stellar/QueryNode');
-const { getEventBus } = require('../store/events/EventBus');
-const { StoreEvent, StoreEventResponse } = require('../store/events/StoreEvent');
+const StellarClient = require('../../services/StellarClient');
+const { QueryNode, QueryResponse } = require('../../models/stellar/QueryNode');
+const { getEventBus } = require('../../store/events/EventBus');
+const { StoreEvent, StoreEventResponse } = require('../events/StoreEvent');
 const { v4 as uuidv4 } = require('uuid');
-const { getStoreDebugConfig } = require('../config/storeDebugConfig');
+const { getStoreDebugConfig } = require('../../config/storeDebugConfig');
 // Initialize LocalStore to handle events
-import '../store/events/LocalStore';
+import '../events/LocalStore';
 
 class QueryService {
   private eventBus = getEventBus();

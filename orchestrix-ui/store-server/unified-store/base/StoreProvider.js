@@ -1,6 +1,6 @@
 // Auto-generated from TypeScript source
 // Original: base/StoreProvider.tsx
-// Generated: 2025-09-19T03:59:30.865Z
+// Generated: 2025-09-19T10:56:20.503Z
 
 import React, { createContext, useContext, ReactNode } from 'react';
 const { RootStore } = require('../RootStore');

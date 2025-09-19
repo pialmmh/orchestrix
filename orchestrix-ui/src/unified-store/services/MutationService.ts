@@ -1,9 +1,9 @@
-import StellarClient from './StellarClient';
-import { EntityModificationRequest, MutationResponse } from '../models/stellar/MutationRequest';
-import { getEventBus } from '../store/events/EventBus';
-import { StoreEvent, StoreEventResponse } from '../store/events/StoreEvent';
+import StellarClient from '../../services/StellarClient';
+import { EntityModificationRequest, MutationResponse } from '../../models/stellar/MutationRequest';
+import { getEventBus } from '../../store/events/EventBus';
+import { StoreEvent, StoreEventResponse } from '../events/StoreEvent';
 import { v4 as uuidv4 } from 'uuid';
-import { getStoreDebugConfig } from '../config/storeDebugConfig';
+import { getStoreDebugConfig } from '../../config/storeDebugConfig';
 
 class MutationService {
   private eventBus = getEventBus();
