@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useOrganizationInfraStore } from '../stores/base/StoreProvider';
 import { TreeNode as StellarTreeNode } from '../models/entities/TreeNode';
 import {
@@ -26,6 +26,7 @@ import {
   DialogActions,
   TextField,
   Tooltip,
+  Fade,
 } from '@mui/material';
 import {
   Refresh,
@@ -98,6 +99,7 @@ interface Partner {
 const InfrastructureCloudNative: React.FC = () => {
   const organizationInfraStore = useOrganizationInfraStore();
   const location = useLocation();
+  const navigate = useNavigate();
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('');
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
@@ -947,7 +949,7 @@ const InfrastructureCloudNative: React.FC = () => {
       case 'partner':
         return <GroupIcon sx={{
           ...iconStyle,
-          color: '#1976d2',
+          color: '#616161',
           opacity: 0.9
         }} />;
       case 'environment':
@@ -959,11 +961,24 @@ const InfrastructureCloudNative: React.FC = () => {
           opacity: 0.9
         }} />;
       case 'cloud':
-        return <CloudQueueIcon sx={{
-          ...iconStyle,
-          color: '#64B5F6',
-          opacity: 0.85
-        }} />;
+        return (
+          <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+            <CloudIcon sx={{
+              ...iconStyle,
+              color: '#90CAF9',
+              opacity: 1
+            }} />
+            <CloudIcon sx={{
+              ...iconStyle,
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              color: 'rgba(255, 255, 255, 0.4)',
+              transform: 'scale(0.85)',
+              opacity: 1
+            }} />
+          </Box>
+        );
       case 'region':
         return <MapIcon sx={{
           ...iconStyle,
@@ -1156,7 +1171,7 @@ const InfrastructureCloudNative: React.FC = () => {
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', px: 2, pt: 0, pb: 2 }}>
       {/* Header */}
       <Typography variant="h4" sx={{ mb: 0.5, mt: 0 }}>
-        {tenant === 'organization' ? 'Organization Infrastructure' : 'Partners Infrastructure'}
+        Infrastructure
       </Typography>
 
       {/* Main Content */}
@@ -1174,11 +1189,53 @@ const InfrastructureCloudNative: React.FC = () => {
                 py: 0.75,
                 mb: 0
               }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <AccountTree sx={{ fontSize: 20, color: '#757575' }} />
-                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
-                    Infrastructure Tree
-                  </Typography>
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => navigate('/infrastructure/organization')}
+                    sx={{
+                      textTransform: 'none',
+                      minWidth: 'auto',
+                      py: 0.5,
+                      px: 1.5,
+                      border: '1px solid #1976d2',
+                      backgroundColor: tenant === 'organization' ? '#E3F2FD' : 'transparent',
+                      color: '#616161',
+                      fontWeight: tenant === 'organization' ? 600 : 400,
+                      '&:hover': {
+                        backgroundColor: tenant === 'organization' ? '#BBDEFB' : '#F5F5F5',
+                        border: '1px solid #1976d2',
+                      },
+                      borderRadius: 1,
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    Organization
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => navigate('/infrastructure/partners')}
+                    sx={{
+                      textTransform: 'none',
+                      minWidth: 'auto',
+                      py: 0.5,
+                      px: 1.5,
+                      border: '1px solid #1976d2',
+                      backgroundColor: tenant === 'partners' ? '#E3F2FD' : 'transparent',
+                      color: '#616161',
+                      fontWeight: tenant === 'partners' ? 600 : 400,
+                      '&:hover': {
+                        backgroundColor: tenant === 'partners' ? '#BBDEFB' : '#F5F5F5',
+                        border: '1px solid #1976d2',
+                      },
+                      borderRadius: 1,
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    Partners
+                  </Button>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 0.5 }}>
                   <Tooltip title="Expand All">
@@ -1219,11 +1276,12 @@ const InfrastructureCloudNative: React.FC = () => {
               )}
               
               {!loading && treeData.length > 0 && (
-                <TreeView
-                  selected={selectedNodeId}
-                  onNodeSelect={handleNodeSelect}
-                  expanded={expanded}
-                  onNodeToggle={handleToggle}
+                <Fade in={!loading} timeout={300}>
+                  <TreeView
+                    selected={selectedNodeId}
+                    onNodeSelect={handleNodeSelect}
+                    expanded={expanded}
+                    onNodeToggle={handleToggle}
                   defaultCollapseIcon={<ExpandMore sx={{ fontSize: 18, opacity: 0.6 }} />}
                   defaultExpandIcon={<ChevronRight sx={{ fontSize: 18, opacity: 0.6 }} />}
                   sx={{
@@ -1254,6 +1312,7 @@ const InfrastructureCloudNative: React.FC = () => {
                 >
                   {renderTreeItems(treeData)}
                 </TreeView>
+                </Fade>
               )}
               </Box>
           </Paper>
