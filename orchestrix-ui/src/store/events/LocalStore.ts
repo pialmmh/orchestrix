@@ -45,14 +45,15 @@ export class LocalStore {
       // Execute the query using Stellar
       const response = await StellarClient.post<QueryResponse>('stellar/query', query);
 
-      // Publish success response
+      // Publish success response - extract the actual data from response
+      const responseData = response.data || response;
       this.eventBus.publish({
         id: event.id,
         timestamp: Date.now(),
         type: 'query',
         operation: 'RESPONSE',
         entity: query.kind || 'unknown',
-        payload: response.data,
+        payload: responseData, // Pass the full response data
         metadata: {
           duration: Date.now() - event.timestamp
         },

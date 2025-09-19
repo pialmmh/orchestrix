@@ -59,9 +59,13 @@ export class LocalEventBus implements IEventBus {
 
   async request<T = any>(eventId: string, payload: any): Promise<T> {
     return new Promise((resolve, reject) => {
+      let responded = false;
+
       // Subscribe to response with the same eventId
       const responseHandler = (event: StoreEvent | StoreEventResponse) => {
-        if (event.id === eventId) {
+        // Only handle RESPONSE events, not REQUEST events
+        if (event.id === eventId && event.operation === 'RESPONSE' && !responded) {
+          responded = true;
           this.unsubscribe(eventId, responseHandler);
 
           const response = event as StoreEventResponse;
@@ -88,8 +92,11 @@ export class LocalEventBus implements IEventBus {
 
       // Timeout after 30 seconds
       setTimeout(() => {
-        this.unsubscribe(eventId, responseHandler);
-        reject(new Error('Request timeout'));
+        if (!responded) {
+          responded = true;
+          this.unsubscribe(eventId, responseHandler);
+          reject(new Error('Request timeout'));
+        }
       }, 30000);
     });
   }
