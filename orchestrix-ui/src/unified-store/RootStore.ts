@@ -29,7 +29,7 @@ export class RootStore {
     console.log('Resetting all stores...');
     if (!this.debugMode && 'reset' in this.organizationInfraStore) {
       this.organizationInfraStore.reset();
-    } else if (this.debugMode) {
+    } else if (this.debugMode && this.organizationInfraStore instanceof ProxyInfrastructureStore) {
       // Send reset command to backend
       this.organizationInfraStore.callBackendMethod('reset', []);
     }
