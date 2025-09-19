@@ -16,6 +16,17 @@ export const defaultStoreDebugConfig: StoreDebugConfig = {
 
 // Get configuration from environment or localStorage
 export function getStoreDebugConfig(): StoreDebugConfig {
+  // Check if we're in Node.js environment
+  if (typeof window === 'undefined') {
+    // Node.js environment - return debug config
+    return {
+      store_debug: true,
+      websocket_url: process.env.WS_URL || 'ws://localhost:8080',
+      log_retention_hours: 24,
+      request_timeout_ms: 30000
+    };
+  }
+
   // Check localStorage first for runtime changes
   const savedConfig = localStorage.getItem('storeDebugConfig');
   if (savedConfig) {
@@ -40,10 +51,16 @@ export function getStoreDebugConfig(): StoreDebugConfig {
 
 // Save configuration to localStorage
 export function saveStoreDebugConfig(config: Partial<StoreDebugConfig>): void {
+  // Only available in browser
+  if (typeof window === 'undefined') {
+    console.warn('saveStoreDebugConfig is not available in Node.js environment');
+    return;
+  }
+
   const currentConfig = getStoreDebugConfig();
   const newConfig = { ...currentConfig, ...config };
   localStorage.setItem('storeDebugConfig', JSON.stringify(newConfig));
-  
+
   // Reload page to apply new configuration
   if (config.store_debug !== currentConfig.store_debug) {
     window.location.reload();

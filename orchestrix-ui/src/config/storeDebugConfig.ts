@@ -9,7 +9,7 @@ export interface StoreDebugConfig {
 // Default configuration
 export const defaultStoreDebugConfig: StoreDebugConfig = {
   store_debug: true, // Debug mode enabled for testing
-  websocket_url: 'ws://localhost:3013/store-debug',
+  websocket_url: 'ws://localhost:8081',
   log_retention_hours: 24, // Keep logs for 1 day
   request_timeout_ms: 30000, // 30 seconds default timeout
 };
