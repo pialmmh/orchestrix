@@ -1,6 +1,6 @@
 import { makeObservable, observable, action, runInAction } from 'mobx';
-import QueryService from '../services/QueryService';
-import MutationService from '../services/MutationService';
+import QueryService from '../../services/QueryService';
+import MutationService from '../../services/MutationService';
 import { QueryNode, QueryResponse } from '../../models/stellar/QueryNode';
 import { EntityModificationRequest, MutationResponse } from '../../models/stellar/MutationRequest';
 

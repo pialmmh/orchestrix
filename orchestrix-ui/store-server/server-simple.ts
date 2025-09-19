@@ -76,6 +76,10 @@ wss.on('connection', (ws) => {
         await handleMutationRequest(ws, event);
       } else if (event.type === 'store' && event.operation === 'GET_STATE') {
         await handleGetState(ws, event);
+      } else if (event.type === 'store-method' && event.operation === 'REQUEST') {
+        await handleStoreMethod(ws, event);
+      } else if (event.type === 'get-state' && event.operation === 'REQUEST') {
+        await handleGetStoreState(ws, event);
       } else {
         // Publish to event bus for other handlers
         eventBus.publish(event);
@@ -240,6 +244,99 @@ async function handleGetState(ws: WebSocket, event: any) {
       id,
       type: 'store',
       operation: 'STATE_RESPONSE',
+      payload: null,
+      success: false,
+      error: error.message,
+      timestamp: Date.now()
+    };
+
+    ws.send(JSON.stringify(errorResponse));
+  }
+}
+
+// Handle store method calls
+async function handleStoreMethod(ws: WebSocket, event: any) {
+  const { id, payload } = event;
+  const { storeName, methodName, args } = payload;
+
+  console.log(chalk.magenta(`🔧 Calling store method: ${storeName}.${methodName}`));
+
+  try {
+    // Get the store from manager
+    const store = storeManager.getStore(storeName);
+
+    // Call the method dynamically
+    let result;
+    if (typeof (store as any)[methodName] === 'function') {
+      result = await (store as any)[methodName](...args);
+    } else {
+      throw new Error(`Method ${methodName} not found on store ${storeName}`);
+    }
+
+    // Send response
+    const response = {
+      id,
+      type: 'store-method',
+      operation: 'RESPONSE',
+      payload: result,
+      success: true,
+      timestamp: Date.now()
+    };
+
+    ws.send(JSON.stringify(response));
+
+    console.log(chalk.green(`✅ Store method executed successfully`));
+
+  } catch (error: any) {
+    console.error(chalk.red('❌ Store method failed:'), error);
+
+    const errorResponse = {
+      id,
+      type: 'store-method',
+      operation: 'RESPONSE',
+      payload: null,
+      success: false,
+      error: error.message,
+      timestamp: Date.now()
+    };
+
+    ws.send(JSON.stringify(errorResponse));
+  }
+}
+
+// Handle get store state requests
+async function handleGetStoreState(ws: WebSocket, event: any) {
+  const { id, payload } = event;
+  const { storeName } = payload;
+
+  console.log(chalk.cyan(`📊 Getting state for store: ${storeName}`));
+
+  try {
+    const store = storeManager.getStore(storeName);
+
+    // Get observable properties from store
+    const state = JSON.parse(JSON.stringify(store));
+
+    const response = {
+      id,
+      type: 'get-state',
+      operation: 'RESPONSE',
+      payload: state,
+      success: true,
+      timestamp: Date.now()
+    };
+
+    ws.send(JSON.stringify(response));
+
+    console.log(chalk.green(`✅ State retrieved successfully`));
+
+  } catch (error: any) {
+    console.error(chalk.red('❌ Failed to get state:'), error);
+
+    const errorResponse = {
+      id,
+      type: 'get-state',
+      operation: 'RESPONSE',
       payload: null,
       success: false,
       error: error.message,
