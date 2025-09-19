@@ -284,14 +284,16 @@ All operations publish events automatically:
 
 ## Debug Mode Features
 
-### WebSocket Store Server
+### WebSocket Store Server with XState
 
 When debug mode is enabled:
 
 1. **All queries go through WebSocket** instead of direct HTTP
-2. **Server maintains event log** for debugging
+2. **Server maintains event log** for debugging with automatic rotation
 3. **Multiple clients can connect** for monitoring
-4. **Event history** is preserved with rotation
+4. **Event history** is preserved with JSONL format and compression
+5. **XState machines** manage store state with full history tracking
+6. **Event replay** capability for time-travel debugging
 
 ### Monitoring Events
 
@@ -310,7 +312,25 @@ Connect multiple browser tabs to see all events:
 
 ### Store Server Configuration
 
-Edit `store-server/server.js` for custom configuration:
+#### XState-Enhanced Server (Recommended)
+Use `store-server/serverWithXState.js` for advanced features:
+
+```javascript
+const PORT = process.env.STORE_SERVER_PORT || 3013;
+const STELLAR_API_URL = process.env.STELLAR_API_URL || 'http://localhost:8090/api';
+const ENABLE_XSTATE = process.env.ENABLE_XSTATE !== 'false'; // Default to true
+
+// Features:
+// - XState machines for state management
+// - MobX stores embedded in machine context
+// - Event history with JSONL logging
+// - Log rotation and compression
+// - Event replay for time-travel debugging
+// - Admin endpoints for monitoring
+```
+
+#### Basic Server
+Use `store-server/server.js` for simple debugging:
 
 ```javascript
 const PORT = process.env.STORE_SERVER_PORT || 3013;
@@ -332,8 +352,12 @@ orchestrix-ui/
 │   └── config/
 │       └── storeDebugConfig.ts  # Debug mode configuration
 ├── store-server/              # WebSocket server for debug mode
-│   ├── server.js             # Main server
+│   ├── server.js             # Basic WebSocket server
+│   ├── serverWithXState.js  # XState-enhanced server
+│   ├── storeStateMachine.js # XState machine definitions
+│   ├── historyLogger.js     # Event history with rotation
 │   ├── unified-store/        # Auto-synced from src/unified-store
+│   ├── logs/                 # Event logs and archives
 │   └── package.json
 └── scripts/
     └── sync-store.js         # Post-build sync script
@@ -439,6 +463,71 @@ class NewStore extends UnifiedStore {
   }
 }
 ```
+
+## XState Integration
+
+### Overview
+
+The XState integration embeds MobX stores as context within state machines, providing:
+- **State machine management** of all store operations
+- **Complete history tracking** with event replay
+- **Time-travel debugging** capabilities
+- **Automatic log rotation** with compression
+
+### Using XState Server
+
+```bash
+# Start with XState enabled (default)
+cd store-server
+node serverWithXState.js
+
+# Or disable XState for basic mode
+ENABLE_XSTATE=false node serverWithXState.js
+```
+
+### Admin Endpoints
+
+```bash
+# View server statistics
+curl http://localhost:3013/admin/stats
+
+# View recent history
+curl http://localhost:3013/admin/history?limit=50
+
+# View session-specific history
+curl http://localhost:3013/admin/history?sessionId=abc-123&limit=100
+```
+
+### XState Machine States
+
+Each store operates through these states:
+- **idle**: Ready for operations
+- **querying**: Processing a query request
+- **mutating**: Processing a mutation request
+- **restoring**: Restoring from history
+
+### Event Replay Example
+
+```javascript
+// Client sends replay request via WebSocket
+ws.send(JSON.stringify({
+  type: 'system',
+  operation: 'REPLAY_EVENTS',
+  fromTimestamp: Date.now() - 3600000, // 1 hour ago
+  toTimestamp: Date.now() - 1800000,   // 30 minutes ago
+  sessionId: 'current-session-id'
+}));
+
+// Server replays events and returns final state
+```
+
+### History Logger Features
+
+- **JSONL format**: One JSON object per line for efficient parsing
+- **Automatic rotation**: Rotates when file exceeds 10MB
+- **Compression**: Archives old logs with gzip
+- **Retention policy**: Keeps 30 archive files
+- **Search capability**: Query by time, event type, or session
 
 ## API Reference
 
