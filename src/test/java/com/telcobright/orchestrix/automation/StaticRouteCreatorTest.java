@@ -1,5 +1,6 @@
 package com.telcobright.orchestrix.automation;
 
+import com.telcobright.orchestrix.automation.mikrotik.StaticRouteCreatorSimple;
 import com.telcobright.orchestrix.device.MikroTikRouter;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
