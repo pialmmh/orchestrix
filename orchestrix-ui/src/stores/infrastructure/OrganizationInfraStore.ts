@@ -4,6 +4,7 @@ import { TreeNode, Partner, Cloud, Datacenter, Compute, NetworkDevice } from '..
 import { QueryNode } from '../../models/stellar/QueryNode';
 import { EntityModificationRequest } from '../../models/stellar/MutationRequest';
 import { transformStellarToTree, findNodeById, getNodePath } from '../../utils/stellar/treeBuilder';
+import storeWebSocketService from '../../services/StoreWebSocketService';
 
 export class OrganizationInfraStore extends StellarStore {
   treeData: TreeNode[] = [];
@@ -14,6 +15,7 @@ export class OrganizationInfraStore extends StellarStore {
   partners: Partner[] = [];
   environments: any[] = [];
   selectedEnvironmentFilter: string | null = null;
+  private unsubscribe: (() => void) | null = null;
   
   // List view data for right pane
   selectedNodeChildren: any[] = [];
@@ -62,6 +64,9 @@ export class OrganizationInfraStore extends StellarStore {
 
     // Start with fully collapsed tree - no expanded nodes by default
     this.expandedNodeIds = [];
+
+    // Subscribe to infrastructure store updates from WebSocket
+    this.subscribeToUpdates();
   }
 
   get isNodeExpanded() {
@@ -70,6 +75,22 @@ export class OrganizationInfraStore extends StellarStore {
 
   get displayTreeData() {
     return this.selectedEnvironmentFilter ? this.filteredTreeData : this.treeData;
+  }
+
+  private subscribeToUpdates() {
+    // Subscribe to infrastructure updates from WebSocket
+    this.unsubscribe = storeWebSocketService.subscribe('infrastructure', (data: any) => {
+      console.log('[OrganizationInfraStore] Received infrastructure update:', data);
+
+      runInAction(() => {
+        if (data && data.partners) {
+          // Transform the updated data to tree structure
+          const treeNodes = transformStellarToTree(data.partners, []);
+          this.setTreeData(treeNodes);
+          console.log('[OrganizationInfraStore] Tree updated with new data');
+        }
+      });
+    });
   }
 
   setTreeData(data: TreeNode[]) {
@@ -461,22 +482,25 @@ export class OrganizationInfraStore extends StellarStore {
   }
 
   async deleteCompute(computeId: number) {
-    const request: EntityModificationRequest = {
-      entityName: 'compute',
-      operation: 'DELETE',
-      id: computeId,
-    };
+    try {
+      // Use WebSocket service to send DELETE mutation
+      // This will automatically refresh the store on the backend
+      const response = await storeWebSocketService.mutate('compute', 'DELETE', { id: computeId });
 
-    const response = await this.executeMutation(request);
-    
-    if (response.success) {
-      await this.loadInfrastructureTree('self');
+      // Clear selected node if it was the deleted compute
       if (this.selectedNode?.data?.id === computeId) {
         this.setSelectedNode(null);
       }
+
+      console.log('Compute deleted successfully:', computeId);
+
+      // The backend will broadcast the update, which will be received
+      // by any active subscription to the infrastructure store
+      return { success: true, data: response };
+    } catch (error: any) {
+      console.error('Failed to delete compute:', error);
+      return { success: false, error: error.message };
     }
-    
-    return response;
   }
 
   // CRUD operations for NetworkDevice

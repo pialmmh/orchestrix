@@ -5,6 +5,7 @@ import { ThemeProvider, CssBaseline } from '@mui/material';
 import { store } from './store/store';
 import { theme } from './theme/theme';
 import { StoreProvider } from './stores/base/StoreProvider';
+import './config/framework.config'; // Initialize stellar-crud-base framework
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
@@ -31,6 +32,7 @@ import InfrastructureStellar from './pages/InfrastructureStellar';
 import RemoteAccess from './pages/RemoteAccess';
 import WebSocketTest from './pages/WebSocketTest';
 import './utils/debugAxios';
+import './utils/wsLogger'; // Initialize WebSocket logger
 // @ts-ignore
 import { useClaudeBridge } from './hooks/useClaudeBridge';
 

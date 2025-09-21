@@ -1,4 +1,8 @@
 // Store Debug Mode Configuration
+// This file now wraps the centralized app.config.ts for backward compatibility
+
+import { appConfig } from './app.config';
+
 export interface StoreDebugConfig {
   store_debug: boolean;
   websocket_url: string;
@@ -6,46 +10,34 @@ export interface StoreDebugConfig {
   request_timeout_ms: number; // Timeout for EventBus requests
 }
 
-// Default configuration
-export const defaultStoreDebugConfig: StoreDebugConfig = {
-  store_debug: true, // Debug mode enabled for testing
-  websocket_url: 'ws://localhost:8081',
-  log_retention_hours: 24, // Keep logs for 1 day
-  request_timeout_ms: 30000, // 30 seconds default timeout
-};
-
-// Get configuration from environment or localStorage
+// Get configuration from centralized app config
 export function getStoreDebugConfig(): StoreDebugConfig {
-  // Check localStorage first for runtime changes
-  const savedConfig = localStorage.getItem('storeDebugConfig');
-  if (savedConfig) {
-    try {
-      return { ...defaultStoreDebugConfig, ...JSON.parse(savedConfig) };
-    } catch (e) {
-      console.warn('Invalid store debug config in localStorage', e);
-    }
-  }
-
-  // Check environment variables
-  const envConfig: Partial<StoreDebugConfig> = {};
-  if (process.env.REACT_APP_STORE_DEBUG !== undefined) {
-    envConfig.store_debug = process.env.REACT_APP_STORE_DEBUG === 'true';
-  }
-  if (process.env.REACT_APP_STORE_DEBUG_WS_URL) {
-    envConfig.websocket_url = process.env.REACT_APP_STORE_DEBUG_WS_URL;
-  }
-
-  return { ...defaultStoreDebugConfig, ...envConfig };
+  return {
+    store_debug: appConfig.storeDebug.enabled,
+    websocket_url: appConfig.websocket.storeDebugUrl,
+    log_retention_hours: appConfig.storeDebug.logRetentionHours,
+    request_timeout_ms: appConfig.storeDebug.requestTimeoutMs,
+  };
 }
 
-// Save configuration to localStorage
+// Save configuration to localStorage (delegates to app.config.ts)
 export function saveStoreDebugConfig(config: Partial<StoreDebugConfig>): void {
-  const currentConfig = getStoreDebugConfig();
-  const newConfig = { ...currentConfig, ...config };
-  localStorage.setItem('storeDebugConfig', JSON.stringify(newConfig));
-  
-  // Reload page to apply new configuration
-  if (config.store_debug !== currentConfig.store_debug) {
-    window.location.reload();
+  const overrides: any = {};
+
+  if (config.store_debug !== undefined) {
+    overrides.storeDebug = { ...overrides.storeDebug, enabled: config.store_debug };
   }
+  if (config.websocket_url !== undefined) {
+    overrides.websocket = { ...overrides.websocket, storeDebugUrl: config.websocket_url };
+  }
+  if (config.log_retention_hours !== undefined) {
+    overrides.storeDebug = { ...overrides.storeDebug, logRetentionHours: config.log_retention_hours };
+  }
+  if (config.request_timeout_ms !== undefined) {
+    overrides.storeDebug = { ...overrides.storeDebug, requestTimeoutMs: config.request_timeout_ms };
+  }
+
+  // Use the centralized override function
+  const { overrideConfig } = require('./app.config');
+  overrideConfig(overrides);
 }

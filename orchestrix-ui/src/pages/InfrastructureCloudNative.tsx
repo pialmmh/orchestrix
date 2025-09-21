@@ -1165,25 +1165,130 @@ const InfrastructureCloudNative: React.FC = () => {
             <Tabs value={viewerTabIndex} onChange={(e, v) => setViewerTabIndex(v)}>
               <Tab label="Overview" />
               <Tab label="Properties" />
-              {(selectedNode.type === 'compute' || selectedNode.type === 'network-device') && (
-                <Tab label="Edit" />
-              )}
             </Tabs>
           </Box>
 
           {viewerTabIndex === 0 && (
             <Box>
-              <Typography variant="h6" gutterBottom>
-                {selectedNode.name}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Type: {getDisplayNameForType(selectedNode.type)}
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                <Box>
+                  <Typography variant="h6" gutterBottom>
+                    {selectedNode.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Type: {getDisplayNameForType(selectedNode.type)}
+                  </Typography>
+                </Box>
+                {(['cloud', 'region', 'az', 'datacenter', 'service', 'compute', 'network-device'].includes(selectedNode.type)) && (
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <IconButton
+                      color="primary"
+                      size="small"
+                      onClick={handleEdit}
+                      title="Edit"
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={handleDelete}
+                      title="Delete"
+                      sx={{
+                        color: 'text.secondary',
+                        '&:hover': {
+                          color: 'error.main',
+                          backgroundColor: 'error.light'
+                        }
+                      }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                )}
+              </Box>
+
+              {/* Add buttons based on node type */}
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                {selectedNode.type === 'environment' && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<Add />}
+                    onClick={() => handleAdd('cloud', selectedNode)}
+                  >
+                    Add Cloud
+                  </Button>
+                )}
+                {selectedNode.type === 'cloud' && (
+                  <>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<Add />}
+                      onClick={() => handleAdd('region', selectedNode)}
+                    >
+                      Add Region
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<Add />}
+                      onClick={() => handleAdd('datacenter', selectedNode)}
+                    >
+                      Add Datacenter
+                    </Button>
+                  </>
+                )}
+                {selectedNode.type === 'region' && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<Add />}
+                    onClick={() => handleAdd('az', selectedNode)}
+                  >
+                    Add Availability Zone
+                  </Button>
+                )}
+                {selectedNode.type === 'az' && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<Add />}
+                    onClick={() => handleAdd('datacenter', selectedNode)}
+                  >
+                    Add Datacenter
+                  </Button>
+                )}
+                {(selectedNode.type === 'datacenter' || selectedNode.type === 'service') && (
+                  <>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<Add />}
+                      onClick={() => handleAdd('compute', selectedNode)}
+                    >
+                      Add Compute
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<Add />}
+                      onClick={() => handleAdd('network-device', selectedNode)}
+                    >
+                      Add Network Device
+                    </Button>
+                  </>
+                )}
+              </Box>
+
               {selectedNode.metadata && (
                 <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                    Properties
+                  </Typography>
                   {Object.entries(selectedNode.metadata).map(([key, value]) => (
-                    <Typography key={key} variant="body2">
-                      <strong>{key}:</strong> {Array.isArray(value) ? value.join(', ') : String(value)}
+                    <Typography key={key} variant="body2" sx={{ mb: 0.5 }}>
+                      <strong>{key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}:</strong> {Array.isArray(value) ? value.join(', ') : String(value)}
                     </Typography>
                   ))}
                 </Box>
@@ -1197,15 +1302,6 @@ const InfrastructureCloudNative: React.FC = () => {
               <pre style={{ fontSize: '12px', overflow: 'auto' }}>
                 {JSON.stringify(selectedNode.data || {}, null, 2)}
               </pre>
-            </Box>
-          )}
-
-          {viewerTabIndex === 2 && (selectedNode.type === 'compute' || selectedNode.type === 'network-device') && (
-            <Box>
-              <Typography variant="h6" gutterBottom>Edit {selectedNode.type}</Typography>
-              <Button variant="contained" onClick={handleEdit}>
-                Open Editor
-              </Button>
             </Box>
           )}
         </CardContent>
@@ -1367,120 +1463,6 @@ const InfrastructureCloudNative: React.FC = () => {
         {/* Details View */}
         <Box sx={{ width: '65%', height: '100%' }}>
           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              {/* Action Buttons */}
-              <Paper sx={{ p: 2, mb: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6">
-                    {selectedNode ? (
-                      <strong>{selectedNode.name} ({getDisplayNameForType(selectedNode.type)})</strong>
-                    ) : (
-                      'Actions'
-                    )}
-                  </Typography>
-                  {selectedNode && (['cloud', 'region', 'az', 'datacenter', 'service', 'compute', 'network-device'].includes(selectedNode.type)) && (
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <IconButton
-                        color="primary"
-                        size="small"
-                        onClick={handleEdit}
-                        title="Edit"
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={handleDelete}
-                        title="Delete"
-                        sx={{
-                          color: 'text.secondary',
-                          '&:hover': {
-                            color: 'error.main',
-                            backgroundColor: 'error.light'
-                          }
-                        }}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  )}
-                </Box>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  {selectedNode && (
-                    <>
-                      {/* Add buttons based on node type */}
-                      {selectedNode.type === 'environment' && (
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => handleAdd('cloud', selectedNode)}
-                        >
-                          Add Cloud
-                        </Button>
-                      )}
-                      {selectedNode.type === 'cloud' && (
-                        <>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => handleAdd('region', selectedNode)}
-                          >
-                            Add Region
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => handleAdd('datacenter', selectedNode)}
-                          >
-                            Add Datacenter
-                          </Button>
-                        </>
-                      )}
-                      {selectedNode.type === 'region' && (
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => handleAdd('az', selectedNode)}
-                        >
-                          Add Availability Zone
-                        </Button>
-                      )}
-                      {selectedNode.type === 'az' && (
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => handleAdd('datacenter', selectedNode)}
-                        >
-                          Add Datacenter
-                        </Button>
-                      )}
-                      {(selectedNode.type === 'datacenter' || selectedNode.type === 'service') && (
-                        <>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => handleAdd('compute', selectedNode)}
-                          >
-                            Add Compute
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => handleAdd('network-device', selectedNode)}
-                          >
-                            Add Network Device
-                          </Button>
-                        </>
-                      )}
-                    </>
-                  )}
-                  {!selectedNode && (
-                    <Typography variant="body2" color="text.secondary">
-                      Select a node to see available actions
-                    </Typography>
-                  )}
-                </Box>
-              </Paper>
-              
               {selectedNodePath.length > 0 && (
                 <Paper sx={{ p: 2, mb: 2 }}>
                   <Breadcrumbs separator={<NavigateNext fontSize="small" />}>

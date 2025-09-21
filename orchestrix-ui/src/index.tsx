@@ -3,6 +3,12 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import consoleRedirectService from './services/ConsoleRedirectService';
+import './services/TestConsoleRedirect'; // Test console redirect
+
+// Initialize console redirect service if configured
+// This will automatically start capturing console logs based on the active profile
+consoleRedirectService.initialize();
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Sync store files from frontend to backend store-server
+ * Sync store files from frontend to backend debug-store
  * This runs as a post-build task to ensure both stores behave identically
  */
 
@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 
 const SOURCE_DIR = path.resolve(__dirname, '../src/unified-store');
-const DEST_DIR = path.resolve(__dirname, '../store-server/unified-store');
+const DEST_DIR = path.resolve(__dirname, '../debug-store/unified-store');
 
 // Files/folders to exclude from sync
 const EXCLUDE = [
