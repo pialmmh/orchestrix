@@ -127,9 +127,10 @@ function transformRegionToTreeNode(region: any, environmentMap?: Map<number, any
     children: [],
   };
 
-  // Add availability zones as children
-  if (region.availabilityzones && Array.isArray(region.availabilityzones)) {
-    region.availabilityzones.forEach((az: any) => {
+  // Add availability zones as children (check both cases)
+  const availabilityZones = region.availabilityZones || region.availabilityzones;
+  if (availabilityZones && Array.isArray(availabilityZones)) {
+    availabilityZones.forEach((az: any) => {
       regionNode.children!.push(transformAvailabilityZoneToTreeNode(az, environmentMap));
     });
   }
@@ -174,9 +175,10 @@ function transformDatacenterToTreeNode(datacenter: any, environmentMap?: Map<num
     });
   }
 
-  // Add computes as children (not in resource pools)
-  if (datacenter.computes && Array.isArray(datacenter.computes)) {
-    datacenter.computes.forEach((compute: any) => {
+  // Add computes as children (check both 'compute' and 'computes')
+  const computes = datacenter.compute || datacenter.computes;
+  if (computes && Array.isArray(computes)) {
+    computes.forEach((compute: any) => {
       dcNode.children!.push(transformComputeToTreeNode(compute, environmentMap));
     });
   }

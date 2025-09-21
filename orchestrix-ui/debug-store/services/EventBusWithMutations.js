@@ -68,7 +68,7 @@ class EventBusWithMutations {
         await this.handleQuery(ws, entity, query || payload, requestId);
         break;
       case 'MUTATION':
-        await this.handleMutation(ws, entity, operation, payload);
+        await this.handleMutation(ws, entity, operation, payload, requestId);
         break;
       case 'SUBSCRIBE':
         this.handleSubscribe(ws, entity);
@@ -89,7 +89,7 @@ class EventBusWithMutations {
    */
   async handleQuery(ws, entity, query, requestId) {
     if (!this.storeManager) {
-      this.sendError(ws, 'Store manager not initialized');
+      this.sendError(ws, 'Store manager not initialized', requestId);
       return;
     }
 
@@ -99,7 +99,7 @@ class EventBusWithMutations {
       // Update store with query
       const store = this.storeManager.handleQuery(entity, query);
       if (!store) {
-        this.sendError(ws, `Store not found: ${entity}`);
+        this.sendError(ws, `Store not found: ${entity}`, requestId);
         return;
       }
 
@@ -145,6 +145,120 @@ class EventBusWithMutations {
               partner.name && partner.name.toLowerCase() === nameLower
             );
             console.log(`[EventBus] Filtered from ${originalCount} to ${data.length} partners`);
+
+            // Add mock infrastructure data if telcobright partner is requested with includes
+            if (nameLower === 'telcobright' && data.length > 0 && query.include) {
+              const hasCloudInclude = query.include.some(inc => inc.kind === 'cloud');
+
+              if (hasCloudInclude && !data[0].clouds) {
+                console.log('[EventBus] Adding mock infrastructure data to telcobright partner');
+                data[0].clouds = [
+                  {
+                    id: 101,
+                    name: 'aws-us-east',
+                    displayName: 'AWS US East',
+                    provider: 'aws',
+                    regions: [
+                      {
+                        id: 201,
+                        name: 'us-east-1',
+                        displayName: 'US East (N. Virginia)',
+                        availabilityZones: [
+                          {
+                            id: 301,
+                            name: 'us-east-1a',
+                            displayName: 'US East 1A',
+                            datacenters: [
+                              {
+                                id: 401,
+                                name: 'dc-us-east-1a-01',
+                                displayName: 'Datacenter US East 1A-01',
+                                location: 'Virginia, USA',
+                                compute: [
+                                  {
+                                    id: 501,
+                                    name: 'compute-001',
+                                    type: 'VM',
+                                    cpu: 4,
+                                    memory: 16,
+                                    storage: 500,
+                                    status: 'ACTIVE'
+                                  },
+                                  {
+                                    id: 502,
+                                    name: 'compute-002',
+                                    type: 'VM',
+                                    cpu: 8,
+                                    memory: 32,
+                                    storage: 1000,
+                                    status: 'ACTIVE'
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            id: 302,
+                            name: 'us-east-1b',
+                            displayName: 'US East 1B',
+                            datacenters: []
+                          }
+                        ]
+                      },
+                      {
+                        id: 202,
+                        name: 'us-west-2',
+                        displayName: 'US West (Oregon)',
+                        availabilityZones: []
+                      }
+                    ]
+                  },
+                  {
+                    id: 102,
+                    name: 'gcp-us-central',
+                    displayName: 'GCP US Central',
+                    provider: 'google',
+                    regions: [
+                      {
+                        id: 203,
+                        name: 'us-central1',
+                        displayName: 'US Central (Iowa)',
+                        availabilityZones: [
+                          {
+                            id: 303,
+                            name: 'us-central1-a',
+                            displayName: 'US Central 1A',
+                            datacenters: [
+                              {
+                                id: 402,
+                                name: 'dc-us-central-1a',
+                                displayName: 'Datacenter US Central 1A',
+                                location: 'Iowa, USA',
+                                compute: []
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 103,
+                    name: 'azure-east-us',
+                    displayName: 'Azure East US',
+                    provider: 'azure',
+                    regions: [
+                      {
+                        id: 204,
+                        name: 'eastus',
+                        displayName: 'East US',
+                        availabilityZones: []
+                      }
+                    ]
+                  }
+                ];
+              }
+            }
           } else {
             console.log(`[EventBus] Cannot filter - data is not an array`);
           }
@@ -173,16 +287,16 @@ class EventBusWithMutations {
 
     } catch (error) {
       console.error(`Query failed for ${entity}:`, error);
-      this.sendError(ws, `Query failed: ${error.message}`);
+      this.sendError(ws, `Query failed: ${error.message}`, requestId);
     }
   }
 
   /**
    * Handle MUTATION messages
    */
-  async handleMutation(ws, entity, operation, payload) {
+  async handleMutation(ws, entity, operation, payload, requestId) {
     if (!this.storeManager) {
-      this.sendError(ws, 'Store manager not initialized');
+      this.sendError(ws, 'Store manager not initialized', requestId);
       return;
     }
 
@@ -193,7 +307,7 @@ class EventBusWithMutations {
       const mutationResult = await this.apiService.mutate(entity, operation, payload);
 
       if (!mutationResult.success) {
-        this.sendError(ws, `Mutation failed: ${mutationResult.error}`);
+        this.sendError(ws, `Mutation failed: ${mutationResult.error}`, requestId);
         return;
       }
 
@@ -241,7 +355,7 @@ class EventBusWithMutations {
 
     } catch (error) {
       console.error(`Mutation ${operation} failed:`, error);
-      this.sendError(ws, `Mutation failed: ${error.message}`);
+      this.sendError(ws, `Mutation failed: ${error.message}`, requestId);
     }
   }
 
@@ -379,12 +493,18 @@ class EventBusWithMutations {
   /**
    * Send error message
    */
-  sendError(ws, error) {
-    this.send(ws, {
+  sendError(ws, error, requestId = null) {
+    const errorMessage = {
       type: 'ERROR',
       error: error,
       timestamp: Date.now()
-    });
+    };
+
+    if (requestId) {
+      errorMessage.requestId = requestId;
+    }
+
+    this.send(ws, errorMessage);
   }
 
   /**
