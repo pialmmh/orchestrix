@@ -1,96 +1,96 @@
 const { chromium } = require('playwright');
 
 (async () => {
-  console.log('🎭 Starting Playwright test for infrastructure tree loading...');
-
   const browser = await chromium.launch({
     headless: false,
-    slowMo: 500
+    devtools: true
   });
 
   const page = await browser.newPage();
 
-  // Add console listener to see frontend logs
+  // Enable console logging
   page.on('console', msg => {
-    if (msg.type() === 'error') {
-      console.log('❌ Console error:', msg.text());
-    } else if (msg.text().includes('EventBus') || msg.text().includes('WebSocket')) {
-      console.log('📡', msg.text());
-    }
+    console.log(`Browser console [${msg.type()}]:`, msg.text());
   });
 
-  // Navigate to infrastructure page
-  console.log('🌐 Navigating to infrastructure page...');
-  await page.goto('http://localhost:3010/infrastructure/organization');
+  // Capture errors
+  page.on('pageerror', error => {
+    console.error('Page error:', error.message);
+  });
 
-  // Wait for page to load
-  await page.waitForTimeout(3000);
-
-  // Check for debug mode indicator
-  const debugIndicator = await page.locator('.MuiAlert-standardWarning').first();
-  if (await debugIndicator.isVisible()) {
-    console.log('✅ Debug mode is active');
-    const debugText = await debugIndicator.textContent();
-    console.log('   Debug text:', debugText);
-  } else {
-    console.log('⚠️ Debug mode indicator not found');
-  }
-
-  // Wait for tree to load
-  console.log('⏳ Waiting for infrastructure tree to load...');
+  // Capture request failures
+  page.on('requestfailed', request => {
+    console.error('Request failed:', request.url(), request.failure().errorText);
+  });
 
   try {
-    // Wait for tree container
-    await page.waitForSelector('.MuiTreeView-root', { timeout: 10000 });
-    console.log('✅ Tree container found');
+    console.log('Navigating to login page...');
+    await page.goto('http://localhost:3010/login');
 
-    // Wait for tree items
-    await page.waitForSelector('.MuiTreeItem-root', { timeout: 10000 });
-    console.log('✅ Tree items found');
+    // Wait for page to load
+    await page.waitForTimeout(2000);
 
-    // Count tree items
-    const treeItems = await page.locator('.MuiTreeItem-label').all();
-    console.log(`✅ Found ${treeItems.length} tree nodes`);
+    // Login
+    console.log('Logging in...');
+    await page.fill('input[name="username"]', 'admin');
+    await page.fill('input[name="password"]', 'admin123');
+    await page.click('button[type="submit"]');
 
-    // Get first few node labels
-    if (treeItems.length > 0) {
-      console.log('📋 Tree nodes:');
-      for (let i = 0; i < Math.min(5, treeItems.length); i++) {
-        const label = await treeItems[i].textContent();
-        console.log(`   ${i + 1}. ${label}`);
-      }
-    }
+    // Wait for navigation
+    await page.waitForTimeout(3000);
 
-    // Check for "No infrastructure data" message
-    const noDataMessage = await page.locator('text=No infrastructure data').first();
-    if (await noDataMessage.isVisible()) {
-      console.log('❌ "No infrastructure data" message is visible');
-    } else {
-      console.log('✅ Infrastructure data loaded successfully');
-    }
+    // Navigate to infrastructure page
+    console.log('Navigating to infrastructure page...');
+    await page.goto('http://localhost:3010/infrastructure');
 
-    // Take screenshot
-    await page.screenshot({ path: 'infra-tree-loaded.png', fullPage: true });
-    console.log('📸 Screenshot saved: infra-tree-loaded.png');
-
-  } catch (error) {
-    console.log('❌ Error waiting for tree:', error.message);
+    // Wait for page to render
+    console.log('Waiting for page to render...');
+    await page.waitForTimeout(5000);
 
     // Check for error messages
-    const errorAlert = await page.locator('.MuiAlert-standardError').first();
-    if (await errorAlert.isVisible()) {
-      const errorText = await errorAlert.textContent();
-      console.log('❌ Error alert found:', errorText);
+    const errorElement = await page.$('text=/No infrastructure data available/i');
+    if (errorElement) {
+      console.error('ERROR: "No infrastructure data available" message found!');
+
+      // Take a screenshot
+      await page.screenshot({ path: 'infra-error.png', fullPage: true });
+      console.log('Screenshot saved as infra-error.png');
+    } else {
+      console.log('SUCCESS: No error message found');
+
+      // Check if tree structure is present
+      const treeElement = await page.$('[class*="MuiTreeView"]');
+      if (treeElement) {
+        console.log('SUCCESS: Tree view component found');
+
+        // Check for tree items
+        const treeItems = await page.$$('[role="treeitem"]');
+        console.log(`Found ${treeItems.length} tree items`);
+
+        if (treeItems.length > 0) {
+          // Get text content of first few items
+          for (let i = 0; i < Math.min(5, treeItems.length); i++) {
+            const text = await treeItems[i].textContent();
+            console.log(`  Tree item ${i + 1}: ${text}`);
+          }
+        }
+      } else {
+        console.log('WARNING: Tree view component not found');
+      }
+
+      // Take a success screenshot
+      await page.screenshot({ path: 'infra-load-test.png', fullPage: true });
+      console.log('Screenshot saved as infra-load-test.png');
     }
 
-    // Take error screenshot
-    await page.screenshot({ path: 'infra-tree-error.png', fullPage: true });
-    console.log('📸 Error screenshot saved: infra-tree-error.png');
+  } catch (error) {
+    console.error('Test failed:', error);
+    await page.screenshot({ path: 'error-screenshot.png', fullPage: true });
   }
 
-  // Wait a bit to observe
-  await page.waitForTimeout(3000);
+  // Keep browser open for inspection
+  console.log('\nTest complete. Browser will remain open for 10 seconds...');
+  await page.waitForTimeout(10000);
 
   await browser.close();
-  console.log('✅ Test completed');
 })();

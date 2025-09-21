@@ -14,7 +14,10 @@ class EventBus {
   }
 
   start() {
-    this.wss = new WebSocket.Server({ port: this.port });
+    this.wss = new WebSocket.Server({
+      port: this.port,
+      maxPayload: 100 * 1024 * 1024 // 100MB max payload size
+    });
 
     this.wss.on('connection', (ws) => {
       console.log('New client connected');

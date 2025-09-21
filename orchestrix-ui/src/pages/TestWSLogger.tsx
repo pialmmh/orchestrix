@@ -14,15 +14,15 @@ const TestWSLogger: React.FC = () => {
   const [counter, setCounter] = useState(0);
 
   useEffect(() => {
-    ws.log('TestWSLogger component mounted');
+    window.ws.log('TestWSLogger component mounted');
 
     return () => {
-      ws.log('TestWSLogger component unmounted');
+      window.ws.log('TestWSLogger component unmounted');
     };
   }, []);
 
   const handleSimpleLog = () => {
-    ws.log('Simple log message at', new Date().toISOString());
+    window.ws.log('Simple log message at', new Date().toISOString());
   };
 
   const handleObjectLog = () => {
@@ -35,13 +35,13 @@ const TestWSLogger: React.FC = () => {
         browser: navigator.userAgent
       }
     };
-    ws.log('Object log:', data);
+    window.ws.log('Object log:', data);
     setCounter(counter + 1);
   };
 
   const handleCustomLog = () => {
     if (message) {
-      ws.log('Custom message:', message);
+      window.ws.log('Custom message:', message);
       setMessage('');
     }
   };
@@ -50,12 +50,12 @@ const TestWSLogger: React.FC = () => {
     try {
       throw new Error('Test error for logging');
     } catch (error) {
-      ws.log('Error caught:', error.message, error.stack);
+      window.ws.log('Error caught:', (error as Error).message, (error as Error).stack);
     }
   };
 
   const handleMultipleArgs = () => {
-    ws.log('Multiple', 'arguments', 'test', { number: 42 }, ['array', 'items']);
+    window.ws.log('Multiple', 'arguments', 'test', { number: 42 }, ['array', 'items']);
   };
 
   return (

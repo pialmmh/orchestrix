@@ -5,7 +5,8 @@ import { ThemeProvider, CssBaseline } from '@mui/material';
 import { store } from './store/store';
 import { theme } from './theme/theme';
 import { StoreProvider } from './stores/base/StoreProvider';
-import './config/framework.config'; // Initialize stellar-crud-base framework
+import './test-axios'; // Debug axios import
+import './config/framework.config'; // Initialize @stellar/core framework
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';

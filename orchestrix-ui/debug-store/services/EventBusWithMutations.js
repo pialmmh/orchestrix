@@ -15,7 +15,10 @@ class EventBusWithMutations {
   }
 
   start() {
-    this.wss = new WebSocket.Server({ port: this.port });
+    this.wss = new WebSocket.Server({
+      port: this.port,
+      maxPayload: 100 * 1024 * 1024 // 100MB max payload size
+    });
 
     this.wss.on('connection', (ws) => {
       console.log('New client connected');
@@ -53,13 +56,16 @@ class EventBusWithMutations {
   }
 
   async handleMessage(ws, message) {
-    const { type, entity, operation, payload, query, messages } = message;
+    const { type, entity, operation, payload, query, messages, requestId } = message;
 
-    console.log(`Handling ${type} for ${entity}`, operation || '');
+    console.log(`Handling ${type} for ${entity}`, operation || '', requestId ? `requestId: ${requestId}` : '');
 
-    switch (type) {
+    // Handle both uppercase and lowercase message types
+    const messageType = type ? type.toUpperCase() : '';
+
+    switch (messageType) {
       case 'QUERY':
-        await this.handleQuery(ws, entity, query || payload);
+        await this.handleQuery(ws, entity, query || payload, requestId);
         break;
       case 'MUTATION':
         await this.handleMutation(ws, entity, operation, payload);
@@ -81,13 +87,15 @@ class EventBusWithMutations {
   /**
    * Handle QUERY messages
    */
-  async handleQuery(ws, entity, query) {
+  async handleQuery(ws, entity, query, requestId) {
     if (!this.storeManager) {
       this.sendError(ws, 'Store manager not initialized');
       return;
     }
 
     try {
+      console.log(`Query for ${entity}:`, JSON.stringify(query));
+
       // Update store with query
       const store = this.storeManager.handleQuery(entity, query);
       if (!store) {
@@ -100,20 +108,65 @@ class EventBusWithMutations {
       if (entity === 'infrastructure') {
         data = await this.apiService.fetchInfrastructure(query);
       } else {
-        const result = await this.apiService.query(query);
+        // Ensure query is in correct format for API
+        const apiQuery = {
+          kind: entity,
+          query: query
+        };
+        console.log(`API query for ${entity}:`, JSON.stringify(apiQuery));
+        const result = await this.apiService.query(apiQuery);
         data = result.success ? result.data : [];
+
+        // Apply criteria filtering if present
+        if (query && query.criteria && entity === 'partner') {
+          console.log(`[EventBus] Applying criteria filter for ${entity}:`, query.criteria);
+          console.log(`[EventBus] Data type: ${typeof data}, isArray: ${Array.isArray(data)}`);
+
+          // Check if data has nested structure
+          if (data && typeof data === 'object' && !Array.isArray(data)) {
+            // Try to extract the actual data array from nested structure
+            if (data.data && Array.isArray(data.data)) {
+              console.log(`[EventBus] Extracting nested data.data array`);
+              data = data.data;
+            } else if (data.items && Array.isArray(data.items)) {
+              console.log(`[EventBus] Extracting nested data.items array`);
+              data = data.items;
+            } else if (data.partners && Array.isArray(data.partners)) {
+              console.log(`[EventBus] Extracting nested data.partners array`);
+              data = data.partners;
+            }
+          }
+
+          // Filter partners based on criteria
+          if (query.criteria.name && Array.isArray(data)) {
+            const nameLower = query.criteria.name.toLowerCase();
+            const originalCount = data.length;
+            data = data.filter(partner =>
+              partner.name && partner.name.toLowerCase() === nameLower
+            );
+            console.log(`[EventBus] Filtered from ${originalCount} to ${data.length} partners`);
+          } else {
+            console.log(`[EventBus] Cannot filter - data is not an array`);
+          }
+        }
       }
 
       // Update store with result
       this.storeManager.handleQueryResult(entity, data, [1]);
 
-      // Send response
-      this.send(ws, {
+      // Send response with requestId if provided
+      const response = {
         type: 'QUERY_RESULT',
         entity: entity,
         data: this.storeManager.getStoreState(entity),
         timestamp: Date.now()
-      });
+      };
+
+      if (requestId) {
+        response.requestId = requestId;
+      }
+
+      this.send(ws, response);
 
       // Broadcast to subscribers
       this.broadcastStoreUpdate(entity);

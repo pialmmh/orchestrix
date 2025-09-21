@@ -62,6 +62,22 @@ async function handleQueryRequest(event, ws) {
     // Execute query against Stellar backend
     const response = await stellarClient.post('/stellar/query', query);
 
+    let filteredData = response.data;
+
+    // Apply criteria filtering if present
+    if (query.criteria && query.kind === 'partner') {
+      console.log(`[QUERY] Applying criteria filter:`, query.criteria);
+
+      // Filter partners based on criteria
+      if (query.criteria.name) {
+        const nameLower = query.criteria.name.toLowerCase();
+        filteredData = response.data.filter(partner =>
+          partner.name && partner.name.toLowerCase() === nameLower
+        );
+        console.log(`[QUERY] Filtered from ${response.data.length} to ${filteredData.length} partners`);
+      }
+    }
+
     // Create success response event
     const responseEvent = {
       id: event.id,
@@ -69,15 +85,17 @@ async function handleQueryRequest(event, ws) {
       type: 'query',
       operation: 'RESPONSE',
       entity: query.kind || 'unknown',
-      payload: response.data,
+      payload: filteredData,
       metadata: {
         duration: Date.now() - event.timestamp,
-        serverProcessed: true
+        serverProcessed: true,
+        originalCount: response.data.length,
+        filteredCount: filteredData.length
       },
       success: true
     };
 
-    console.log(`[QUERY] Success for ${event.id}, returning ${JSON.stringify(response.data).length} bytes`);
+    console.log(`[QUERY] Success for ${event.id}, returning ${filteredData.length} items (filtered from ${response.data.length})`);
 
     // Log and broadcast response
     logEvent(responseEvent);

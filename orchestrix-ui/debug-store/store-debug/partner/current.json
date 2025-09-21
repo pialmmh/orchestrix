@@ -1,11 +1,387 @@
 {
   "entity": "partner",
-  "query": null,
-  "data": [],
+  "query": {
+    "success": true,
+    "data": [
+      {
+        "id": 24,
+        "name": "telcobright",
+        "displayName": "Telcobright",
+        "contactEmail": "admin@telcobright.com",
+        "website": "https://telcobright.com",
+        "type": "service-provider",
+        "roles": [
+          "self"
+        ],
+        "status": "ACTIVE"
+      }
+    ]
+  },
+  "data": {
+    "count": 27,
+    "data": [
+      {
+        "id": 1,
+        "name": "amazon",
+        "displayName": "Amazon Web Services (AWS)",
+        "contactEmail": "billing@aws.amazon.com",
+        "website": "https://aws.amazon.com",
+        "type": "cloud-provider",
+        "roles": [
+          "cloud-provider",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 2,
+        "name": "google",
+        "displayName": "Google Cloud Platform",
+        "contactEmail": "billing@cloud.google.com",
+        "website": "https://cloud.google.com",
+        "type": "cloud-provider",
+        "roles": [
+          "cloud-provider",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 3,
+        "name": "microsoft",
+        "displayName": "Microsoft Azure",
+        "contactEmail": "billing@azure.microsoft.com",
+        "website": "https://azure.microsoft.com",
+        "type": "cloud-provider",
+        "roles": [
+          "cloud-provider",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 4,
+        "name": "ibm",
+        "displayName": "IBM Cloud",
+        "contactEmail": "billing@ibm.com",
+        "website": "https://www.ibm.com/cloud",
+        "type": "cloud-provider",
+        "roles": [
+          "cloud-provider",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 5,
+        "name": "oracle",
+        "displayName": "Oracle Cloud",
+        "contactEmail": "billing@oracle.com",
+        "website": "https://www.oracle.com/cloud",
+        "type": "cloud-provider",
+        "roles": [
+          "cloud-provider",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 6,
+        "name": "alibaba",
+        "displayName": "Alibaba Cloud",
+        "contactEmail": "billing@alibabacloud.com",
+        "website": "https://www.alibabacloud.com",
+        "type": "cloud-provider",
+        "roles": [
+          "cloud-provider",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 7,
+        "name": "digitalocean",
+        "displayName": "DigitalOcean",
+        "contactEmail": "billing@digitalocean.com",
+        "website": "https://www.digitalocean.com",
+        "type": "cloud-provider",
+        "roles": [
+          "cloud-provider",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 8,
+        "name": "linode",
+        "displayName": "Akamai Connected Cloud (Linode)",
+        "contactEmail": "billing@linode.com",
+        "website": "https://www.linode.com",
+        "type": "cloud-provider",
+        "roles": [
+          "cloud-provider",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 9,
+        "name": "vultr",
+        "displayName": "Vultr",
+        "contactEmail": "billing@vultr.com",
+        "website": "https://www.vultr.com",
+        "type": "cloud-provider",
+        "roles": [
+          "cloud-provider",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 10,
+        "name": "ovhcloud",
+        "displayName": "OVHcloud",
+        "contactEmail": "billing@ovhcloud.com",
+        "website": "https://www.ovhcloud.com",
+        "type": "cloud-provider",
+        "roles": [
+          "cloud-provider",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 11,
+        "name": "hetzner",
+        "displayName": "Hetzner",
+        "contactEmail": "billing@hetzner.com",
+        "website": "https://www.hetzner.com",
+        "type": "cloud-provider",
+        "roles": [
+          "cloud-provider",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 12,
+        "name": "equinix",
+        "displayName": "Equinix Metal",
+        "contactEmail": "billing@equinix.com",
+        "website": "https://metal.equinix.com",
+        "type": "cloud-provider",
+        "roles": [
+          "cloud-provider",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 13,
+        "name": "cloudflare",
+        "displayName": "Cloudflare",
+        "contactEmail": "billing@cloudflare.com",
+        "website": "https://www.cloudflare.com",
+        "type": "cloud-provider",
+        "roles": [
+          "cloud-provider",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 14,
+        "name": "contabo",
+        "displayName": "Contabo",
+        "contactEmail": "billing@contabo.com",
+        "website": "https://contabo.com",
+        "type": "cloud-provider",
+        "roles": [
+          "cloud-provider",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 15,
+        "name": "scaleway",
+        "displayName": "Scaleway",
+        "contactEmail": "billing@scaleway.com",
+        "website": "https://www.scaleway.com",
+        "type": "cloud-provider",
+        "roles": [
+          "cloud-provider",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 16,
+        "name": "dell",
+        "displayName": "Dell Technologies",
+        "contactEmail": "sales@dell.com",
+        "website": "https://www.dell.com",
+        "type": "vendor",
+        "roles": [
+          "hardware-vendor",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 17,
+        "name": "hp",
+        "displayName": "Hewlett Packard Enterprise",
+        "contactEmail": "sales@hpe.com",
+        "website": "https://www.hpe.com",
+        "type": "vendor",
+        "roles": [
+          "hardware-vendor",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 18,
+        "name": "cisco",
+        "displayName": "Cisco Systems",
+        "contactEmail": "sales@cisco.com",
+        "website": "https://www.cisco.com",
+        "type": "vendor",
+        "roles": [
+          "network-vendor",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 19,
+        "name": "juniper",
+        "displayName": "Juniper Networks",
+        "contactEmail": "sales@juniper.net",
+        "website": "https://www.juniper.net",
+        "type": "vendor",
+        "roles": [
+          "network-vendor",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 20,
+        "name": "vmware",
+        "displayName": "VMware",
+        "contactEmail": "sales@vmware.com",
+        "website": "https://www.vmware.com",
+        "type": "vendor",
+        "roles": [
+          "software-vendor",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 21,
+        "name": "redhat",
+        "displayName": "Red Hat",
+        "contactEmail": "sales@redhat.com",
+        "website": "https://www.redhat.com",
+        "type": "vendor",
+        "roles": [
+          "software-vendor",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 22,
+        "name": "canonical",
+        "displayName": "Canonical (Ubuntu)",
+        "contactEmail": "sales@canonical.com",
+        "website": "https://canonical.com",
+        "type": "vendor",
+        "roles": [
+          "software-vendor",
+          "vendor"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 23,
+        "name": "acme-corp",
+        "displayName": "ACME Corporation",
+        "contactEmail": "contact@acme.com",
+        "website": "https://acme.com",
+        "type": "customer",
+        "roles": [
+          "customer"
+        ],
+        "status": "ACTIVE",
+        "updatedAt": "2025-09-18T19:10:33"
+      },
+      {
+        "id": 24,
+        "name": "telcobright",
+        "displayName": "Telcobright",
+        "contactEmail": "admin@telcobright.com",
+        "website": "https://telcobright.com",
+        "type": "service-provider",
+        "roles": [
+          "self"
+        ],
+        "status": "ACTIVE"
+      },
+      {
+        "id": 25,
+        "name": "tech-solutions",
+        "displayName": "Tech Solutions Inc",
+        "contactEmail": "info@techsolutions.com",
+        "website": "https://www.techsolutions.com",
+        "type": "VENDOR",
+        "roles": [
+          "vendor"
+        ],
+        "status": "ACTIVE",
+        "createdAt": "2025-09-18T19:09:57",
+        "updatedAt": "2025-09-18T19:10:33"
+      },
+      {
+        "id": 26,
+        "name": "global-systems",
+        "displayName": "Global Systems Ltd",
+        "contactEmail": "support@globalsystems.com",
+        "website": "https://www.globalsystems.com",
+        "type": "CUSTOMER",
+        "roles": [
+          "customer"
+        ],
+        "status": "ACTIVE",
+        "createdAt": "2025-09-18T19:09:57",
+        "updatedAt": "2025-09-18T19:10:33"
+      },
+      {
+        "id": 27,
+        "name": "cloud-dynamics",
+        "displayName": "Cloud Dynamics",
+        "contactEmail": "hello@clouddynamics.io",
+        "website": "https://www.clouddynamics.io",
+        "type": "VENDOR",
+        "roles": [
+          "vendor"
+        ],
+        "status": "ACTIVE",
+        "createdAt": "2025-09-18T19:09:57",
+        "updatedAt": "2025-09-18T19:10:33"
+      }
+    ],
+    "success": true
+  },
   "meta": {
-    "timestamp": null,
+    "timestamp": "2025-09-21T17:38:25.019Z",
     "totalCount": 0,
     "pageSize": 20,
-    "pagesLoaded": []
+    "pagesLoaded": [
+      1
+    ]
   }
 }

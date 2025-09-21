@@ -2,48 +2,85 @@ const { chromium } = require('playwright');
 
 (async () => {
   const browser = await chromium.launch({ headless: false });
-  const page = await browser.newPage();
+  const context = await browser.newContext();
+  const page = await context.newPage();
 
-  // Enable console logging
+  // Capture console logs
   page.on('console', msg => {
-    console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`);
+    const text = msg.text();
+    if (text.includes('WebSocket') || text.includes('Store') || text.includes('partner') || text.includes('infrastructure')) {
+      console.log(`[Browser Console]: ${text}`);
+    }
   });
 
-  page.on('pageerror', err => {
-    console.error(`[Page Error]`, err);
+  // Capture network activity
+  page.on('request', request => {
+    if (request.url().includes('partner') || request.url().includes('infrastructure')) {
+      console.log(`[Request]: ${request.method()} ${request.url()}`);
+    }
   });
 
-  console.log('Opening Infrastructure page...');
-  await page.goto('http://localhost:3010/infrastructure/organization');
+  page.on('response', response => {
+    if (response.url().includes('partner') || response.url().includes('infrastructure')) {
+      console.log(`[Response]: ${response.status()} ${response.url()}`);
+    }
+  });
 
-  // Wait for potential loading
-  await page.waitForTimeout(5000);
+  // Capture WebSocket activity
+  page.on('websocket', ws => {
+    console.log(`[WebSocket]: Connected to ${ws.url()}`);
 
-  // Check for debug mode indicator
-  const debugIndicator = await page.locator('text=/Debug Mode/i').isVisible().catch(() => false);
-  console.log(`Debug Mode Indicator Visible: ${debugIndicator}`);
+    ws.on('framesent', ({ payload }) => {
+      try {
+        const data = JSON.parse(payload);
+        if (data.type === 'query' || data.entity === 'partner') {
+          console.log('[WebSocket Send]:', JSON.stringify(data).substring(0, 200));
+        }
+      } catch (e) {}
+    });
 
-  // Check for tree data
-  const treeElement = await page.locator('[role="tree"], .tree-container, [data-testid="tree"]').first();
-  const hasTree = await treeElement.isVisible().catch(() => false);
-  console.log(`Tree Visible: ${hasTree}`);
+    ws.on('framereceived', ({ payload }) => {
+      try {
+        const data = JSON.parse(payload);
+        if (data.type === 'QUERY_RESULT' || data.entity === 'partner') {
+          console.log('[WebSocket Receive]:', JSON.stringify(data).substring(0, 200));
+        }
+      } catch (e) {}
+    });
+  });
 
-  // Check for any error messages
-  const errorText = await page.locator('text=/error|failed|no.*data/i').first();
-  const hasError = await errorText.isVisible().catch(() => false);
-  if (hasError) {
-    const errorMessage = await errorText.textContent();
-    console.log(`Error found: ${errorMessage}`);
+  try {
+    console.log('Navigating to infrastructure page...');
+    await page.goto('http://localhost:3010/infrastructure/organization', { waitUntil: 'networkidle' });
+
+    // Wait for potential data loading
+    await page.waitForTimeout(5000);
+
+    // Check page content
+    const pageContent = await page.content();
+    const hasLoadingText = pageContent.includes('Loading infrastructure data');
+    const hasTelcobright = pageContent.includes('Telcobright') || pageContent.includes('telcobright');
+    const hasPartnerData = pageContent.includes('Amazon Web Services') || pageContent.includes('Google Cloud');
+
+    console.log('\n=== Page Status ===');
+    console.log(`Still showing "Loading...": ${hasLoadingText}`);
+    console.log(`Has Telcobright partner: ${hasTelcobright}`);
+    console.log(`Has partner data: ${hasPartnerData}`);
+
+    // Check for tree nodes
+    const treeNodes = await page.$$('.tree-node, .ant-tree-node, [role="treeitem"]');
+    console.log(`Found ${treeNodes.length} tree nodes`);
+
+    // Take screenshot
+    await page.screenshot({ path: 'infra-debug.png', fullPage: true });
+    console.log('Screenshot saved as infra-debug.png');
+
+    // Keep browser open for 5 more seconds to capture any delayed responses
+    await page.waitForTimeout(5000);
+
+  } catch (error) {
+    console.error('Test failed:', error);
+  } finally {
+    await browser.close();
   }
-
-  // Take screenshot
-  await page.screenshot({ path: 'infra-debug-test.png' });
-  console.log('Screenshot saved as infra-debug-test.png');
-
-  // Keep browser open for 10 seconds to observe
-  console.log('Keeping browser open for observation...');
-  await page.waitForTimeout(10000);
-
-  await browser.close();
-  console.log('Test completed');
 })();

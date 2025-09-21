@@ -17,7 +17,7 @@ class ApiService {
    */
   async query(queryPayload) {
     try {
-      const response = await this.client.post('/stellar/query', queryPayload);
+      const response = await this.client.post('/api/stellar/query', queryPayload);
       return {
         success: true,
         data: response.data.result || response.data,

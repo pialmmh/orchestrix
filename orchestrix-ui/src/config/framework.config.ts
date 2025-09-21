@@ -1,8 +1,8 @@
-import { TelcobrightFramework } from 'stellar-crud-base';
+import { TelcobrightFramework } from '@stellar/core';
 import { appConfig } from './app.config';
 
 /**
- * Initialize Telcobright Admin-UI Framework (stellar-crud-base)
+ * Initialize Telcobright Admin-UI Framework (@stellar/core)
  */
 export function initializeFramework() {
   const framework = TelcobrightFramework.init({

@@ -6,6 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { getStoreDebugConfig } from '../config/storeDebugConfig';
 // Initialize LocalStore to handle events
 import '../store/events/LocalStore';
+// Initialize EventBusWebSocketHandler for debug mode
+import '../store/events/EventBusWebSocketHandler';
 
 class QueryService {
   private eventBus = getEventBus();

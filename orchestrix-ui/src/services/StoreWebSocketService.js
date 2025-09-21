@@ -103,7 +103,24 @@ class StoreWebSocketService {
         if (message.requestId) {
           const handler = this.responseHandlers.get(message.requestId);
           if (handler) {
-            handler.resolve(message.data);
+            // Extract the actual data from the store state structure
+            // The backend sends { entity, query, data, meta } where data contains the actual results
+            console.log(`[StoreWebSocket] QUERY_RESULT received for ${message.entity} with requestId ${message.requestId}`);
+            console.log('[StoreWebSocket] Full message.data structure:', JSON.stringify(message.data, null, 2).substring(0, 500));
+
+            // The backend sends the store state which has: { entity, query, data: { data: [...], count, success }, meta }
+            // We need to extract the nested data.data array
+            let responseData = message.data;
+            if (responseData && responseData.data && responseData.data.data) {
+              // Extract the actual data array from the nested structure
+              responseData = responseData.data.data;
+              console.log(`[StoreWebSocket] Extracted nested data array with ${responseData.length} items`);
+            } else if (responseData && responseData.data) {
+              responseData = responseData.data;
+              console.log('[StoreWebSocket] Using data field from response');
+            }
+
+            handler.resolve(responseData);
             this.responseHandlers.delete(message.requestId);
           }
         }
@@ -178,6 +195,33 @@ class StoreWebSocketService {
       this.responseHandlers.set(requestId, { resolve, reject });
 
       // Send the query
+      this.send({
+        type: 'QUERY',
+        entity,
+        query: queryPayload,
+        payload: queryPayload, // Some backend versions expect payload
+        requestId
+      });
+
+      // Set timeout
+      setTimeout(() => {
+        if (this.responseHandlers.has(requestId)) {
+          this.responseHandlers.delete(requestId);
+          reject(new Error('Query timeout'));
+        }
+      }, 30000); // 30 second timeout
+    });
+  }
+
+  /**
+   * Execute a query with a specific requestId
+   */
+  async queryWithId(entity, queryPayload, requestId) {
+    return new Promise((resolve, reject) => {
+      // Store the response handler with the specific requestId
+      this.responseHandlers.set(requestId, { resolve, reject });
+
+      // Send the query with the specific requestId
       this.send({
         type: 'QUERY',
         entity,
