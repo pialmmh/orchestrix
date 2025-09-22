@@ -15,6 +15,7 @@ import {
   CircularProgress,
   Divider,
   Tooltip,
+  Avatar,
 } from '@mui/material';
 import {
   Refresh,
@@ -43,11 +44,13 @@ const InfrastructureStellar: React.FC = observer(() => {
   const [openNetworkDialog, setOpenNetworkDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState<any>({});
+  const [filterMode, setFilterMode] = useState<'organization' | 'partners'>('organization');
 
   useEffect(() => {
-    // Load infrastructure tree on component mount
-    store.loadInfrastructureTree();
-  }, [store]);
+    // Load infrastructure tree based on filter mode
+    const storeParam = filterMode === 'organization' ? 'self' : 'all';
+    store.loadInfrastructureTree(storeParam);
+  }, [store, filterMode]);
 
   const handleNodeSelect = (event: React.SyntheticEvent, nodeId: string) => {
     const node = store.findNode(nodeId);
@@ -143,18 +146,95 @@ const InfrastructureStellar: React.FC = observer(() => {
   };
 
   const getNodeIcon = (type: string) => {
+    // Avatar style for text-based icons
+    const avatarStyle = {
+      width: 24,
+      height: 24,
+      fontSize: 10,
+      fontWeight: 600,
+    };
+
     switch (type) {
       case 'partner':
+        // Partner nodes keep the people icon
+        return <Business sx={{ fontSize: 20, color: '#757575', opacity: 0.9 }} />;
       case 'organization':
-        return <Business />;
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#e8eaf6',
+            color: '#5e35b1'
+          }}>
+            O
+          </Avatar>
+        );
       case 'cloud':
-        return <CloudIcon />;
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#e1f5fe',
+            color: '#0277bd',
+            fontSize: 9
+          }}>
+            CL
+          </Avatar>
+        );
+      case 'region':
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#f5f5f5',
+            color: '#757575',
+            fontSize: 9
+          }}>
+            RG
+          </Avatar>
+        );
+      case 'availability-zone':
+      case 'az':
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#ede7f6',
+            color: '#512da8',
+            fontSize: 9
+          }}>
+            AZ
+          </Avatar>
+        );
       case 'datacenter':
-        return <DataCenterIcon />;
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#eceff1',
+            color: '#546e7a',
+            fontSize: 9
+          }}>
+            DC
+          </Avatar>
+        );
       case 'compute':
-        return <Computer />;
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#e8f5e9',
+            color: '#2e7d32',
+            fontSize: 9
+          }}>
+            VM
+          </Avatar>
+        );
       case 'network-device':
-        return <RouterIcon />;
+        return (
+          <Avatar sx={{
+            ...avatarStyle,
+            backgroundColor: '#fff3e0',
+            color: '#e65100',
+            fontSize: 9
+          }}>
+            ND
+          </Avatar>
+        );
       default:
         return null;
     }
@@ -166,11 +246,15 @@ const InfrastructureStellar: React.FC = observer(() => {
         key={node.id}
         nodeId={node.id}
         label={
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             {getNodeIcon(node.type)}
-            <Typography variant="body2">{node.name}</Typography>
+            <Typography variant="body2" sx={{ ml: 0.5 }}>{node.name}</Typography>
             {node.metadata?.ipAddress && (
-              <Chip size="small" label={node.metadata.ipAddress} />
+              <Chip
+                size="small"
+                label={node.metadata.ipAddress}
+                sx={{ ml: 1, height: 20 }}
+              />
             )}
           </Box>
         }
@@ -246,15 +330,68 @@ const InfrastructureStellar: React.FC = observer(() => {
   }
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', bgcolor: 'background.default' }}>
-      {/* Left Panel - Tree */}
-      <Paper sx={{ width: 400, p: 2, m: 2, overflow: 'auto' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">Infrastructure</Typography>
-          <IconButton onClick={handleRefresh}>
-            <Refresh />
-          </IconButton>
-        </Box>
+    <Box>
+      <Typography variant="h4" gutterBottom>
+        Infrastructure
+      </Typography>
+
+      <Box sx={{ display: 'flex', height: 'calc(100vh - 60px)' }}>
+        {/* Left Panel - Tree */}
+        <Paper sx={{ width: 400, p: 2, m: 2, overflow: 'auto' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            {/* Filter Buttons */}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setFilterMode('organization')}
+            sx={{
+              textTransform: 'none',
+              minWidth: 'auto',
+              py: 0.5,
+              px: 1.5,
+              border: '1px solid #1976d2',
+              backgroundColor: filterMode === 'organization' ? '#E3F2FD' : 'transparent',
+              color: '#616161',
+              fontWeight: filterMode === 'organization' ? 600 : 400,
+              '&:hover': {
+                backgroundColor: filterMode === 'organization' ? '#BBDEFB' : '#F5F5F5',
+                border: '1px solid #1976d2',
+              },
+              borderRadius: 1,
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Organization
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setFilterMode('partners')}
+            sx={{
+              textTransform: 'none',
+              minWidth: 'auto',
+              py: 0.5,
+              px: 1.5,
+              border: '1px solid #1976d2',
+              backgroundColor: filterMode === 'partners' ? '#E3F2FD' : 'transparent',
+              color: '#616161',
+              fontWeight: filterMode === 'partners' ? 600 : 400,
+              '&:hover': {
+                backgroundColor: filterMode === 'partners' ? '#BBDEFB' : '#F5F5F5',
+                border: '1px solid #1976d2',
+              },
+              borderRadius: 1,
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Partners
+          </Button>
+            </Box>
+            <IconButton onClick={handleRefresh} size="small">
+              <Refresh />
+            </IconButton>
+          </Box>
 
         {store.error && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -263,12 +400,37 @@ const InfrastructureStellar: React.FC = observer(() => {
         )}
 
         <TreeView
-          defaultCollapseIcon={<ExpandMore />}
-          defaultExpandIcon={<ExpandLess />}
+          defaultCollapseIcon={<ExpandMore sx={{ fontSize: 18, opacity: 0.6 }} />}
+          defaultExpandIcon={<ExpandLess sx={{ fontSize: 18, opacity: 0.6 }} />}
           expanded={store.expandedNodeIds}
           selected={store.selectedNode?.id || ''}
           onNodeSelect={handleNodeSelect}
           onNodeToggle={handleNodeToggle}
+          sx={{
+            flexGrow: 1,
+            '& .MuiTreeItem-content': {
+              paddingLeft: '4px',
+              paddingTop: '3px',
+              paddingBottom: '3px',
+              '&:hover': {
+                backgroundColor: 'rgba(0, 0, 0, 0.03)'
+              },
+              '&.Mui-selected': {
+                backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                '&:hover': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.12)'
+                }
+              }
+            },
+            '& .MuiTreeItem-group': {
+              marginLeft: '12px',
+              borderLeft: '1px solid rgba(0, 0, 0, 0.05)'
+            },
+            '& .MuiTreeItem-label': {
+              fontSize: '0.9rem',
+              fontWeight: 400
+            }
+          }}
         >
           {renderTreeNodes(store.treeData)}
         </TreeView>
@@ -314,6 +476,7 @@ const InfrastructureStellar: React.FC = observer(() => {
           onSave={handleSaveNetworkDevice}
         />
       )}
+      </Box>
     </Box>
   );
 });

@@ -23,6 +23,7 @@ storeManager.createStore('country', CountryStore);
 storeManager.createStore('partner', PartnerStore);
 storeManager.createStore('environment', EnvironmentStore);
 storeManager.createStore('compute', EnvironmentStore); // For compute operations
+storeManager.createStore('environmentassociation', EnvironmentStore); // For environment associations
 
 // Initialize EventBus with mutations
 const eventBus = new EventBusWithMutations(config.port);
@@ -52,6 +53,7 @@ console.log(`
 ║    • partner                                ║
 ║    • environment                            ║
 ║    • compute                                ║
+║    • environmentassociation                 ║
 ╚════════════════════════════════════════════╝
 `);
 
