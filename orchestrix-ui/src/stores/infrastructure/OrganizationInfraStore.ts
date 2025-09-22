@@ -47,6 +47,7 @@ export class OrganizationInfraStore extends StellarStore {
       toggleNodeExpanded: action,
       expandNode: action,
       collapseNode: action,
+      setExpandedNodeIds: action,
       loadInfrastructureTree: action,
       setEnvironmentFilter: action,
       applyEnvironmentFilter: action,
@@ -263,6 +264,10 @@ export class OrganizationInfraStore extends StellarStore {
     if (index >= 0) {
       this.expandedNodeIds.splice(index, 1);
     }
+  }
+
+  setExpandedNodeIds(nodeIds: string[]) {
+    this.expandedNodeIds = nodeIds;
   }
 
   async loadComputeEnvironments() {

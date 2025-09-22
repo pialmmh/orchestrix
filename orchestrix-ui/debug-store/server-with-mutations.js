@@ -24,6 +24,9 @@ storeManager.createStore('partner', PartnerStore);
 storeManager.createStore('environment', EnvironmentStore);
 storeManager.createStore('compute', EnvironmentStore); // For compute operations
 storeManager.createStore('environmentassociation', EnvironmentStore); // For environment associations
+storeManager.createStore('cloud', InfrastructureStore); // For cloud operations
+storeManager.createStore('datacenter', InfrastructureStore); // For datacenter operations
+storeManager.createStore('network-device', InfrastructureStore); // For network device operations
 
 // Initialize EventBus with mutations
 const eventBus = new EventBusWithMutations(config.port);
@@ -54,6 +57,9 @@ console.log(`
 ║    • environment                            ║
 ║    • compute                                ║
 ║    • environmentassociation                 ║
+║    • cloud                                  ║
+║    • datacenter                             ║
+║    • network-device                         ║
 ╚════════════════════════════════════════════╝
 `);
 

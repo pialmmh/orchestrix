@@ -1,11 +1,354 @@
 {
   "entity": "environment",
-  "query": null,
-  "data": [],
+  "query": {
+    "success": true,
+    "data": [
+      {
+        "id": 2,
+        "name": "Web-Server-01",
+        "datacenterId": 38,
+        "cloudId": 5,
+        "hostname": "web01.telcobright.com",
+        "status": "ACTIVE",
+        "createdAt": "2025-09-07T18:27:54"
+      },
+      {
+        "id": 3,
+        "name": "DB-Server-01",
+        "datacenterId": 38,
+        "cloudId": 5,
+        "hostname": "db01.telcobright.com",
+        "status": "ACTIVE",
+        "createdAt": "2025-09-07T18:27:54"
+      },
+      {
+        "id": 4,
+        "name": "App-Server-01",
+        "datacenterId": 38,
+        "cloudId": 5,
+        "hostname": "app01.telcobright.com",
+        "status": "ACTIVE",
+        "createdAt": "2025-09-07T18:27:54"
+      },
+      {
+        "id": 5,
+        "name": "TestCompute",
+        "hostname": "test-compute",
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-10T01:53:41.227452",
+        "updatedAt": "2025-09-10T01:53:41.227471"
+      },
+      {
+        "id": 6,
+        "name": "TestCompute",
+        "hostname": "test-compute",
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-10T01:54:05.080156",
+        "updatedAt": "2025-09-10T01:54:05.080168"
+      },
+      {
+        "id": 7,
+        "name": "TestCompute",
+        "hostname": "test-compute.example.com",
+        "ipAddress": "192.168.1.100",
+        "cpuCores": 4,
+        "memoryGb": 8,
+        "diskGb": 100,
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-10T04:30:34.21789",
+        "updatedAt": "2025-09-10T04:30:34.217904"
+      },
+      {
+        "id": 8,
+        "name": "TestLinuxServer",
+        "hostname": "test-linux.example.com",
+        "cpuCores": 4,
+        "memoryGb": 8,
+        "diskGb": 100,
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-11T09:50:37.378332",
+        "updatedAt": "2025-09-11T09:50:37.37836"
+      },
+      {
+        "id": 9,
+        "name": "TestServer",
+        "hostname": "test.example.com",
+        "cpuCores": 4,
+        "memoryGb": 8,
+        "diskGb": 100,
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-11T14:21:10.460175",
+        "updatedAt": "2025-09-11T14:21:10.460202"
+      },
+      {
+        "id": 10,
+        "name": "TestServer2",
+        "hostname": "test2.example.com",
+        "cpuCores": 4,
+        "memoryGb": 8,
+        "diskGb": 100,
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-11T14:21:19.429723",
+        "updatedAt": "2025-09-11T14:21:19.429736"
+      },
+      {
+        "id": 11,
+        "name": "mustafa-pc",
+        "datacenterId": 41,
+        "hostname": "mustafa-pc.local",
+        "ipAddress": "192.168.1.100",
+        "cpuCores": 8,
+        "memoryGb": 16,
+        "diskGb": 512,
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-11T17:18:35.679169",
+        "updatedAt": "2025-09-11T17:18:35.679186"
+      },
+      {
+        "id": 12,
+        "name": "test-server-2",
+        "hostname": "test-server-2.local",
+        "ipAddress": "192.168.1.201",
+        "cpuCores": 16,
+        "memoryGb": 32,
+        "diskGb": 1024,
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-11T20:41:49.922592",
+        "updatedAt": "2025-09-11T20:41:49.922608"
+      },
+      {
+        "id": 13,
+        "name": "test-server-stellar",
+        "hostname": "test-stellar.local",
+        "ipAddress": "192.168.1.100",
+        "cpuCores": 4,
+        "memoryGb": 8,
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-12T22:17:20.541343",
+        "updatedAt": "2025-09-12T22:17:20.54136"
+      },
+      {
+        "id": 14,
+        "name": "aws-ec2-prod-01",
+        "datacenterId": 54,
+        "ipAddress": "10.0.0.10",
+        "cpuCores": 32,
+        "memoryGb": 128,
+        "diskGb": 1000,
+        "createdAt": "2025-09-18T19:43:07",
+        "updatedAt": "2025-09-18T19:43:07"
+      },
+      {
+        "id": 15,
+        "name": "aws-ec2-prod-02",
+        "datacenterId": 54,
+        "ipAddress": "10.0.0.11",
+        "cpuCores": 64,
+        "memoryGb": 256,
+        "diskGb": 2000,
+        "createdAt": "2025-09-18T19:43:07",
+        "updatedAt": "2025-09-18T19:43:07"
+      },
+      {
+        "id": 16,
+        "name": "aws-ec2-dev-01",
+        "datacenterId": 55,
+        "ipAddress": "10.1.0.10",
+        "cpuCores": 16,
+        "memoryGb": 64,
+        "diskGb": 500,
+        "createdAt": "2025-09-18T19:43:07",
+        "updatedAt": "2025-09-18T19:43:07"
+      }
+    ]
+  },
+  "data": {
+    "count": 15,
+    "data": [
+      {
+        "id": 2,
+        "name": "Web-Server-01",
+        "datacenterId": 38,
+        "cloudId": 5,
+        "hostname": "web01.telcobright.com",
+        "status": "ACTIVE",
+        "createdAt": "2025-09-07T18:27:54"
+      },
+      {
+        "id": 3,
+        "name": "DB-Server-01",
+        "datacenterId": 38,
+        "cloudId": 5,
+        "hostname": "db01.telcobright.com",
+        "status": "ACTIVE",
+        "createdAt": "2025-09-07T18:27:54"
+      },
+      {
+        "id": 4,
+        "name": "App-Server-01",
+        "datacenterId": 38,
+        "cloudId": 5,
+        "hostname": "app01.telcobright.com",
+        "status": "ACTIVE",
+        "createdAt": "2025-09-07T18:27:54"
+      },
+      {
+        "id": 5,
+        "name": "TestCompute",
+        "hostname": "test-compute",
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-10T01:53:41.227452",
+        "updatedAt": "2025-09-10T01:53:41.227471"
+      },
+      {
+        "id": 6,
+        "name": "TestCompute",
+        "hostname": "test-compute",
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-10T01:54:05.080156",
+        "updatedAt": "2025-09-10T01:54:05.080168"
+      },
+      {
+        "id": 7,
+        "name": "TestCompute",
+        "hostname": "test-compute.example.com",
+        "ipAddress": "192.168.1.100",
+        "cpuCores": 4,
+        "memoryGb": 8,
+        "diskGb": 100,
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-10T04:30:34.21789",
+        "updatedAt": "2025-09-10T04:30:34.217904"
+      },
+      {
+        "id": 8,
+        "name": "TestLinuxServer",
+        "hostname": "test-linux.example.com",
+        "cpuCores": 4,
+        "memoryGb": 8,
+        "diskGb": 100,
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-11T09:50:37.378332",
+        "updatedAt": "2025-09-11T09:50:37.37836"
+      },
+      {
+        "id": 9,
+        "name": "TestServer",
+        "hostname": "test.example.com",
+        "cpuCores": 4,
+        "memoryGb": 8,
+        "diskGb": 100,
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-11T14:21:10.460175",
+        "updatedAt": "2025-09-11T14:21:10.460202"
+      },
+      {
+        "id": 10,
+        "name": "TestServer2",
+        "hostname": "test2.example.com",
+        "cpuCores": 4,
+        "memoryGb": 8,
+        "diskGb": 100,
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-11T14:21:19.429723",
+        "updatedAt": "2025-09-11T14:21:19.429736"
+      },
+      {
+        "id": 11,
+        "name": "mustafa-pc",
+        "datacenterId": 41,
+        "hostname": "mustafa-pc.local",
+        "ipAddress": "192.168.1.100",
+        "cpuCores": 8,
+        "memoryGb": 16,
+        "diskGb": 512,
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-11T17:18:35.679169",
+        "updatedAt": "2025-09-11T17:18:35.679186"
+      },
+      {
+        "id": 12,
+        "name": "test-server-2",
+        "hostname": "test-server-2.local",
+        "ipAddress": "192.168.1.201",
+        "cpuCores": 16,
+        "memoryGb": 32,
+        "diskGb": 1024,
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-11T20:41:49.922592",
+        "updatedAt": "2025-09-11T20:41:49.922608"
+      },
+      {
+        "id": 13,
+        "name": "test-server-stellar",
+        "hostname": "test-stellar.local",
+        "ipAddress": "192.168.1.100",
+        "cpuCores": 4,
+        "memoryGb": 8,
+        "isPhysical": false,
+        "status": "ACTIVE",
+        "createdAt": "2025-09-12T22:17:20.541343",
+        "updatedAt": "2025-09-12T22:17:20.54136"
+      },
+      {
+        "id": 14,
+        "name": "aws-ec2-prod-01",
+        "datacenterId": 54,
+        "ipAddress": "10.0.0.10",
+        "cpuCores": 32,
+        "memoryGb": 128,
+        "diskGb": 1000,
+        "createdAt": "2025-09-18T19:43:07",
+        "updatedAt": "2025-09-18T19:43:07"
+      },
+      {
+        "id": 15,
+        "name": "aws-ec2-prod-02",
+        "datacenterId": 54,
+        "ipAddress": "10.0.0.11",
+        "cpuCores": 64,
+        "memoryGb": 256,
+        "diskGb": 2000,
+        "createdAt": "2025-09-18T19:43:07",
+        "updatedAt": "2025-09-18T19:43:07"
+      },
+      {
+        "id": 16,
+        "name": "aws-ec2-dev-01",
+        "datacenterId": 55,
+        "ipAddress": "10.1.0.10",
+        "cpuCores": 16,
+        "memoryGb": 64,
+        "diskGb": 500,
+        "createdAt": "2025-09-18T19:43:07",
+        "updatedAt": "2025-09-18T19:43:07"
+      }
+    ],
+    "success": true
+  },
   "meta": {
-    "timestamp": null,
+    "timestamp": "2025-09-22T10:53:59.571Z",
     "totalCount": 0,
     "pageSize": 20,
-    "pagesLoaded": []
+    "pagesLoaded": [
+      1
+    ]
   }
 }

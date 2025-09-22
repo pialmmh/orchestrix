@@ -120,6 +120,22 @@ class StoreWebSocketService {
               console.log('[StoreWebSocket] Using data field from response');
             }
 
+            // Log the actual data received
+            console.log('[StoreWebSocket] RECEIVED DATA:', JSON.stringify(responseData, null, 2));
+            if (Array.isArray(responseData) && responseData.length > 0) {
+              console.log('[StoreWebSocket] First item in response:', JSON.stringify(responseData[0], null, 2));
+              // Check if it has infrastructure data
+              if (responseData[0].clouds) {
+                console.log('[StoreWebSocket] CLOUDS DATA FOUND:', JSON.stringify(responseData[0].clouds, null, 2));
+              }
+              if (responseData[0].regions) {
+                console.log('[StoreWebSocket] REGIONS DATA FOUND:', JSON.stringify(responseData[0].regions, null, 2));
+              }
+              if (responseData[0].datacenters) {
+                console.log('[StoreWebSocket] DATACENTERS DATA FOUND:', JSON.stringify(responseData[0].datacenters, null, 2));
+              }
+            }
+
             handler.resolve(responseData);
             this.responseHandlers.delete(message.requestId);
           }

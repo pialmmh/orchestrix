@@ -30,6 +30,8 @@ import {
   Delete as DeleteIcon,
   ExpandMore,
   ExpandLess,
+  UnfoldMore,
+  UnfoldLess,
 } from '@mui/icons-material';
 import { TreeView } from '@mui/x-tree-view/TreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
@@ -63,6 +65,24 @@ const InfrastructureStellar: React.FC = observer(() => {
 
   const handleRefresh = () => {
     store.loadInfrastructureTree();
+  };
+
+  const handleExpandAll = () => {
+    const allNodeIds: string[] = [];
+    const collectNodeIds = (nodes: any[]) => {
+      nodes.forEach((node) => {
+        allNodeIds.push(node.id);
+        if (node.children) {
+          collectNodeIds(node.children);
+        }
+      });
+    };
+    collectNodeIds(store.treeData);
+    store.setExpandedNodeIds(allNodeIds);
+  };
+
+  const handleCollapseAll = () => {
+    store.setExpandedNodeIds([]);
   };
 
   const handleAddCompute = () => {
@@ -337,104 +357,129 @@ const InfrastructureStellar: React.FC = observer(() => {
 
       <Box sx={{ display: 'flex', height: 'calc(100vh - 60px)' }}>
         {/* Left Panel - Tree */}
-        <Paper sx={{ width: 400, p: 2, m: 2, overflow: 'auto' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            {/* Filter Buttons */}
-            <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => setFilterMode('organization')}
-            sx={{
-              textTransform: 'none',
-              minWidth: 'auto',
-              py: 0.5,
-              px: 1.5,
-              border: '1px solid #1976d2',
-              backgroundColor: filterMode === 'organization' ? '#E3F2FD' : 'transparent',
-              color: '#616161',
-              fontWeight: filterMode === 'organization' ? 600 : 400,
-              '&:hover': {
-                backgroundColor: filterMode === 'organization' ? '#BBDEFB' : '#F5F5F5',
-                border: '1px solid #1976d2',
-              },
-              borderRadius: 1,
-              transition: 'all 0.2s ease'
-            }}
-          >
-            Organization
-          </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => setFilterMode('partners')}
-            sx={{
-              textTransform: 'none',
-              minWidth: 'auto',
-              py: 0.5,
-              px: 1.5,
-              border: '1px solid #1976d2',
-              backgroundColor: filterMode === 'partners' ? '#E3F2FD' : 'transparent',
-              color: '#616161',
-              fontWeight: filterMode === 'partners' ? 600 : 400,
-              '&:hover': {
-                backgroundColor: filterMode === 'partners' ? '#BBDEFB' : '#F5F5F5',
-                border: '1px solid #1976d2',
-              },
-              borderRadius: 1,
-              transition: 'all 0.2s ease'
-            }}
-          >
-            Partners
-          </Button>
+        <Paper sx={{ width: 320, m: 2, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {/* Tree Header */}
+          <Box sx={{
+            borderBottom: '1px solid rgba(0, 0, 0, 0.12)',
+            p: 2,
+            backgroundColor: '#fafafa'
+          }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              {/* Filter Buttons */}
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setFilterMode('organization')}
+                  sx={{
+                    textTransform: 'none',
+                    minWidth: 'auto',
+                    py: 0.5,
+                    px: 1.5,
+                    border: '1px solid #1976d2',
+                    backgroundColor: filterMode === 'organization' ? '#E3F2FD' : 'transparent',
+                    color: '#616161',
+                    fontWeight: filterMode === 'organization' ? 600 : 400,
+                    '&:hover': {
+                      backgroundColor: filterMode === 'organization' ? '#BBDEFB' : '#F5F5F5',
+                      border: '1px solid #1976d2',
+                    },
+                    borderRadius: 1,
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Organization
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setFilterMode('partners')}
+                  sx={{
+                    textTransform: 'none',
+                    minWidth: 'auto',
+                    py: 0.5,
+                    px: 1.5,
+                    border: '1px solid #1976d2',
+                    backgroundColor: filterMode === 'partners' ? '#E3F2FD' : 'transparent',
+                    color: '#616161',
+                    fontWeight: filterMode === 'partners' ? 600 : 400,
+                    '&:hover': {
+                      backgroundColor: filterMode === 'partners' ? '#BBDEFB' : '#F5F5F5',
+                      border: '1px solid #1976d2',
+                    },
+                    borderRadius: 1,
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Partners
+                </Button>
+              </Box>
+              {/* Action Buttons */}
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                <Tooltip title="Expand All">
+                  <IconButton onClick={handleExpandAll} size="small">
+                    <UnfoldMore fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Collapse All">
+                  <IconButton onClick={handleCollapseAll} size="small">
+                    <UnfoldLess fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Refresh">
+                  <IconButton onClick={handleRefresh} size="small">
+                    <Refresh fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
             </Box>
-            <IconButton onClick={handleRefresh} size="small">
-              <Refresh />
-            </IconButton>
           </Box>
 
-        {store.error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {store.error}
-          </Alert>
-        )}
+          {/* Tree Content */}
+          <Box sx={{ p: 2, overflow: 'auto', flex: 1 }}>
+            {store.error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {store.error}
+              </Alert>
+            )}
 
-        <TreeView
-          defaultCollapseIcon={<ExpandMore sx={{ fontSize: 18, opacity: 0.6 }} />}
-          defaultExpandIcon={<ExpandLess sx={{ fontSize: 18, opacity: 0.6 }} />}
-          expanded={store.expandedNodeIds}
-          selected={store.selectedNode?.id || ''}
-          onNodeSelect={handleNodeSelect}
-          onNodeToggle={handleNodeToggle}
-          sx={{
-            flexGrow: 1,
-            '& .MuiTreeItem-content': {
-              paddingLeft: '4px',
-              paddingTop: '3px',
-              paddingBottom: '3px',
-              '&:hover': {
-                backgroundColor: 'rgba(0, 0, 0, 0.03)'
-              },
-              '&.Mui-selected': {
-                backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                '&:hover': {
-                  backgroundColor: 'rgba(25, 118, 210, 0.12)'
+            <TreeView
+              defaultCollapseIcon={<ExpandMore sx={{ fontSize: 18, opacity: 0.6 }} />}
+              defaultExpandIcon={<ExpandLess sx={{ fontSize: 18, opacity: 0.6 }} />}
+              expanded={store.expandedNodeIds}
+              selected={store.selectedNode?.id || ''}
+              onNodeSelect={handleNodeSelect}
+              onNodeToggle={handleNodeToggle}
+              sx={{
+                flexGrow: 1,
+                '& .MuiTreeItem-content': {
+                  paddingLeft: '4px',
+                  paddingTop: '3px',
+                  paddingBottom: '3px',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.03)'
+                  },
+                  '&.Mui-selected': {
+                    backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                    '&:hover': {
+                      backgroundColor: 'rgba(25, 118, 210, 0.12)'
+                    }
+                  }
+                },
+                '& .MuiTreeItem-group': {
+                  marginLeft: '12px',
+                  borderLeft: '1px solid rgba(0, 0, 0, 0.05)'
+                },
+                '& .MuiTreeItem-label': {
+                  fontSize: '0.9rem',
+                  fontWeight: 400
                 }
-              }
-            },
-            '& .MuiTreeItem-group': {
-              marginLeft: '12px',
-              borderLeft: '1px solid rgba(0, 0, 0, 0.05)'
-            },
-            '& .MuiTreeItem-label': {
-              fontSize: '0.9rem',
-              fontWeight: 400
-            }
-          }}
-        >
-          {renderTreeNodes(store.treeData)}
-        </TreeView>
-      </Paper>
+              }}
+            >
+              {renderTreeNodes(store.treeData)}
+            </TreeView>
+          </Box>
+        </Paper>
 
       {/* Right Panel - List View */}
       <Box sx={{ flex: 1, p: 2, overflow: 'auto' }}>

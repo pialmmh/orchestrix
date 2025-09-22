@@ -1,0 +1,27 @@
+{
+  "entity": "infrastructure",
+  "query": null,
+  "data": {
+    "partners": [],
+    "index": {
+      "environments": {},
+      "datacenters": {},
+      "computes": {},
+      "networkDevices": {}
+    }
+  },
+  "meta": {
+    "timestamp": null,
+    "counts": {
+      "partners": 0,
+      "environments": 0,
+      "clouds": 0,
+      "regions": 0,
+      "availabilityZones": 0,
+      "datacenters": 0,
+      "computes": 0,
+      "networkDevices": 0
+    },
+    "pagesLoaded": {}
+  }
+}
