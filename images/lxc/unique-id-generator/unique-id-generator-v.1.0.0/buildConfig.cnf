@@ -1,0 +1,31 @@
+# Configuration file for Unique ID Generator Container Build
+# This file is used during the build phase to create the base image
+
+# Base image configuration
+BASE_IMAGE="ubuntu:22.04"
+BUILD_CONTAINER_NAME="uid-gen-build"
+IMAGE_NAME="unique-id-generator-base"
+
+# Network configuration for build
+BRIDGE="lxdbr0"
+IP_ADDRESS="10.10.199.90/24"
+GATEWAY="10.10.199.1/24"
+DNS_PRIMARY="8.8.8.8"
+DNS_SECONDARY="8.8.4.4"
+
+# Node.js version (major version only, e.g., "18" for Node.js 18.x)
+NODE_VERSION="18"
+
+# Service configuration
+SERVICE_PORT=7001
+SERVICE_USER="node"
+SERVICE_GROUP="node"
+DATA_DIRECTORY="/var/lib/unique-id-generator"
+LOG_FILE="/var/log/unique-id-generator.log"
+
+# Source files location
+SERVER_JS_PATH="scripts/server.js"
+PACKAGE_JSON_PATH="scripts/package.json"
+
+# Note: Shard configuration is NOT set during build
+# It will be configured at runtime in launchUniqueIdGeneratorConfig.cnf

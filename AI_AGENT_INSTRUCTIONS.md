@@ -1,5 +1,12 @@
 # AI Agent Instructions for Orchestrix Container Development
 
+## IMPORTANT: Two Systems Available
+We have two container creation systems. See `/home/mustafa/telcobright-projects/orchestrix/images/lxc/CONTAINER_CREATION_GUIDE.md` for detailed comparison.
+
+### Quick Decision:
+- **Shell-based**: Use for simple containers, quick prototypes
+- **Java-based**: Use for complex containers with verification needs
+
 ## Custom Commands for AI Assistant
 
 ### /scaffold <container-name>
@@ -20,8 +27,10 @@ You are an AI assistant specialized in scaffolding and building LXC containers f
 
 ## Key Context Files
 When scaffolding containers, refer to:
-1. `/home/mustafa/telcobright-projects/orchestrix/images/lxc/CONTAINER_SCAFFOLD_TEMPLATE.md` - Main template
-2. `/home/mustafa/telcobright-projects/orchestrix/images/lxc/dev-env/` - Reference implementation
+1. `/home/mustafa/telcobright-projects/orchestrix/images/lxc/CONTAINER_CREATION_GUIDE.md` - **PRIMARY GUIDE**
+2. `/home/mustafa/telcobright-projects/orchestrix/images/lxc/CONTAINER_SCAFFOLD_TEMPLATE.md` - Java system details
+3. `/home/mustafa/telcobright-projects/orchestrix/images/lxc/auto-increment-service/` - Shell example
+4. `/home/mustafa/telcobright-projects/orchestrix/images/lxc/dev-env/` - Java example
 
 ## Core Requirements for Every Container
 
@@ -29,16 +38,27 @@ When scaffolding containers, refer to:
 - **Build Phase**: Creates reusable base image (one-time)
 - **Launch Phase**: Starts containers with configs from anywhere
 
-### 2. Mandatory File Structure
+### 2. File Structure Depends on System
+
+#### Shell-Based:
 ```
 /home/mustafa/telcobright-projects/orchestrix/images/lxc/[container-name]/
-├── startDefault.sh              # Quick start
-├── build[ContainerName].sh      # Build base image
-├── build[ContainerName]Config.cnf # Build config
-├── launch[ContainerName].sh     # Launch with any config
-├── sample-config.conf           # Sample configuration
-├── README.md                    # Documentation
-└── scripts/                     # Internal scripts
+├── build[ContainerName].sh         # Build base image
+├── build[ContainerName]Config.cnf  # Build config
+├── launch[ContainerName].sh        # Launch with any config
+├── startDefault.sh                 # Quick start (launch only)
+├── scripts/                        # Internal scripts
+└── README.md                       # Documentation
+```
+
+#### Java-Based:
+```
+/home/mustafa/telcobright-projects/orchestrix/images/lxc/[container-name]/
+├── build.yaml                      # Build configuration
+├── [ContainerName]Builder.java     # Custom builder
+├── build/
+│   └── build.sh                    # Wrapper script
+└── README.md                       # Documentation
 ```
 
 ### 3. Configuration Philosophy
@@ -57,6 +77,10 @@ LogLevel ERROR
 
 ## Scaffolding Process
 
+### Step 0: Choose System (Shell vs Java)
+**Ask user**: "Would you like to use the shell-based system (simpler) or Java-based system (advanced)?"
+Or make intelligent choice based on complexity.
+
 ### Step 1: Understand Requirements
 When user requests a container, identify:
 - Purpose (dev, testing, production)
@@ -70,7 +94,11 @@ mkdir -p /home/mustafa/telcobright-projects/orchestrix/images/lxc/[container-nam
 ```
 
 ### Step 3: Generate Files
-Use templates from CONTAINER_SCAFFOLD_TEMPLATE.md, customizing for specific purpose.
+- **For Shell-based**: Follow templates in CONTAINER_CREATION_GUIDE.md Shell section
+  - **IMPORTANT**: Copy network validation functions from `/home/mustafa/telcobright-projects/orchestrix/common/lxc-network-validation-template.sh`
+  - Copy the functions INLINE into the build script (do not source the file)
+  - Functions to copy: `validate_network_config()`, `configure_container_network()`, `test_and_wait_for_internet()`
+- **For Java-based**: Follow templates in CONTAINER_CREATION_GUIDE.md Java section
 
 ### Step 4: Key Implementations
 - Base image name: `[container-name]-base`

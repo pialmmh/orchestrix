@@ -77,4 +77,4 @@ test-results/
 # Build directories
 build/
 dist/
-out/
+out/orchestrix-ui/debug-store/
