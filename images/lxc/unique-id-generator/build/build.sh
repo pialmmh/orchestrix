@@ -44,17 +44,70 @@ if ! command -v lxc &> /dev/null; then
 fi
 print_success "LXC found"
 
-if ! command -v java &> /dev/null; then
-    print_error "Java is not installed"
-    exit 1
-fi
-print_success "Java found: $(java -version 2>&1 | head -n1)"
+# Check Java environment using JavaEnvironmentAutomation
+ORCHESTRIX_ROOT="$(dirname $(dirname $(dirname $(dirname "$SCRIPT_DIR"))))"
+JAVA_ENV_CLASS="com.telcobright.orchestrix.automation.javaenv.JavaEnvironmentAutomation"
+JAVA_ENV_CLASSPATH="$ORCHESTRIX_ROOT/automation/target/classes"
 
-if ! command -v javac &> /dev/null; then
-    print_error "Java compiler (javac) is not installed"
-    exit 1
+# First, try to compile JavaEnvironmentAutomation if not already compiled
+if [ ! -f "$JAVA_ENV_CLASSPATH/com/telcobright/orchestrix/automation/javaenv/JavaEnvironmentAutomation.class" ]; then
+    echo "Compiling Java Environment Automation..."
+
+    # Check if we have at least java to compile
+    if ! command -v java &> /dev/null; then
+        print_error "Java is not installed. Please install Java first:"
+        echo "  Ubuntu/Debian: sudo apt-get install -y openjdk-21-jdk"
+        echo "  Fedora/RHEL:   sudo dnf install -y java-21-openjdk-devel"
+        echo "  macOS:         brew install openjdk@21"
+        exit 1
+    fi
+
+    # Try to find javac or install it
+    if ! command -v javac &> /dev/null; then
+        echo "Java compiler not found. Attempting to install..."
+
+        # Detect OS and install JDK
+        if [ -f /etc/debian_version ]; then
+            echo "Detected Debian/Ubuntu system"
+            sudo apt-get update
+            sudo apt-get install -y openjdk-21-jdk
+        elif [ -f /etc/redhat-release ]; then
+            echo "Detected RedHat/Fedora system"
+            sudo dnf install -y java-21-openjdk-devel
+        elif [ "$(uname)" = "Darwin" ]; then
+            echo "Detected macOS system"
+            brew install openjdk@21
+        else
+            print_error "Unable to auto-install JDK. Please install manually."
+            exit 1
+        fi
+    fi
+
+    # Now compile JavaEnvironmentAutomation
+    mkdir -p "$JAVA_ENV_CLASSPATH"
+    javac -d "$JAVA_ENV_CLASSPATH" \
+        "$ORCHESTRIX_ROOT/automation/src/main/java/com/telcobright/orchestrix/automation/javaenv/JavaEnvironmentAutomation.java" \
+        "$ORCHESTRIX_ROOT/automation/src/main/java/com/telcobright/orchestrix/automation/javaenv/GradleAutomation.java" 2>/dev/null || true
 fi
-print_success "Java compiler found: $(javac -version 2>&1)"
+
+# Run Java environment check
+if [ -f "$JAVA_ENV_CLASSPATH/com/telcobright/orchestrix/automation/javaenv/JavaEnvironmentAutomation.class" ]; then
+    echo "Running Java environment check..."
+    java -cp "$JAVA_ENV_CLASSPATH" "$JAVA_ENV_CLASS" || true
+else
+    # Fallback to basic checks
+    if ! command -v java &> /dev/null; then
+        print_error "Java is not installed"
+        exit 1
+    fi
+    print_success "Java found: $(java -version 2>&1 | head -n1)"
+
+    if ! command -v javac &> /dev/null; then
+        print_error "Java compiler (javac) is not installed"
+        exit 1
+    fi
+    print_success "Java compiler found: $(javac -version 2>&1)"
+fi
 
 # Check source files
 print_section "Verifying Source Files"
