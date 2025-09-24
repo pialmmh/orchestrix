@@ -8,6 +8,7 @@ This guide defines the **FINAL STANDARD** for creating LXC containers in the Orc
 
 ```
 /home/mustafa/telcobright-projects/orchestrix/images/lxc/[container-name]/
+├── REQUIREMENTS.md                     # Container specifications (optional)
 ├── build/                               # Build system directory
 │   ├── build.sh                        # Main build script
 │   └── build.conf                      # Build configuration
@@ -93,6 +94,8 @@ LOG_FILE="/var/log/container-name.log"
 OPTIMIZE_SIZE="true"
 CLEANUP_ON_FAILURE="true"
 VERBOSE_OUTPUT="true"
+CHECK_INTERNET="true"
+FAIL_ON_NO_INTERNET="true"
 
 # Java Automation (if applicable)
 JAVA_PACKAGE="com.telcobright.orchestrix.images.lxc.containername"
@@ -262,6 +265,64 @@ Each build creates:
 - Container must start with default config
 - All services must have health checks
 - Logs must be accessible
+
+## Networking Architecture
+
+### Bridge Mode Only (NO NAT)
+- **NO NAT between containers and host** for production
+- Bridge mode only (e.g., lxdbr0 with ipv4.nat=false)
+- Direct IP routing: Container → Bridge → Host → Internet
+- Ideal for VoIP/SIP applications (FreeSWITCH, Kamailio, Asterisk)
+- Containers get real IPs on bridge network (e.g., 10.10.199.0/24)
+
+### Internet Connectivity During Build
+
+Build scripts MUST check internet connectivity and handle gracefully:
+
+```bash
+# Check internet connectivity
+check_internet() {
+    echo "Checking internet connectivity..."
+    if ! lxc exec "$BUILD_CONTAINER" -- ping -c 1 8.8.8.8 &>/dev/null; then
+        echo ""
+        echo "⚠️  WARNING: No internet connectivity detected!"
+        echo "==========================================="
+        echo "The container cannot reach external networks."
+        echo ""
+        echo "This is expected in bridge mode without NAT."
+        echo "To enable internet for build only, run:"
+        echo ""
+        echo "  sudo iptables -t nat -A POSTROUTING -s 10.10.199.0/24 -o $(ip route | grep default | awk '{print $5}') -j MASQUERADE"
+        echo ""
+        echo "==========================================="
+
+        if [ "$FAIL_ON_NO_INTERNET" = "true" ]; then
+            echo ""
+            echo "Build cannot continue without internet. Exiting."
+            lxc delete "$BUILD_CONTAINER" --force
+            exit 1
+        fi
+    else
+        echo "✓ Internet connectivity confirmed"
+    fi
+}
+```
+
+### Network Setup Commands
+
+```bash
+# Create bridge without NAT (for VoIP/production)
+lxc network create lxdbr0 ipv4.address=10.10.199.1/24 ipv4.nat=false
+
+# Or disable NAT on existing bridge
+lxc network set lxdbr0 ipv4.nat=false
+
+# Temporary internet access for builds only
+sudo iptables -t nat -A POSTROUTING -s 10.10.199.0/24 -o $(ip route | grep default | awk '{print $5}') -j MASQUERADE
+
+# Remove NAT rule after build
+sudo iptables -t nat -D POSTROUTING -s 10.10.199.0/24 -o $(ip route | grep default | awk '{print $5}') -j MASQUERADE
+```
 
 ## Common Patterns
 
