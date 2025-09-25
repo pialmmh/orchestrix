@@ -4,7 +4,7 @@
 # Container Settings
 CONTAINER_NAME="unique-id-generator"
 VERSION="1.0.0"
-BASE_IMAGE="ubuntu:22.04"
+BASE_IMAGE="images:debian/12"
 BUILD_CONTAINER_NAME="uid-gen-build-temp"
 IMAGE_NAME="unique-id-generator-base-v.1.0.0"
 
