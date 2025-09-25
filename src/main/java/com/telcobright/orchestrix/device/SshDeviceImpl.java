@@ -11,7 +11,7 @@ import java.util.concurrent.Executors;
 
 @Slf4j
 @Component
-public class SshDeviceImpl implements SshDevice {
+public class SshDeviceImpl implements SshCapable {
     
     protected final ExecutorService executorService = Executors.newFixedThreadPool(10);
     

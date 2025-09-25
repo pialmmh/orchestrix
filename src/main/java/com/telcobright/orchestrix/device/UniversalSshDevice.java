@@ -10,7 +10,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @Slf4j
-public abstract class UniversalSshDevice extends NetworkingDevice implements SshDevice {
+public abstract class UniversalSshDevice extends NetworkingDevice implements SshCapable {
     
     protected final ExecutorService executorService = Executors.newCachedThreadPool();
     protected Session sshSession;

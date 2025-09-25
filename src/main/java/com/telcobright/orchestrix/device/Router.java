@@ -8,7 +8,7 @@ import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Component
-public class Router extends NetworkingDevice implements SshDevice {
+public class Router extends NetworkingDevice implements SshCapable {
     
     private final SshDeviceImpl sshImplementation;
     
