@@ -341,6 +341,242 @@ app.get('/api/status/:entityName', (req, res) => {
     });
 });
 
+// Initialize a new entity with specified type and optional starting value
+app.post('/api/init/:entityName', (req, res) => {
+    const { entityName } = req.params;
+    const { dataType, startValue } = req.body;
+
+    if (!entityName) {
+        return res.status(400).json({ error: 'Entity name is required' });
+    }
+
+    if (!dataType || !Object.values(DataType).includes(dataType)) {
+        return res.status(400).json({
+            error: 'Valid dataType is required',
+            validTypes: Object.values(DataType)
+        });
+    }
+
+    // Check if entity already exists
+    const existingRecord = state.find(r => r.entityName === entityName);
+    if (existingRecord) {
+        return res.status(409).json({
+            error: 'Entity already exists',
+            message: `Entity '${entityName}' is already registered with type '${existingRecord.dataType}'`,
+            currentStatus: {
+                dataType: existingRecord.dataType,
+                currentIteration: existingRecord.currentIteration,
+                shard: SHARD_ID
+            }
+        });
+    }
+
+    // Initialize new entity
+    let initialIteration = 0;
+
+    // If startValue provided for numeric types, calculate the iteration
+    if (startValue !== undefined && !dataType.startsWith('uuid')) {
+        let numericValue;
+        try {
+            if (dataType === DataType.LONG) {
+                numericValue = BigInt(startValue);
+                if (numericValue < 0n || numericValue > MAX_LONG) {
+                    return res.status(400).json({
+                        error: 'Invalid start value',
+                        message: `Value must be between 0 and ${MAX_LONG}`
+                    });
+                }
+            } else { // INT
+                numericValue = parseInt(startValue);
+                if (isNaN(numericValue) || numericValue < 0 || numericValue > MAX_INT) {
+                    return res.status(400).json({
+                        error: 'Invalid start value',
+                        message: `Value must be between 0 and ${MAX_INT}`
+                    });
+                }
+            }
+        } catch (error) {
+            return res.status(400).json({
+                error: 'Invalid start value format',
+                message: error.message
+            });
+        }
+
+        // Auto-adjust value to be compatible with this shard
+        const numValue = dataType === DataType.LONG ? Number(numericValue) : numericValue;
+        let adjustedValue = numericValue;
+
+        if ((numValue % TOTAL_SHARDS) !== (SHARD_ID % TOTAL_SHARDS)) {
+            // Find the next valid value for this shard that's >= startValue
+            const adjustment = SHARD_ID - (numValue % TOTAL_SHARDS);
+            adjustedValue = numValue + (adjustment < 0 ? adjustment + TOTAL_SHARDS : adjustment);
+
+            if (dataType === DataType.LONG) {
+                adjustedValue = BigInt(adjustedValue);
+            }
+        }
+
+        // Calculate initial iteration from adjusted value
+        initialIteration = getIterationFromValue(adjustedValue, dataType);
+
+        // Store the adjusted value for response
+        numericValue = adjustedValue;
+    }
+
+    // Create new entity record
+    const newRecord = {
+        entityName,
+        dataType,
+        currentIteration: initialIteration,
+        shardId: SHARD_ID
+    };
+
+    state.push(newRecord);
+    saveState(state);
+
+    // Prepare response
+    const response = {
+        entityName,
+        dataType,
+        shard: SHARD_ID,
+        initialized: true,
+        message: `Entity '${entityName}' initialized successfully with type '${dataType}'`
+    };
+
+    if (!dataType.startsWith('uuid')) {
+        if (startValue !== undefined) {
+            const actualStart = initialIteration > 0 ?
+                getNextShardedValue(initialIteration - 1, dataType) : SHARD_ID;
+
+            response.requestedStartValue = startValue;
+            response.actualStartValue = dataType === DataType.LONG ? actualStart.toString() : actualStart;
+
+            if (startValue != actualStart) {
+                response.adjusted = true;
+                response.adjustmentReason = `Value adjusted to match shard ${SHARD_ID} pattern`;
+            }
+        } else {
+            response.actualStartValue = SHARD_ID;
+        }
+
+        response.nextValue = getNextShardedValue(initialIteration, dataType);
+        if (dataType === DataType.LONG) {
+            response.nextValue = response.nextValue.toString();
+        }
+        response.pattern = `${SHARD_ID}, ${SHARD_ID + TOTAL_SHARDS}, ${SHARD_ID + 2*TOTAL_SHARDS}...`;
+    }
+
+    res.status(201).json(response);
+});
+
+// Reset counter for numeric entities
+app.put('/api/reset/:entityName', (req, res) => {
+    const { entityName } = req.params;
+    const { value } = req.body;
+
+    if (!entityName) {
+        return res.status(400).json({ error: 'Entity name is required' });
+    }
+
+    if (value === undefined || value === null) {
+        return res.status(400).json({ error: 'Value is required in request body' });
+    }
+
+    const record = state.find(r => r.entityName === entityName);
+
+    if (!record) {
+        return res.status(404).json({
+            error: 'Entity not found',
+            message: `Entity '${entityName}' is not registered. Use /api/next-id/${entityName} first to register it.`
+        });
+    }
+
+    // Only allow reset for numeric types
+    if (record.dataType.startsWith('uuid')) {
+        return res.status(400).json({
+            error: 'Invalid operation',
+            message: `Cannot reset counter for UUID type '${record.dataType}'. Reset is only available for numeric types (int, long).`
+        });
+    }
+
+    // Parse the value based on type
+    let numericValue;
+    try {
+        if (record.dataType === DataType.LONG) {
+            numericValue = BigInt(value);
+            if (numericValue < 0n || numericValue > MAX_LONG) {
+                return res.status(400).json({
+                    error: 'Invalid value',
+                    message: `Value must be between 0 and ${MAX_LONG}`
+                });
+            }
+        } else { // INT
+            numericValue = parseInt(value);
+            if (isNaN(numericValue) || numericValue < 0 || numericValue > MAX_INT) {
+                return res.status(400).json({
+                    error: 'Invalid value',
+                    message: `Value must be between 0 and ${MAX_INT}`
+                });
+            }
+        }
+    } catch (error) {
+        return res.status(400).json({
+            error: 'Invalid value format',
+            message: error.message
+        });
+    }
+
+    // Auto-adjust value to be compatible with this shard
+    const numValue = record.dataType === DataType.LONG ? Number(numericValue) : numericValue;
+    let adjustedValue = numericValue;
+    let wasAdjusted = false;
+
+    if ((numValue % TOTAL_SHARDS) !== (SHARD_ID % TOTAL_SHARDS)) {
+        // Find the next valid value for this shard that's >= requested value
+        const adjustment = SHARD_ID - (numValue % TOTAL_SHARDS);
+        adjustedValue = numValue + (adjustment < 0 ? adjustment + TOTAL_SHARDS : adjustment);
+        wasAdjusted = true;
+
+        if (record.dataType === DataType.LONG) {
+            adjustedValue = BigInt(adjustedValue);
+        }
+    }
+
+    // Calculate the iteration number from the adjusted value
+    const newIteration = getIterationFromValue(adjustedValue, record.dataType);
+    const previousIteration = record.currentIteration;
+    const previousValue = previousIteration > 0 ?
+        getNextShardedValue(previousIteration - 1, record.dataType) : null;
+
+    // Update the iteration
+    record.currentIteration = newIteration;
+    saveState(state);
+
+    const response = {
+        entityName: record.entityName,
+        dataType: record.dataType,
+        shard: SHARD_ID,
+        reset: {
+            previousValue: previousValue ?
+                (record.dataType === DataType.LONG ? previousValue.toString() : previousValue) : null,
+            requestedValue: record.dataType === DataType.LONG ? numericValue.toString() : numericValue,
+            actualValue: record.dataType === DataType.LONG ? adjustedValue.toString() : adjustedValue,
+            previousIteration,
+            newIteration
+        },
+        nextValue: getNextShardedValue(record.currentIteration, record.dataType).toString()
+    };
+
+    if (wasAdjusted) {
+        response.adjusted = true;
+        response.adjustmentReason = `Value adjusted from ${value} to ${adjustedValue} to match shard ${SHARD_ID} pattern`;
+    }
+
+    response.message = `Counter reset successfully. Next value will be ${getNextShardedValue(record.currentIteration, record.dataType)}`;
+
+    res.json(response);
+});
+
 app.get('/api/list', (req, res) => {
     const entities = state.map(record => {
         let currentValue = null;
