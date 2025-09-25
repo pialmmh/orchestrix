@@ -4,7 +4,13 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import consoleRedirectService from './services/ConsoleRedirectService';
+import GlobalErrorBoundary from './components/GlobalErrorBoundary';
+import { initializeGlobalErrorHandlers } from './utils/globalErrorHandler';
 import './services/TestConsoleRedirect'; // Test console redirect
+
+// Initialize global error handlers first
+// This captures all unhandled errors and promise rejections
+initializeGlobalErrorHandlers();
 
 // Initialize console redirect service if configured
 // This will automatically start capturing console logs based on the active profile
@@ -15,7 +21,9 @@ const root = ReactDOM.createRoot(
 );
 root.render(
   <React.StrictMode>
-    <App />
+    <GlobalErrorBoundary>
+      <App />
+    </GlobalErrorBoundary>
   </React.StrictMode>
 );
 

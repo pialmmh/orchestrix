@@ -1,0 +1,25 @@
+# Auto-Increment Service Build Configuration
+
+# Container settings
+BASE_IMAGE="images:debian/12"
+CONTAINER_NAME="auto-increment-service-base"
+BUILD_CONTAINER="auto-increment-build-temp"
+
+# MANDATORY NETWORK CONFIGURATION - MUST BE FILLED
+# All containers use bridge-based private network 10.10.199.0/24
+CONTAINER_IP="10.10.199.50/24"     # REQUIRED: Must include /24 (e.g., 10.10.199.50/24)
+GATEWAY_IP="10.10.199.1/24"        # REQUIRED: Must include /24 (e.g., 10.10.199.1/24)
+BRIDGE_NAME="lxdbr0"                # Bridge interface name
+DNS_SERVERS="8.8.8.8 8.8.4.4"      # DNS servers for the container
+
+# Service configuration
+SERVICE_PORT="7001"
+SERVICE_USER="nobody"
+SERVICE_GROUP="nogroup"
+
+# Node.js version
+NODE_VERSION="20"
+
+# Build options
+CLEANUP_BUILD_CONTAINER="true"
+OPTIMIZE_SIZE="true"

@@ -1,0 +1,20 @@
+[Unit]
+Description=Auto-Increment Service
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+Group=nogroup
+WorkingDirectory=/opt/auto-increment
+ExecStart=/usr/bin/node /opt/auto-increment/server.js
+Restart=always
+RestartSec=10
+Environment="NODE_ENV=production"
+Environment="PORT=7001"
+
+StandardOutput=append:/var/log/auto-increment.log
+StandardError=append:/var/log/auto-increment.log
+
+[Install]
+WantedBy=multi-user.target

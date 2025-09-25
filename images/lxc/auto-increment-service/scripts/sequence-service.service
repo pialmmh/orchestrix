@@ -1,0 +1,31 @@
+[Unit]
+Description=Sequence Service
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+Group=nogroup
+WorkingDirectory=/opt/sequence-service
+ExecStart=/usr/bin/node /opt/sequence-service/server.js
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/sequence-service.log
+StandardError=append:/var/log/sequence-service.log
+Environment="NODE_ENV=production"
+Environment="PORT=7001"
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/sequence-service /var/log
+
+# Resource limits
+MemoryHigh=200M
+MemoryMax=256M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target
