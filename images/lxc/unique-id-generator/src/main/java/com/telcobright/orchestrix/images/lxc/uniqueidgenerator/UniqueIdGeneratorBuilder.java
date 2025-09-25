@@ -85,12 +85,26 @@ public class UniqueIdGeneratorBuilder {
 
             echo ""
             echo "Step 2: Downloading/Creating container from $BASE_IMAGE..."
-            echo "This may take a few minutes if the image needs to be downloaded..."
 
-            # Create new container with verbose output
-            lxc launch "$BASE_IMAGE" "$CONTAINER" --verbose 2>&1 | while IFS= read -r line; do
-                echo "  LXC: $line"
-            done
+            # Check if image exists locally
+            if lxc image list | grep -q "debian/12"; then
+                echo "Using cached Debian 12 image..."
+            else
+                echo "Downloading Debian 12 image from remote..."
+                echo "This may take 2-5 minutes depending on connection speed..."
+            fi
+            echo "Please wait..."
+
+            # Create new container (verbose can hang with pipes, so run directly)
+            lxc launch "$BASE_IMAGE" "$CONTAINER" 2>&1
+            LAUNCH_RESULT=$?
+
+            if [ $LAUNCH_RESULT -eq 0 ]; then
+                echo "✓ Container created"
+            else
+                echo "✗ Failed to create container"
+                exit 1
+            fi
 
             echo ""
             echo "Step 3: Waiting for container to initialize..."
