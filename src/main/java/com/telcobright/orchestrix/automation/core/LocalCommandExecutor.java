@@ -2,8 +2,8 @@ package com.telcobright.orchestrix.automation.core;
 
 import com.telcobright.orchestrix.automation.model.AutomationConfig;
 import com.telcobright.orchestrix.automation.model.CommandResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class LocalCommandExecutor implements BaseAutomation.CommandExecutor {
 
-    private static final Logger logger = LoggerFactory.getLogger(LocalCommandExecutor.class);
+    private static final Logger logger = Logger.getLogger(LocalCommandExecutor.class.getName());
     private final AutomationConfig config;
     private final File workingDirectory;
 
@@ -77,7 +77,7 @@ public class LocalCommandExecutor implements BaseAutomation.CommandExecutor {
             );
 
         } catch (Exception e) {
-            logger.error("Failed to execute command: {}", command, e);
+            logger.log(Level.SEVERE, "Failed to execute command: " + command, e);
             long executionTime = System.currentTimeMillis() - startTime;
             return new CommandResult(command, -1, "", e.getMessage(), executionTime, "localhost");
         }
@@ -98,7 +98,7 @@ public class LocalCommandExecutor implements BaseAutomation.CommandExecutor {
             }
 
         } catch (IOException e) {
-            logger.error("Failed to create script file", e);
+            logger.log(Level.SEVERE, "Failed to create script file", e);
             return new CommandResult("script", -1, "", e.getMessage(), 0, "localhost");
         }
     }
@@ -110,11 +110,11 @@ public class LocalCommandExecutor implements BaseAutomation.CommandExecutor {
             while ((line = reader.readLine()) != null) {
                 output.append(line).append("\n");
                 if (streamOutput) {
-                    logger.info("[OUTPUT] {}", line);
+                    logger.info("[OUTPUT] " + line);
                 }
             }
         } catch (IOException e) {
-            logger.error("Error reading stream", e);
+            logger.log(Level.SEVERE, "Error reading stream", e);
         }
     }
 }

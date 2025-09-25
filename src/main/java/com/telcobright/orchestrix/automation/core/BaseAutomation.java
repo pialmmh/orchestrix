@@ -2,8 +2,8 @@ package com.telcobright.orchestrix.automation.core;
 
 import com.telcobright.orchestrix.automation.model.AutomationConfig;
 import com.telcobright.orchestrix.automation.model.CommandResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +14,7 @@ import java.util.List;
  */
 public abstract class BaseAutomation {
 
-    protected final Logger logger = LoggerFactory.getLogger(getClass());
+    protected final Logger logger = Logger.getLogger(getClass().getName());
     protected final AutomationConfig config;
     protected final List<CommandResult> executionHistory = new ArrayList<>();
     protected CommandExecutor executor;
@@ -31,12 +31,13 @@ public abstract class BaseAutomation {
         switch (config.getExecutionMode()) {
             case "local":
                 return new LocalCommandExecutor(config);
-            case "ssh":
-                return new SshCommandExecutor(config);
-            case "lxc-exec":
-                return new LxcCommandExecutor(config);
-            case "docker-exec":
-                return new DockerCommandExecutor(config);
+            // TODO: Implement these executors
+            // case "ssh":
+            //     return new SshCommandExecutor(config);
+            // case "lxc-exec":
+            //     return new LxcCommandExecutor(config);
+            // case "docker-exec":
+            //     return new DockerCommandExecutor(config);
             default:
                 throw new IllegalArgumentException("Unknown execution mode: " + config.getExecutionMode());
         }
@@ -73,10 +74,10 @@ public abstract class BaseAutomation {
      * Execute command with exit code check option
      */
     protected CommandResult executeCommand(String command, boolean checkExitCode) {
-        logger.info("[{}] Executing: {}", config.getExecutionMode(), command);
+        logger.info("[" + config.getExecutionMode() + "] Executing: " + command);
 
         if (config.isDryRun()) {
-            logger.info("[DRY RUN] Would execute: {}", command);
+            logger.info("[DRY RUN] Would execute: " + command);
             return new CommandResult(command, 0, "", "", 0, config.getTargetHost());
         }
 
@@ -101,7 +102,7 @@ public abstract class BaseAutomation {
 
         while (attempts < config.getMaxRetries()) {
             attempts++;
-            logger.info("Attempt {} of {}: {}", attempts, config.getMaxRetries(), command);
+            logger.info("Attempt " + attempts + " of " + config.getMaxRetries() + ": " + command);
 
             result = executor.execute(command);
             executionHistory.add(result);
@@ -111,7 +112,7 @@ public abstract class BaseAutomation {
             }
 
             if (attempts < config.getMaxRetries()) {
-                logger.warn("Command failed, retrying in {}ms", config.getRetryDelayMs());
+                logger.warning("Command failed, retrying in " + config.getRetryDelayMs() + "ms");
                 try {
                     Thread.sleep(config.getRetryDelayMs());
                 } catch (InterruptedException e) {

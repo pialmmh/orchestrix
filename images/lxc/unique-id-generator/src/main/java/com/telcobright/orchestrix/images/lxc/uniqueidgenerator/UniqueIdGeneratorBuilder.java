@@ -1,10 +1,12 @@
 package com.telcobright.orchestrix.images.lxc.uniqueidgenerator;
 
+import com.telcobright.orchestrix.device.LxcDevice;
 import com.telcobright.orchestrix.images.lxc.uniqueidgenerator.entities.UniqueIdConfig;
 import com.telcobright.orchestrix.images.lxc.uniqueidgenerator.scripts.*;
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.*;
 
@@ -19,6 +21,7 @@ public class UniqueIdGeneratorBuilder {
     private static final long RETRY_DELAY_MS = 5000;
 
     private final UniqueIdConfig config;
+    private final LxcDevice lxcDevice;
     private final NetworkSetup networkSetup;
     private final NodeJsInstaller nodeJsInstaller;
     private final ServiceSetup serviceSetup;
@@ -26,6 +29,7 @@ public class UniqueIdGeneratorBuilder {
 
     public UniqueIdGeneratorBuilder(UniqueIdConfig config) {
         this.config = config;
+        this.lxcDevice = new LxcDevice();
         this.networkSetup = new NetworkSetup(config);
         this.nodeJsInstaller = new NodeJsInstaller(config);
         this.serviceSetup = new ServiceSetup(config);
@@ -65,72 +69,32 @@ public class UniqueIdGeneratorBuilder {
     private void createContainer() throws Exception {
         LOGGER.info("Creating container: " + config.getBuildContainerName());
 
-        String script = String.format("""
-            #!/bin/bash
-            # Create LXC container
-            set -x  # Enable verbose output
+        String containerName = config.getBuildContainerName();
 
-            CONTAINER="%s"
-            BASE_IMAGE="%s"
+        // Check if container already exists
+        if (lxcDevice.containerExists(containerName)) {
+            LOGGER.info("Container already exists, removing...");
+            lxcDevice.deleteContainer(containerName, true).get();
+            LOGGER.info("✓ Old container removed");
+        }
 
-            echo "Step 1: Checking for existing container..."
-            # Check if container already exists
-            if lxc list | grep -q "$CONTAINER"; then
-                echo "Container $CONTAINER already exists, removing..."
-                lxc delete --force "$CONTAINER" --verbose
-                echo "✓ Old container removed"
-            else
-                echo "✓ No existing container found"
-            fi
+        // Launch new container
+        LOGGER.info("Launching container from " + config.getBaseImage() + "...");
+        boolean launched = lxcDevice.launchContainer(containerName, config.getBaseImage()).get();
 
-            echo ""
-            echo "Step 2: Downloading/Creating container from $BASE_IMAGE..."
+        if (!launched) {
+            throw new Exception("Failed to create container");
+        }
 
-            # Check if image exists locally
-            if lxc image list | grep -q "debian/12"; then
-                echo "Using cached Debian 12 image..."
-            else
-                echo "Downloading Debian 12 image from remote..."
-                echo "This may take 2-5 minutes depending on connection speed..."
-            fi
-            echo "Please wait..."
+        // Wait for container to be ready
+        LOGGER.info("Waiting for container to initialize...");
+        boolean ready = lxcDevice.waitForContainer(containerName, 30).get();
 
-            # Create new container (verbose can hang with pipes, so run directly)
-            lxc launch "$BASE_IMAGE" "$CONTAINER" 2>&1
-            LAUNCH_RESULT=$?
+        if (!ready) {
+            throw new Exception("Container failed to start");
+        }
 
-            if [ $LAUNCH_RESULT -eq 0 ]; then
-                echo "✓ Container created"
-            else
-                echo "✗ Failed to create container"
-                exit 1
-            fi
-
-            echo ""
-            echo "Step 3: Waiting for container to initialize..."
-            # Wait for container to be ready with countdown
-            for i in 5 4 3 2 1; do
-                echo "  Waiting... $i seconds"
-                sleep 1
-            done
-
-            echo ""
-            echo "Step 4: Verifying container status..."
-            # Check container status
-            lxc list "$CONTAINER" --format=table
-
-            if lxc list | grep "$CONTAINER" | grep -q "RUNNING"; then
-                echo "✓ Container created and running successfully"
-            else
-                echo "✗ Container failed to start"
-                lxc info "$CONTAINER" --show-log
-                exit 1
-            fi
-            """,
-            config.getBuildContainerName(),
-            config.getBaseImage());
-
-        executeScript("Create Container", script);
+        LOGGER.info("✓ Container created and running successfully");
     }
 
     /**
@@ -139,20 +103,25 @@ public class UniqueIdGeneratorBuilder {
     private void configureNetwork() throws Exception {
         LOGGER.info("Configuring network...");
 
-        // Validate and configure network on host
-        executeScript("Validate Network", networkSetup.getValidateNetworkScript());
-        executeScript("Configure Container Network", networkSetup.getConfigureNetworkScript());
+        String containerName = config.getBuildContainerName();
+        String ipAddress = config.getIpAddress();
+        String gateway = config.getGateway();
 
-        // Apply network fixes if needed
-        executeScript("Fix Host Networking", networkSetup.getFixNetworkScript());
+        // Configure network using LxcDevice
+        boolean networkConfigured = lxcDevice.configureNetwork(containerName, ipAddress, gateway).get();
 
-        // Configure network inside container
-        executeInContainer("Configure Internal Network",
-            networkSetup.getInternalNetworkScript());
+        if (!networkConfigured) {
+            throw new Exception("Failed to configure network");
+        }
 
         // Test connectivity
-        executeInContainer("Test Internet Connectivity",
-            networkSetup.getTestConnectivityScript());
+        String testResult = lxcDevice.execInContainer(containerName, "ping -c 1 8.8.8.8").get();
+
+        if (testResult.contains("1 received")) {
+            LOGGER.info("✓ Network configured and internet connectivity verified");
+        } else {
+            LOGGER.warning("Network configured but connectivity test failed");
+        }
     }
 
     /**
@@ -161,22 +130,36 @@ public class UniqueIdGeneratorBuilder {
     private void installNodeJs() throws Exception {
         LOGGER.info("Installing Node.js...");
 
-        String[] scripts = nodeJsInstaller.getCriticalScripts();
-        String[] scriptNames = {
-            "Update System",
-            "Install Prerequisites",
-            "Install Node.js",
-            "Verify Node.js"
-        };
+        String containerName = config.getBuildContainerName();
 
-        for (int i = 0; i < scripts.length; i++) {
-            executeInContainer(scriptNames[i], scripts[i]);
-        }
+        // Update system
+        LOGGER.info("Updating system packages...");
+        lxcDevice.execInContainer(containerName, "apt-get update").get();
+
+        // Install curl and prerequisites
+        LOGGER.info("Installing prerequisites...");
+        lxcDevice.execInContainer(containerName, "DEBIAN_FRONTEND=noninteractive apt-get install -y curl").get();
+
+        // Install Node.js via NodeSource
+        LOGGER.info("Adding NodeSource repository...");
+        lxcDevice.execInContainer(containerName,
+            "curl -fsSL https://deb.nodesource.com/setup_20.x | bash -").get();
+
+        LOGGER.info("Installing Node.js...");
+        lxcDevice.execInContainer(containerName,
+            "DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs").get();
+
+        // Verify installation
+        String nodeVersion = lxcDevice.execInContainer(containerName, "node --version").get();
+        String npmVersion = lxcDevice.execInContainer(containerName, "npm --version").get();
+
+        LOGGER.info("✓ Node.js installed: " + nodeVersion.trim());
+        LOGGER.info("✓ npm installed: " + npmVersion.trim());
 
         // Optional tools (don't fail build if these fail)
         try {
-            executeInContainer("Install Additional Tools",
-                nodeJsInstaller.getInstallToolsScript());
+            lxcDevice.installPackage(containerName, "git", "vim", "net-tools").get();
+            LOGGER.info("Additional tools installed");
         } catch (Exception e) {
             LOGGER.warning("Additional tools installation failed (non-critical): " + e.getMessage());
         }
@@ -188,59 +171,45 @@ public class UniqueIdGeneratorBuilder {
     private void deployServiceFiles() throws Exception {
         LOGGER.info("Deploying service files...");
 
-        // Copy server.js file
-        String copyServerScript = String.format("""
-            #!/bin/bash
-            # Copy server.js to container
+        String containerName = config.getBuildContainerName();
 
-            CONTAINER="%s"
-            SOURCE_FILE="%s"
+        // Create service directory
+        lxcDevice.createDirectoryInContainer(containerName, "/opt/unique-id-generator").get();
 
-            if [ ! -f "$SOURCE_FILE" ]; then
-                echo "✗ Source file not found: $SOURCE_FILE"
-                exit 1
-            fi
+        // Check if source files exist
+        File serverJs = new File(config.getServerJsPath());
+        File packageJson = new File(config.getPackageJsonPath());
 
-            lxc file push "$SOURCE_FILE" "$CONTAINER/opt/unique-id-generator/server.js"
+        if (!serverJs.exists()) {
+            throw new Exception("Source file not found: " + config.getServerJsPath());
+        }
+        if (!packageJson.exists()) {
+            throw new Exception("Source file not found: " + config.getPackageJsonPath());
+        }
 
-            if [ $? -eq 0 ]; then
-                echo "✓ server.js deployed"
-            else
-                echo "✗ Failed to deploy server.js"
-                exit 1
-            fi
-            """,
-            config.getBuildContainerName(),
-            config.getServerJsPath());
+        // Push server.js file
+        boolean serverPushed = lxcDevice.pushFile(
+            config.getServerJsPath(),
+            containerName,
+            "/opt/unique-id-generator/server.js"
+        ).get();
 
-        executeScript("Deploy server.js", copyServerScript);
+        if (!serverPushed) {
+            throw new Exception("Failed to deploy server.js");
+        }
+        LOGGER.info("✓ server.js deployed");
 
-        // Copy package.json file
-        String copyPackageScript = String.format("""
-            #!/bin/bash
-            # Copy package.json to container
+        // Push package.json file
+        boolean packagePushed = lxcDevice.pushFile(
+            config.getPackageJsonPath(),
+            containerName,
+            "/opt/unique-id-generator/package.json"
+        ).get();
 
-            CONTAINER="%s"
-            SOURCE_FILE="%s"
-
-            if [ ! -f "$SOURCE_FILE" ]; then
-                echo "✗ Source file not found: $SOURCE_FILE"
-                exit 1
-            fi
-
-            lxc file push "$SOURCE_FILE" "$CONTAINER/opt/unique-id-generator/package.json"
-
-            if [ $? -eq 0 ]; then
-                echo "✓ package.json deployed"
-            else
-                echo "✗ Failed to deploy package.json"
-                exit 1
-            fi
-            """,
-            config.getBuildContainerName(),
-            config.getPackageJsonPath());
-
-        executeScript("Deploy package.json", copyPackageScript);
+        if (!packagePushed) {
+            throw new Exception("Failed to deploy package.json");
+        }
+        LOGGER.info("✓ package.json deployed");
     }
 
     /**
@@ -249,18 +218,52 @@ public class UniqueIdGeneratorBuilder {
     private void setupService() throws Exception {
         LOGGER.info("Setting up service...");
 
-        String[] scripts = serviceSetup.getAllScripts();
-        String[] scriptNames = {
-            "Create Directories",
-            "Install npm Dependencies",
-            "Set Permissions",
-            "Create Environment File",
-            "Verify Service Files",
-            "Test Service Startup"
-        };
+        String containerName = config.getBuildContainerName();
 
-        for (int i = 0; i < scripts.length; i++) {
-            executeInContainer(scriptNames[i], scripts[i]);
+        // Create necessary directories
+        LOGGER.info("Creating directories...");
+        lxcDevice.createDirectoryInContainer(containerName, "/opt/unique-id-generator/data").get();
+        lxcDevice.createDirectoryInContainer(containerName, "/var/log/unique-id-generator").get();
+
+        // Install npm dependencies
+        LOGGER.info("Installing npm dependencies...");
+        String npmInstall = lxcDevice.execInContainer(containerName,
+            "cd /opt/unique-id-generator && npm install --production").get();
+
+        if (npmInstall.contains("error")) {
+            throw new Exception("Failed to install npm dependencies");
+        }
+        LOGGER.info("✓ npm dependencies installed");
+
+        // Set permissions
+        LOGGER.info("Setting permissions...");
+        lxcDevice.execInContainer(containerName,
+            "chown -R nobody:nogroup /opt/unique-id-generator").get();
+        lxcDevice.execInContainer(containerName,
+            "chown -R nobody:nogroup /var/log/unique-id-generator").get();
+
+        // Create environment file with defaults
+        LOGGER.info("Creating environment file...");
+        String envContent = """
+            # Default configuration
+            PORT=8080
+            SHARD_ID=1
+            TOTAL_SHARDS=1
+            """;
+
+        lxcDevice.writeFileInContainer(containerName,
+            "/opt/unique-id-generator/.env",
+            envContent).get();
+
+        // Test service startup
+        LOGGER.info("Testing service startup...");
+        String testResult = lxcDevice.execInContainer(containerName,
+            "cd /opt/unique-id-generator && timeout 2 node server.js 2>&1 || true").get();
+
+        if (testResult.contains("Server running")) {
+            LOGGER.info("✓ Service test successful");
+        } else {
+            LOGGER.warning("Service test output: " + testResult);
         }
     }
 
@@ -270,19 +273,63 @@ public class UniqueIdGeneratorBuilder {
     private void configureSystemd() throws Exception {
         LOGGER.info("Configuring systemd...");
 
-        String[] scripts = systemdConfig.getAllScripts();
-        String[] scriptNames = {
-            "Create Service File",
-            "Enable Service",
-            "Configure Logrotate"
-        };
+        String containerName = config.getBuildContainerName();
 
-        for (int i = 0; i < scripts.length; i++) {
-            executeInContainer(scriptNames[i], scripts[i]);
-        }
+        // Create systemd service file
+        String serviceContent = """
+            [Unit]
+            Description=Unique ID Generator Service
+            After=network.target
 
-        // Note: We don't start the service during build
-        LOGGER.info("Systemd configured (service will start at container launch)");
+            [Service]
+            Type=simple
+            User=nobody
+            Group=nogroup
+            WorkingDirectory=/opt/unique-id-generator
+            Environment="NODE_ENV=production"
+            EnvironmentFile=-/opt/unique-id-generator/.env
+            ExecStart=/usr/bin/node /opt/unique-id-generator/server.js
+            Restart=always
+            RestartSec=10
+            StandardOutput=append:/var/log/unique-id-generator/service.log
+            StandardError=append:/var/log/unique-id-generator/error.log
+
+            [Install]
+            WantedBy=multi-user.target
+            """;
+
+        LOGGER.info("Creating systemd service file...");
+        lxcDevice.writeFileInContainer(containerName,
+            "/etc/systemd/system/unique-id-generator.service",
+            serviceContent).get();
+
+        // Enable the service
+        LOGGER.info("Enabling service...");
+        lxcDevice.enableService(containerName, "unique-id-generator").get();
+
+        // Configure logrotate
+        String logrotateContent = """
+            /var/log/unique-id-generator/*.log {
+                daily
+                rotate 7
+                compress
+                delaycompress
+                missingok
+                notifempty
+                create 644 nobody nogroup
+                sharedscripts
+                postrotate
+                    systemctl reload unique-id-generator 2>/dev/null || true
+                endscript
+            }
+            """;
+
+        LOGGER.info("Configuring logrotate...");
+        lxcDevice.writeFileInContainer(containerName,
+            "/etc/logrotate.d/unique-id-generator",
+            logrotateContent).get();
+
+        LOGGER.info("✓ Systemd configured (service will start at container launch)");
     }
 
     /**
@@ -291,50 +338,34 @@ public class UniqueIdGeneratorBuilder {
     private void cleanupContainer() throws Exception {
         LOGGER.info("Cleaning up container...");
 
-        String cleanupScript = """
-            #!/bin/bash
-            # Clean up container
+        String containerName = config.getBuildContainerName();
 
-            echo "Cleaning package caches..."
-            apt-get clean
-            apt-get autoremove -y
-            rm -rf /var/lib/apt/lists/*
+        // Clean package caches
+        LOGGER.info("Cleaning package caches...");
+        lxcDevice.execInContainer(containerName, "apt-get clean").get();
+        lxcDevice.execInContainer(containerName, "apt-get autoremove -y").get();
+        lxcDevice.execInContainer(containerName, "rm -rf /var/lib/apt/lists/*").get();
 
-            echo "Clearing temporary files..."
-            rm -rf /tmp/*
-            rm -rf /var/tmp/*
+        // Clear temporary files
+        LOGGER.info("Clearing temporary files...");
+        lxcDevice.execInContainer(containerName, "rm -rf /tmp/*").get();
+        lxcDevice.execInContainer(containerName, "rm -rf /var/tmp/*").get();
 
-            echo "Clearing logs..."
-            find /var/log -type f -exec truncate -s 0 {} \\;
+        // Clear logs
+        LOGGER.info("Clearing logs...");
+        lxcDevice.execInContainer(containerName, "find /var/log -type f -exec truncate -s 0 {} \\;").get();
 
-            echo "✓ Cleanup complete"
-            """;
-
-        executeInContainer("Cleanup", cleanupScript);
+        LOGGER.info("✓ Cleanup complete");
 
         // Stop the container
-        String stopScript = String.format("""
-            #!/bin/bash
-            # Stop container
+        LOGGER.info("Stopping container...");
+        boolean stopped = lxcDevice.stopContainer(containerName).get();
 
-            CONTAINER="%s"
+        if (!stopped) {
+            throw new Exception("Failed to stop container");
+        }
 
-            echo "Stopping container..."
-            lxc stop "$CONTAINER"
-
-            # Wait for container to stop
-            sleep 3
-
-            if lxc list | grep "$CONTAINER" | grep -q "STOPPED"; then
-                echo "✓ Container stopped"
-            else
-                echo "✗ Container failed to stop"
-                exit 1
-            fi
-            """,
-            config.getBuildContainerName());
-
-        executeScript("Stop Container", stopScript);
+        LOGGER.info("✓ Container stopped");
     }
 
     /**
@@ -343,142 +374,35 @@ public class UniqueIdGeneratorBuilder {
     private void createImage() throws Exception {
         LOGGER.info("Creating image...");
 
-        String createImageScript = String.format("""
-            #!/bin/bash
-            # Create image from container
+        String containerName = config.getBuildContainerName();
+        String imageName = config.getImageName();
 
-            CONTAINER="%s"
-            IMAGE_NAME="%s"
+        // Create image from container
+        boolean imageCreated = lxcDevice.createImage(
+            containerName,
+            imageName,
+            "Unique ID Generator with sharding support"
+        ).get();
 
-            # Delete existing image if it exists
-            if lxc image list | grep -q "$IMAGE_NAME"; then
-                echo "Deleting existing image..."
-                lxc image delete "$IMAGE_NAME"
-            fi
-
-            # Create new image
-            echo "Creating image $IMAGE_NAME..."
-            lxc publish "$CONTAINER" --alias "$IMAGE_NAME" \\
-                description="Unique ID Generator with sharding support"
-
-            if [ $? -eq 0 ]; then
-                echo "✓ Image created: $IMAGE_NAME"
-
-                # Show image info
-                lxc image info "$IMAGE_NAME"
-            else
-                echo "✗ Failed to create image"
-                exit 1
-            fi
-
-            # Delete build container
-            echo "Deleting build container..."
-            lxc delete "$CONTAINER"
-
-            echo "✓ Build complete!"
-            """,
-            config.getBuildContainerName(),
-            config.getImageName());
-
-        executeScript("Create Image", createImageScript);
-    }
-
-    /**
-     * Execute a script on the host
-     */
-    private void executeScript(String taskName, String script) throws Exception {
-        executeWithRetry(taskName, script, false);
-    }
-
-    /**
-     * Execute a script inside the container
-     */
-    private void executeInContainer(String taskName, String script) throws Exception {
-        executeWithRetry(taskName, script, true);
-    }
-
-    /**
-     * Execute a script with retry logic
-     */
-    private void executeWithRetry(String taskName, String script, boolean inContainer)
-            throws Exception {
-
-        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-            try {
-                LOGGER.info(String.format("Executing task: %s (attempt %d/%d)",
-                    taskName, attempt, MAX_RETRIES));
-
-                // Create temporary script file
-                Path tempScript = Files.createTempFile("unique-id-gen-", ".sh");
-                Files.write(tempScript, script.getBytes());
-
-                String command;
-                if (inContainer) {
-                    // Push script to container and execute
-                    String containerScript = "/tmp/" + tempScript.getFileName();
-
-                    ProcessBuilder push = new ProcessBuilder(
-                        "lxc", "file", "push",
-                        tempScript.toString(),
-                        config.getBuildContainerName() + containerScript
-                    );
-                    Process pushProcess = push.start();
-                    if (!pushProcess.waitFor(30, TimeUnit.SECONDS)) {
-                        throw new Exception("Script push timeout");
-                    }
-
-                    command = String.format("lxc exec %s -- bash %s",
-                        config.getBuildContainerName(), containerScript);
-                } else {
-                    command = "bash " + tempScript;
-                }
-
-                // Execute the script
-                ProcessBuilder pb = new ProcessBuilder("bash", "-c", command);
-                pb.redirectErrorStream(true);
-                Process process = pb.start();
-
-                // Capture output
-                BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream()));
-                String line;
-                StringBuilder output = new StringBuilder();
-                while ((line = reader.readLine()) != null) {
-                    LOGGER.info("  " + line);
-                    output.append(line).append("\n");
-                }
-
-                // Wait for completion
-                if (!process.waitFor(300, TimeUnit.SECONDS)) {
-                    process.destroyForcibly();
-                    throw new Exception("Script execution timeout");
-                }
-
-                // Check exit code
-                int exitCode = process.exitValue();
-                if (exitCode != 0) {
-                    throw new Exception("Script failed with exit code: " + exitCode);
-                }
-
-                // Success
-                Files.delete(tempScript);
-                LOGGER.info("✓ Task completed: " + taskName);
-                return;
-
-            } catch (Exception e) {
-                LOGGER.warning(String.format("Task failed: %s - %s",
-                    taskName, e.getMessage()));
-
-                if (attempt < MAX_RETRIES) {
-                    LOGGER.info("Retrying in " + RETRY_DELAY_MS + "ms...");
-                    Thread.sleep(RETRY_DELAY_MS);
-                } else {
-                    throw new Exception("Task failed after " + MAX_RETRIES +
-                        " attempts: " + taskName, e);
-                }
-            }
+        if (!imageCreated) {
+            throw new Exception("Failed to create image");
         }
+
+        LOGGER.info("✓ Image created: " + imageName);
+
+        // Delete build container
+        LOGGER.info("Deleting build container...");
+        boolean deleted = lxcDevice.deleteContainer(containerName, false).get();
+
+        if (!deleted) {
+            LOGGER.warning("Failed to delete build container, may need manual cleanup");
+        } else {
+            LOGGER.info("✓ Build container deleted");
+        }
+
+        LOGGER.info("✓ Build complete!");
     }
+
 
     /**
      * Main entry point
@@ -504,6 +428,7 @@ public class UniqueIdGeneratorBuilder {
 
             // Add shutdown hook for cleanup
             final UniqueIdConfig finalConfig = config;
+            final LxcDevice cleanupDevice = new LxcDevice();
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 @Override
                 public void run() {
@@ -515,15 +440,8 @@ public class UniqueIdGeneratorBuilder {
                         if (containerName != null && !containerName.isEmpty()) {
                             System.out.println("Checking for build container: " + containerName);
 
-                            Process checkProcess = new ProcessBuilder("lxc", "list", "--format=json")
-                                .start();
-                            checkProcess.waitFor();
-
-                            Process deleteProcess = new ProcessBuilder("lxc", "delete", "--force", containerName)
-                                .redirectErrorStream(true)
-                                .start();
-
-                            if (deleteProcess.waitFor(5, TimeUnit.SECONDS)) {
+                            if (cleanupDevice.containerExists(containerName)) {
+                                cleanupDevice.deleteContainer(containerName, true).get(5, TimeUnit.SECONDS);
                                 System.out.println("Cleaned up build container: " + containerName);
                             }
                         }
