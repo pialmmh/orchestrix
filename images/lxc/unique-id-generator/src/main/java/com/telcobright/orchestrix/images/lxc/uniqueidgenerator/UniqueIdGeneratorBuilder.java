@@ -450,10 +450,10 @@ public class UniqueIdGeneratorBuilder {
      * Main entry point
      */
     public static void main(String[] args) {
+        UniqueIdConfig config = null;
+
         try {
             // Load configuration
-            UniqueIdConfig config;
-
             if (args.length > 0) {
                 // Load from specified config file
                 config = UniqueIdConfig.loadFromFile(args[0]);
@@ -467,6 +467,40 @@ public class UniqueIdGeneratorBuilder {
                 System.err.println("Invalid configuration");
                 System.exit(1);
             }
+
+            // Add shutdown hook for cleanup
+            final UniqueIdConfig finalConfig = config;
+            Runtime.getRuntime().addShutdownHook(new Thread() {
+                @Override
+                public void run() {
+                    System.out.println("\n\nBuild interrupted - cleaning up...");
+
+                    // Attempt to clean up the build container if it exists
+                    try {
+                        String containerName = finalConfig.getBuildContainerName();
+                        if (containerName != null && !containerName.isEmpty()) {
+                            System.out.println("Checking for build container: " + containerName);
+
+                            Process checkProcess = new ProcessBuilder("lxc", "list", "--format=json")
+                                .start();
+                            checkProcess.waitFor();
+
+                            Process deleteProcess = new ProcessBuilder("lxc", "delete", "--force", containerName)
+                                .redirectErrorStream(true)
+                                .start();
+
+                            if (deleteProcess.waitFor(5, TimeUnit.SECONDS)) {
+                                System.out.println("Cleaned up build container: " + containerName);
+                            }
+                        }
+                    } catch (Exception e) {
+                        // Best effort cleanup - don't fail
+                        System.err.println("Warning: Could not clean up container: " + e.getMessage());
+                    }
+
+                    System.out.println("Cleanup complete");
+                }
+            });
 
             // Run the builder
             UniqueIdGeneratorBuilder builder = new UniqueIdGeneratorBuilder(config);

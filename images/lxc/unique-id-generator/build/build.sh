@@ -9,6 +9,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTAINER_DIR="$(dirname "$SCRIPT_DIR")"
 CONFIG_FILE="${1:-$SCRIPT_DIR/build.conf}"
 
+# Global variables for cleanup
+TEMP_CONFIG=""
+JAVA_PID=""
+BUILD_INTERRUPTED=false
+
 # Load configuration
 source "$CONFIG_FILE"
 
@@ -16,6 +21,8 @@ echo "=========================================="
 echo "Unique ID Generator Container Builder"
 echo "Version: $VERSION"
 echo "=========================================="
+echo ""
+echo "Press Ctrl+C at any time to safely interrupt the build"
 echo ""
 
 # Function to print section headers
@@ -34,6 +41,63 @@ print_success() {
 print_error() {
     echo "✗ $1" >&2
 }
+
+# Function to print warning messages
+print_warning() {
+    echo "⚠ $1"
+}
+
+# Cleanup function
+cleanup() {
+    if [ "$BUILD_INTERRUPTED" = true ]; then
+        echo ""
+        print_warning "Build interrupted by user"
+    fi
+
+    # Kill Java process if running
+    if [ -n "$JAVA_PID" ] && kill -0 "$JAVA_PID" 2>/dev/null; then
+        print_warning "Stopping Java builder (PID: $JAVA_PID)..."
+        kill -TERM "$JAVA_PID" 2>/dev/null || true
+        sleep 1
+        # Force kill if still running
+        if kill -0 "$JAVA_PID" 2>/dev/null; then
+            kill -KILL "$JAVA_PID" 2>/dev/null || true
+        fi
+    fi
+
+    # Remove temporary config
+    if [ -n "$TEMP_CONFIG" ] && [ -f "$TEMP_CONFIG" ]; then
+        print_warning "Removing temporary config file..."
+        rm -f "$TEMP_CONFIG"
+    fi
+
+    # Check if build container needs cleanup
+    if [ -n "$BUILD_CONTAINER_NAME" ] && lxc list --format json | jq -e ".[] | select(.name == \"$BUILD_CONTAINER_NAME\")" > /dev/null 2>&1; then
+        print_warning "Cleaning up build container: $BUILD_CONTAINER_NAME"
+        lxc delete --force "$BUILD_CONTAINER_NAME" 2>/dev/null || true
+    fi
+
+    if [ "$BUILD_INTERRUPTED" = true ]; then
+        print_error "Build was interrupted and cleaned up"
+        exit 130  # Standard exit code for SIGINT
+    fi
+}
+
+# Signal handlers
+handle_sigint() {
+    BUILD_INTERRUPTED=true
+    cleanup
+}
+
+handle_sigterm() {
+    BUILD_INTERRUPTED=true
+    cleanup
+}
+
+# Register signal handlers
+trap handle_sigint SIGINT
+trap handle_sigterm SIGTERM
+trap cleanup EXIT
 
 # Check prerequisites
 print_section "Checking Prerequisites"
@@ -199,15 +263,38 @@ SERVER_JS_PATH=$CONTAINER_DIR/$SERVER_JS_PATH
 PACKAGE_JSON_PATH=$CONTAINER_DIR/$PACKAGE_JSON_PATH
 EOF
 
-# Run the builder with timeout
-timeout "$BUILD_TIMEOUT" java -cp "$BUILD_DIR" \
+# Run the builder in background to capture PID
+java -cp "$BUILD_DIR" \
     "$JAVA_PACKAGE.$BUILDER_CLASS" \
-    "$TEMP_CONFIG"
+    "$TEMP_CONFIG" &
 
-EXIT_CODE=$?
+JAVA_PID=$!
 
-# Clean up temp config
-rm -f "$TEMP_CONFIG"
+# Monitor the Java process with timeout
+SECONDS=0
+while kill -0 "$JAVA_PID" 2>/dev/null; do
+    if [ $SECONDS -ge $BUILD_TIMEOUT ]; then
+        print_error "Build timeout after $BUILD_TIMEOUT seconds"
+        kill -TERM "$JAVA_PID" 2>/dev/null || true
+        sleep 2
+        kill -KILL "$JAVA_PID" 2>/dev/null || true
+        EXIT_CODE=124  # Timeout exit code
+        break
+    fi
+    sleep 1
+done
+
+# Wait for process to finish and get exit code
+if [ -z "$EXIT_CODE" ]; then
+    wait "$JAVA_PID"
+    EXIT_CODE=$?
+fi
+
+# Clear JAVA_PID since process is done
+JAVA_PID=""
+
+# Clean up temp config (handled by cleanup function)
+TEMP_CONFIG=""
 
 if [ $EXIT_CODE -eq 0 ]; then
     print_section "Build Completed Successfully"
