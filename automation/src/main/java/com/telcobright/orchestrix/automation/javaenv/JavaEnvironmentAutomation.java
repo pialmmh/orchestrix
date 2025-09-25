@@ -21,12 +21,100 @@ public class JavaEnvironmentAutomation {
 
     private static final Logger LOGGER = Logger.getLogger(JavaEnvironmentAutomation.class.getName());
 
-    // Default versions
-    private static final String DEFAULT_JDK_VERSION = "21";
-    private static final String DEFAULT_MAVEN_VERSION = "3.9.6";
+    // Default versions (can be overridden by global config)
+    private String jdkVersion = "21";
+    private String mavenVersion = "3.9.6";
+    private boolean autoInstall = true;
+    private boolean interactive = true;
 
     // Environment check results
     private Map<String, CheckResult> checkResults = new HashMap<>();
+
+    /**
+     * Constructor - loads global configuration
+     */
+    public JavaEnvironmentAutomation() {
+        loadGlobalConfig();
+    }
+
+    /**
+     * Load configuration from global Orchestrix config
+     */
+    private void loadGlobalConfig() {
+        try {
+            // Try to find Orchestrix config directory
+            String orchestrixHome = System.getenv("ORCHESTRIX_HOME");
+            if (orchestrixHome == null) {
+                // Try to detect from current path
+                Path currentPath = Paths.get(System.getProperty("user.dir"));
+                while (currentPath != null) {
+                    Path configPath = currentPath.resolve("config/java.conf");
+                    if (Files.exists(configPath)) {
+                        orchestrixHome = currentPath.toString();
+                        break;
+                    }
+                    currentPath = currentPath.getParent();
+                }
+            }
+
+            if (orchestrixHome != null) {
+                Path javaConfig = Paths.get(orchestrixHome, "config", "java.conf");
+                if (Files.exists(javaConfig)) {
+                    LOGGER.info("Loading global config from: " + javaConfig);
+                    loadConfigFile(javaConfig);
+                }
+            }
+
+            // Check environment variables (override config file)
+            String envJavaVersion = System.getenv("ORCHESTRIX_JAVA_VERSION");
+            if (envJavaVersion != null) {
+                jdkVersion = envJavaVersion;
+                LOGGER.info("Using Java version from environment: " + jdkVersion);
+            }
+
+            String envInteractive = System.getenv("ORCHESTRIX_INTERACTIVE");
+            if (envInteractive != null) {
+                interactive = Boolean.parseBoolean(envInteractive);
+            }
+
+        } catch (Exception e) {
+            LOGGER.warning("Could not load global config, using defaults: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Load configuration from file
+     */
+    private void loadConfigFile(Path configFile) throws Exception {
+        List<String> lines = Files.readAllLines(configFile);
+        for (String line : lines) {
+            line = line.trim();
+            if (line.startsWith("#") || line.isEmpty()) continue;
+
+            String[] parts = line.split("=", 2);
+            if (parts.length == 2) {
+                String key = parts[0].trim();
+                String value = parts[1].trim();
+
+                switch (key) {
+                    case "ORCHESTRIX_JAVA_VERSION":
+                        jdkVersion = value;
+                        break;
+                    case "ORCHESTRIX_MAVEN_VERSION":
+                        mavenVersion = value;
+                        break;
+                    case "ORCHESTRIX_JAVA_AUTO_INSTALL":
+                        autoInstall = Boolean.parseBoolean(value);
+                        break;
+                    case "ORCHESTRIX_JAVA_INTERACTIVE":
+                        interactive = Boolean.parseBoolean(value);
+                        break;
+                }
+            }
+        }
+        LOGGER.info("Loaded config: Java=" + jdkVersion + ", Maven=" + mavenVersion +
+                   ", AutoInstall=" + autoInstall + ", Interactive=" + interactive);
+    }
 
     public static class CheckResult {
         public boolean isInstalled;
@@ -188,27 +276,53 @@ public class JavaEnvironmentAutomation {
     public boolean autoInstall() {
         LOGGER.info("Auto-installing missing Java components...");
 
+        if (!autoInstall) {
+            LOGGER.info("Auto-installation is disabled in configuration.");
+            printManualInstructions();
+            return false;
+        }
+
         boolean allSuccess = true;
 
-        // Check for sudo/root access first
-        if (!hasSudoAccess()) {
+        // Check what needs to be installed
+        boolean needsJava = !checkResults.get("java").isInstalled || !checkResults.get("javac").isInstalled;
+        boolean needsMaven = !checkResults.get("maven").isInstalled;
+        boolean needsJavaHome = !checkResults.get("JAVA_HOME").isInstalled;
+
+        if (!needsJava && !needsMaven && !needsJavaHome) {
+            LOGGER.info("All required components are already installed.");
+            return true;
+        }
+
+        // Interactive prompt if enabled
+        if (interactive) {
+            if (!promptForInstallation(needsJava, needsMaven, needsJavaHome)) {
+                LOGGER.info("Installation cancelled by user.");
+                printManualInstructions();
+                return false;
+            }
+        }
+
+        // Check for sudo/root access
+        boolean isRoot = "root".equals(System.getProperty("user.name"));
+        if (!isRoot && !hasSudoAccess()) {
             LOGGER.warning("No sudo access available. Manual installation required.");
             printManualInstructions();
             return false;
         }
 
         // Install JDK if missing
-        if (!checkResults.get("java").isInstalled || !checkResults.get("javac").isInstalled) {
+        if (needsJava) {
             allSuccess &= installJDK();
         }
 
         // Install Maven if missing
-        if (!checkResults.get("maven").isInstalled) {
+        if (needsMaven) {
             allSuccess &= installMaven();
         }
 
         // Set JAVA_HOME if not set
-        if (!checkResults.get("JAVA_HOME").isInstalled) {
+        if (needsJavaHome) {
             allSuccess &= setupJavaHome();
         }
 
@@ -216,13 +330,56 @@ public class JavaEnvironmentAutomation {
     }
 
     /**
+     * Prompt user for installation confirmation
+     */
+    private boolean promptForInstallation(boolean needsJava, boolean needsMaven, boolean needsJavaHome) {
+        System.out.println("\n========================================");
+        System.out.println("Java Environment Installation Required");
+        System.out.println("========================================");
+
+        System.out.println("\nThe following components need to be installed:");
+        if (needsJava) {
+            System.out.println("  • OpenJDK " + jdkVersion + " (Java Development Kit)");
+        }
+        if (needsMaven) {
+            System.out.println("  • Maven " + mavenVersion + " (Build tool)");
+        }
+        if (needsJavaHome) {
+            System.out.println("  • JAVA_HOME environment variable");
+        }
+
+        // Check if running as sudo/root
+        String currentUser = System.getProperty("user.name");
+        if ("root".equals(currentUser)) {
+            System.out.println("\nNote: Running as root user.");
+        }
+
+        System.out.println("\nWould you like to install these components now?");
+        System.out.print("Type 'yes' to continue or 'no' to abort: ");
+
+        try {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+            String response = reader.readLine();
+            return response != null && response.toLowerCase().startsWith("yes");
+        } catch (Exception e) {
+            LOGGER.warning("Could not read user input: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Install JDK
      */
     private boolean installJDK() {
-        LOGGER.info("Installing OpenJDK " + DEFAULT_JDK_VERSION + "...");
+        LOGGER.info("Installing OpenJDK " + jdkVersion + "...");
 
         try {
-            String osName = System.getProperty("os.name").toLowerCase();
+            // Check /etc/os-release first for better OS detection
+            String osName = detectOSFromFile();
+            if (osName == null) {
+                osName = System.getProperty("os.name").toLowerCase();
+            }
+
             ProcessBuilder pb;
 
             if (osName.contains("ubuntu") || osName.contains("debian")) {
@@ -231,14 +388,14 @@ public class JavaEnvironmentAutomation {
                 executeProcess(pb);
 
                 pb = new ProcessBuilder("sudo", "apt-get", "install", "-y",
-                    "openjdk-" + DEFAULT_JDK_VERSION + "-jdk");
+                    "openjdk-" + jdkVersion + "-jdk");
             } else if (osName.contains("fedora") || osName.contains("centos") || osName.contains("rhel")) {
                 // Fedora/CentOS/RHEL
                 pb = new ProcessBuilder("sudo", "dnf", "install", "-y",
-                    "java-" + DEFAULT_JDK_VERSION + "-openjdk-devel");
+                    "java-" + jdkVersion + "-openjdk-devel");
             } else if (osName.contains("mac")) {
                 // macOS
-                pb = new ProcessBuilder("brew", "install", "openjdk@" + DEFAULT_JDK_VERSION);
+                pb = new ProcessBuilder("brew", "install", "openjdk@" + jdkVersion);
             } else {
                 LOGGER.warning("Unsupported OS for auto-installation: " + osName);
                 return false;
@@ -259,7 +416,12 @@ public class JavaEnvironmentAutomation {
         LOGGER.info("Installing Maven...");
 
         try {
-            String osName = System.getProperty("os.name").toLowerCase();
+            // Check /etc/os-release first for better OS detection
+            String osName = detectOSFromFile();
+            if (osName == null) {
+                osName = System.getProperty("os.name").toLowerCase();
+            }
+
             ProcessBuilder pb;
 
             if (osName.contains("ubuntu") || osName.contains("debian")) {
@@ -329,6 +491,28 @@ public class JavaEnvironmentAutomation {
             LOGGER.severe("Failed to setup JAVA_HOME: " + e.getMessage());
             return false;
         }
+    }
+
+    /**
+     * Detect OS from /etc/os-release file
+     */
+    private String detectOSFromFile() {
+        try {
+            Path osRelease = Paths.get("/etc/os-release");
+            if (Files.exists(osRelease)) {
+                List<String> lines = Files.readAllLines(osRelease);
+                for (String line : lines) {
+                    if (line.startsWith("ID=")) {
+                        String osId = line.substring(3).replace("\"", "").toLowerCase();
+                        LOGGER.info("Detected OS from /etc/os-release: " + osId);
+                        return osId;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warning("Could not read /etc/os-release: " + e.getMessage());
+        }
+        return null;
     }
 
     /**
@@ -458,11 +642,11 @@ public class JavaEnvironmentAutomation {
         System.out.println("========================================");
         System.out.println("\nFor Ubuntu/Debian:");
         System.out.println("  sudo apt-get update");
-        System.out.println("  sudo apt-get install -y openjdk-" + DEFAULT_JDK_VERSION + "-jdk maven");
+        System.out.println("  sudo apt-get install -y openjdk-" + jdkVersion + "-jdk maven");
         System.out.println("\nFor Fedora/CentOS/RHEL:");
-        System.out.println("  sudo dnf install -y java-" + DEFAULT_JDK_VERSION + "-openjdk-devel maven");
+        System.out.println("  sudo dnf install -y java-" + jdkVersion + "-openjdk-devel maven");
         System.out.println("\nFor macOS:");
-        System.out.println("  brew install openjdk@" + DEFAULT_JDK_VERSION + " maven");
+        System.out.println("  brew install openjdk@" + jdkVersion + " maven");
         System.out.println("\nThen set JAVA_HOME:");
         System.out.println("  export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))");
         System.out.println("  export PATH=$JAVA_HOME/bin:$PATH");
