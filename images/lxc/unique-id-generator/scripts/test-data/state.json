@@ -1,0 +1,26 @@
+[
+  {
+    "entityName": "user",
+    "dataType": "snowflake",
+    "currentIteration": 0,
+    "shardId": 1
+  },
+  {
+    "entityName": "order",
+    "dataType": "int",
+    "currentIteration": 1,
+    "shardId": 1
+  },
+  {
+    "entityName": "test",
+    "dataType": "snowflake",
+    "currentIteration": 0,
+    "shardId": 1
+  },
+  {
+    "entityName": "counter",
+    "dataType": "int",
+    "currentIteration": 6,
+    "shardId": 1
+  }
+]

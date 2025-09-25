@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -129,14 +130,20 @@ public class LxcDevice implements TerminalDevice {
      * Create and launch a new container
      */
     public CompletableFuture<Boolean> launchContainer(String containerName, String baseImage) {
-        return localDevice.sendAndReceive(
-            String.format("lxc launch %s %s", baseImage, containerName)
-        ).thenApply(output -> {
-            log.info("Container launched: " + containerName);
-            return !output.toLowerCase().contains("error");
-        }).exceptionally(e -> {
-            log.log(Level.SEVERE, "Failed to launch container: " + containerName, e);
-            return false;
+        // Use a separate thread to handle the potentially long-running lxc launch
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // lxc launch can take time to download images, use a longer timeout
+                String result = localDevice.sendAndReceive(
+                    String.format("lxc launch %s %s 2>&1", baseImage, containerName)
+                ).get(300, TimeUnit.SECONDS); // 5 minute timeout for image download
+
+                log.info("Container launched: " + containerName);
+                return !result.toLowerCase().contains("error");
+            } catch (Exception e) {
+                log.log(Level.SEVERE, "Failed to launch container: " + containerName, e);
+                return false;
+            }
         });
     }
 

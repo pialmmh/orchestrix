@@ -26,7 +26,7 @@ public interface TerminalDevice {
     DeviceStatus getStatus();
     
     enum DeviceType {
-        SSH, TELNET, SERIAL
+        SSH, TELNET, SERIAL, LOCAL_SHELL
     }
     
     enum DeviceStatus {

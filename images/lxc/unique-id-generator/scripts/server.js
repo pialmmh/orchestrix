@@ -2,11 +2,12 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const SnowflakeGenerator = require('./snowflake');
 
 const app = express();
 app.use(express.json());
 
-const DATA_DIR = '/var/lib/unique-id-generator';
+const DATA_DIR = process.env.DATA_DIR || '/var/lib/unique-id-generator';
 const DATA_FILE = path.join(DATA_DIR, 'state.json');
 const PORT = process.env.PORT || 7001;
 
@@ -16,13 +17,17 @@ const TOTAL_SHARDS = parseInt(process.env.TOTAL_SHARDS || '1');
 
 console.log(`Starting Unique ID Generator - Shard ${SHARD_ID} of ${TOTAL_SHARDS}`);
 
+// Initialize Snowflake generator for this shard
+const snowflakeGen = new SnowflakeGenerator(SHARD_ID, TOTAL_SHARDS);
+
 const DataType = {
     INT: 'int',
     LONG: 'long',
-    UUID8: 'uuid8',     // 8 chars
-    UUID12: 'uuid12',   // 12 chars
-    UUID16: 'uuid16',   // 16 chars
-    UUID22: 'uuid22'    // 22 chars
+    SNOWFLAKE: 'snowflake',  // 64-bit Snowflake ID
+    UUID8: 'uuid8',     // 8 chars (legacy)
+    UUID12: 'uuid12',   // 12 chars (legacy)
+    UUID16: 'uuid16',   // 16 chars (legacy)
+    UUID22: 'uuid22'    // 22 chars (legacy)
 };
 
 const MAX_INT = 2147483647;
@@ -131,8 +136,23 @@ app.get('/health', (req, res) => {
         status: 'healthy',
         uptime: process.uptime(),
         shard: SHARD_ID,
-        totalShards: TOTAL_SHARDS
+        totalShards: TOTAL_SHARDS,
+        snowflakeStats: snowflakeGen.getStats()
     });
+});
+
+// New endpoint to parse Snowflake IDs
+app.get('/api/parse-snowflake/:id', (req, res) => {
+    const { id } = req.params;
+    try {
+        const parsed = snowflakeGen.parse(id);
+        res.json(parsed);
+    } catch (error) {
+        res.status(400).json({
+            error: 'Invalid Snowflake ID',
+            message: error.message
+        });
+    }
 });
 
 app.get('/api/next-id/:entityName', (req, res) => {
@@ -172,8 +192,12 @@ app.get('/api/next-id/:entityName', (req, res) => {
 
     let nextValue;
 
-    // Handle UUID types
-    if (dataType.startsWith('uuid')) {
+    // Handle Snowflake IDs
+    if (dataType === DataType.SNOWFLAKE) {
+        nextValue = snowflakeGen.generate();
+    }
+    // Handle UUID types (legacy)
+    else if (dataType.startsWith('uuid')) {
         const length = parseInt(dataType.substring(4));
         nextValue = generateUUID(length);
     }
@@ -231,7 +255,20 @@ app.get('/api/next-batch/:entityName', (req, res) => {
         });
     }
 
-    // UUID types return array of values
+    // Snowflake IDs
+    if (dataType === DataType.SNOWFLAKE) {
+        const values = snowflakeGen.generateBatch(size);
+        return res.json({
+            entityName,
+            dataType,
+            batchSize: size,
+            values,
+            shard: SHARD_ID,
+            snowflakeInfo: snowflakeGen.getInfo()
+        });
+    }
+
+    // UUID types return array of values (legacy)
     if (dataType.startsWith('uuid')) {
         const length = parseInt(dataType.substring(4));
         const values = [];
@@ -321,7 +358,9 @@ app.get('/api/status/:entityName', (req, res) => {
 
     // Calculate current value from iteration
     let currentValue = null;
-    if (!record.dataType.startsWith('uuid')) {
+    if (record.dataType === DataType.SNOWFLAKE) {
+        currentValue = 'N/A (Snowflake IDs are not sequential)';
+    } else if (!record.dataType.startsWith('uuid')) {
         if (record.currentIteration > 0) {
             currentValue = getNextShardedValue(record.currentIteration - 1, record.dataType);
             if (record.dataType === DataType.LONG) {
@@ -336,7 +375,7 @@ app.get('/api/status/:entityName', (req, res) => {
         currentValue,
         currentIteration: record.currentIteration,
         shard: SHARD_ID,
-        nextValue: record.dataType.startsWith('uuid') ? null :
+        nextValue: (record.dataType.startsWith('uuid') || record.dataType === DataType.SNOWFLAKE) ? null :
                    getNextShardedValue(record.currentIteration, record.dataType).toString()
     });
 });
@@ -375,7 +414,7 @@ app.post('/api/init/:entityName', (req, res) => {
     let initialIteration = 0;
 
     // If startValue provided for numeric types, calculate the iteration
-    if (startValue !== undefined && !dataType.startsWith('uuid')) {
+    if (startValue !== undefined && !dataType.startsWith('uuid') && dataType !== DataType.SNOWFLAKE) {
         let numericValue;
         try {
             if (dataType === DataType.LONG) {
@@ -443,7 +482,7 @@ app.post('/api/init/:entityName', (req, res) => {
         message: `Entity '${entityName}' initialized successfully with type '${dataType}'`
     };
 
-    if (!dataType.startsWith('uuid')) {
+    if (!dataType.startsWith('uuid') && dataType !== DataType.SNOWFLAKE) {
         if (startValue !== undefined) {
             const actualStart = initialIteration > 0 ?
                 getNextShardedValue(initialIteration - 1, dataType) : SHARD_ID;
@@ -492,10 +531,10 @@ app.put('/api/reset/:entityName', (req, res) => {
     }
 
     // Only allow reset for numeric types
-    if (record.dataType.startsWith('uuid')) {
+    if (record.dataType.startsWith('uuid') || record.dataType === DataType.SNOWFLAKE) {
         return res.status(400).json({
             error: 'Invalid operation',
-            message: `Cannot reset counter for UUID type '${record.dataType}'. Reset is only available for numeric types (int, long).`
+            message: `Cannot reset counter for type '${record.dataType}'. Reset is only available for numeric types (int, long).`
         });
     }
 
@@ -580,7 +619,9 @@ app.put('/api/reset/:entityName', (req, res) => {
 app.get('/api/list', (req, res) => {
     const entities = state.map(record => {
         let currentValue = null;
-        if (!record.dataType.startsWith('uuid') && record.currentIteration > 0) {
+        if (record.dataType === DataType.SNOWFLAKE) {
+            currentValue = 'N/A (Snowflake IDs)';
+        } else if (!record.dataType.startsWith('uuid') && record.currentIteration > 0) {
             currentValue = getNextShardedValue(record.currentIteration - 1, record.dataType);
             if (record.dataType === DataType.LONG) {
                 currentValue = currentValue.toString();
@@ -611,15 +652,17 @@ app.get('/api/types', (req, res) => {
         description: {
             int: `Sequential 32-bit integer (shard ${SHARD_ID}: ${SHARD_ID}, ${SHARD_ID + TOTAL_SHARDS}, ${SHARD_ID + 2*TOTAL_SHARDS}...)`,
             long: `Sequential 64-bit integer (shard ${SHARD_ID}: ${SHARD_ID}, ${SHARD_ID + TOTAL_SHARDS}, ${SHARD_ID + 2*TOTAL_SHARDS}...)`,
-            uuid8: 'Random 8-character alphanumeric string (shard-aware)',
-            uuid12: 'Random 12-character alphanumeric string (shard-aware)',
-            uuid16: 'Random 16-character alphanumeric string (shard-aware)',
-            uuid22: 'Random 22-character alphanumeric string (shard-aware)'
+            snowflake: '64-bit time-ordered unique ID (timestamp + shard + sequence)',
+            uuid8: 'Random 8-character alphanumeric string (legacy, use snowflake instead)',
+            uuid12: 'Random 12-character alphanumeric string (legacy, use snowflake instead)',
+            uuid16: 'Random 16-character alphanumeric string (legacy, use snowflake instead)',
+            uuid22: 'Random 22-character alphanumeric string (legacy, use snowflake instead)'
         },
         shardInfo: {
             shardId: SHARD_ID,
             totalShards: TOTAL_SHARDS
-        }
+        },
+        snowflakeInfo: snowflakeGen.getInfo()
     });
 });
 

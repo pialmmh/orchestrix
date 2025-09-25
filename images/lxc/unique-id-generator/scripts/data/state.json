@@ -1,0 +1,8 @@
+[
+  {
+    "entityName": "test-entity",
+    "dataType": "snowflake",
+    "currentIteration": 0,
+    "shardId": 2
+  }
+]
