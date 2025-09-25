@@ -192,8 +192,11 @@ public class UniqueIdConfig {
         if (props.containsKey("BRIDGE")) {
             config.setBridge(props.get("BRIDGE"));
         }
+        // Support both BUILD_IP and IP_ADDRESS for compatibility
         if (props.containsKey("BUILD_IP")) {
             config.setIpAddress(props.get("BUILD_IP"));
+        } else if (props.containsKey("IP_ADDRESS")) {
+            config.setIpAddress(props.get("IP_ADDRESS"));
         }
         if (props.containsKey("GATEWAY")) {
             config.setGateway(props.get("GATEWAY"));
@@ -216,8 +219,11 @@ public class UniqueIdConfig {
         if (props.containsKey("SERVICE_GROUP")) {
             config.setServiceGroup(props.get("SERVICE_GROUP"));
         }
+        // Support both DATA_DIRECTORY and DATA_DIR
         if (props.containsKey("DATA_DIRECTORY")) {
             config.setDataDirectory(props.get("DATA_DIRECTORY"));
+        } else if (props.containsKey("DATA_DIR")) {
+            config.setDataDirectory(props.get("DATA_DIR"));
         }
         if (props.containsKey("LOG_FILE")) {
             config.setLogFile(props.get("LOG_FILE"));

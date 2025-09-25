@@ -465,11 +465,6 @@ public class UniqueIdGeneratorBuilder {
             // Validate configuration
             if (!config.validate()) {
                 System.err.println("Invalid configuration");
-                System.err.println("isValid: " + config.isValid());
-                System.err.println("isInRequiredSubnet: " + config.isInRequiredSubnet());
-                System.err.println("Container name: " + config.getContainerName());
-                System.err.println("IP Address: " + config.getIpAddress());
-                System.err.println("Gateway: " + config.getGateway());
                 System.exit(1);
             }
 
