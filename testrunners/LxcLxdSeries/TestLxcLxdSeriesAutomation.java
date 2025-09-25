@@ -6,6 +6,7 @@ import com.telcobright.orchestrix.automation.TerminalSeriesAutomationRunner;
 import com.telcobright.orchestrix.automation.TerminalRunner;
 import com.telcobright.orchestrix.automation.runners.LxcLxdInstallTerminalRunner;
 import com.telcobright.orchestrix.automation.runners.LxdBridgeNetworkingTerminalRunner;
+import com.telcobright.orchestrix.automation.runners.LinuxIpForwardEnablerTerminalRunner;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Map;
@@ -49,8 +50,9 @@ public class TestLxcLxdSeriesAutomation {
         boolean stopOnFailure = Boolean.parseBoolean(props.getProperty("series.stop.on.failure", "true"));
 
         // Read which runners to execute
-        boolean runInstall = Boolean.parseBoolean(props.getProperty("run.install", "true"));
-        boolean runBridgeConfig = Boolean.parseBoolean(props.getProperty("run.bridge.config", "true"));
+        boolean runInstall = Boolean.parseBoolean(props.getProperty("run.install", "false"));
+        boolean runBridgeConfig = Boolean.parseBoolean(props.getProperty("run.bridge.config", "false"));
+        boolean runIpForward = Boolean.parseBoolean(props.getProperty("run.ipforward", "false"));
 
         System.out.println("=========================================");
         System.out.println("LXC/LXD Series Automation Test");
@@ -59,6 +61,7 @@ public class TestLxcLxdSeriesAutomation {
         System.out.println("Username: " + username);
         System.out.println("Stop on Failure: " + stopOnFailure);
         System.out.println("Run Install: " + runInstall);
+        System.out.println("Run IP Forward: " + runIpForward);
         System.out.println("Run Bridge Config: " + runBridgeConfig);
         System.out.println("");
 
@@ -82,6 +85,22 @@ public class TestLxcLxdSeriesAutomation {
                 seriesRunner.addRunner(installRunner, installConfig);
             }
 
+            // Configure IP forwarding runner
+            if (runIpForward) {
+                TerminalRunner ipForwardRunner = new LinuxIpForwardEnablerTerminalRunner();
+
+                // Create config map for IP forwarding
+                Map<String, String> ipForwardConfig = new HashMap<>();
+                ipForwardConfig.put("ipforward.use.sudo", props.getProperty("ipforward.use.sudo", "true"));
+                ipForwardConfig.put("ipforward.enable.ipv4", props.getProperty("ipforward.enable.ipv4", "true"));
+                ipForwardConfig.put("ipforward.enable.ipv6", props.getProperty("ipforward.enable.ipv6", "false"));
+                ipForwardConfig.put("ipforward.make.persistent", props.getProperty("ipforward.make.persistent", "true"));
+                ipForwardConfig.put("ipforward.distribution", props.getProperty("ipforward.distribution", "AUTO_DETECT"));
+                ipForwardConfig.put("force.execution", props.getProperty("ipforward.force", "false"));
+
+                seriesRunner.addRunner(ipForwardRunner, ipForwardConfig);
+            }
+
             // Configure bridge networking runner
             if (runBridgeConfig) {
                 TerminalRunner bridgeRunner = new LxdBridgeNetworkingTerminalRunner();
@@ -95,6 +114,7 @@ public class TestLxcLxdSeriesAutomation {
                 bridgeConfig.put("bridge.enable.dns", props.getProperty("bridge.enable.dns", "true"));
                 bridgeConfig.put("bridge.dhcp.start", props.getProperty("bridge.dhcp.start", "10.0.8.2"));
                 bridgeConfig.put("bridge.dhcp.end", props.getProperty("bridge.dhcp.end", "10.0.8.254"));
+                bridgeConfig.put("bridge.use.sudo", props.getProperty("bridge.use.sudo", "true"));
                 bridgeConfig.put("delete.existing", props.getProperty("bridge.delete.existing", "false"));
                 bridgeConfig.put("force.execution", props.getProperty("bridge.force", "false"));
 
