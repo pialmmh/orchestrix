@@ -40,21 +40,31 @@ public class NetworkSetup {
     private static final String CONFIGURE_CONTAINER_NETWORK_SCRIPT = """
         #!/bin/bash
         # Configure container network
+        set -x  # Enable verbose output
 
         CONTAINER="%s"
         BRIDGE="%s"
         IP_ADDRESS="%s"
 
+        echo "Configuring network for container $CONTAINER..."
+        echo "  Bridge: $BRIDGE"
+        echo "  IP Address: $IP_ADDRESS"
+
         # Remove default network device if exists
-        lxc config device remove "$CONTAINER" eth0 2>/dev/null || true
+        echo "Step 1: Removing any existing eth0 device..."
+        lxc config device remove "$CONTAINER" eth0 2>/dev/null || echo "  No existing eth0 to remove"
 
         # Add bridge network device with static IP
+        echo "Step 2: Adding bridged network device..."
         lxc config device add "$CONTAINER" eth0 nic \\
             nictype=bridged \\
             parent="$BRIDGE" \\
             ipv4.address="$IP_ADDRESS"
 
-        echo "✓ Network device configured"
+        echo "Step 3: Verifying network configuration..."
+        lxc config device show "$CONTAINER"
+
+        echo "✓ Network device configured successfully"
         """;
 
     private static final String CONFIGURE_INTERNAL_NETWORK_SCRIPT = """

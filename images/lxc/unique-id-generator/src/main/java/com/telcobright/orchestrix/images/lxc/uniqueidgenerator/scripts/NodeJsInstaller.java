@@ -11,12 +11,16 @@ public class NodeJsInstaller {
     private static final String UPDATE_SYSTEM_SCRIPT = """
         #!/bin/bash
         # Update system packages
+        set -x  # Enable verbose output
 
         echo "Updating package lists..."
-        apt-get update
+        echo "This may take a minute..."
 
-        if [ $? -eq 0 ]; then
-            echo "✓ System updated"
+        apt-get update 2>&1 | grep -E "^(Get:|Hit:|Fetched)" | head -10
+        RESULT=${PIPESTATUS[0]}
+
+        if [ $RESULT -eq 0 ]; then
+            echo "✓ Package lists updated successfully"
         else
             echo "✗ Failed to update system"
             exit 1
@@ -47,25 +51,32 @@ public class NodeJsInstaller {
     private static final String INSTALL_NODEJS_SCRIPT = """
         #!/bin/bash
         # Install Node.js from NodeSource repository
+        set -x  # Enable verbose output
 
         NODE_VERSION="%s"
 
         echo "Installing Node.js ${NODE_VERSION}..."
+        echo ""
 
-        # Create keyrings directory
+        echo "Step 1: Creating keyrings directory..."
         mkdir -p /etc/apt/keyrings
 
-        # Add NodeSource GPG key
+        echo "Step 2: Downloading NodeSource GPG key..."
         curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | \\
             gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+        echo "✓ GPG key installed"
 
-        # Add NodeSource repository
+        echo "Step 3: Adding NodeSource repository..."
         echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_VERSION}.x nodistro main" > \\
             /etc/apt/sources.list.d/nodesource.list
+        echo "✓ Repository added"
 
-        # Update and install Node.js
-        apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+        echo "Step 4: Updating package lists..."
+        apt-get update | tail -5
+
+        echo "Step 5: Installing Node.js (this may take a minute)..."
+        DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs 2>&1 | \\
+            grep -E "^(Get:|Fetched|Unpacking|Setting up|Processing)" || true
 
         if [ $? -eq 0 ]; then
             echo "✓ Node.js installed"

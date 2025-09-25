@@ -68,28 +68,48 @@ public class UniqueIdGeneratorBuilder {
         String script = String.format("""
             #!/bin/bash
             # Create LXC container
+            set -x  # Enable verbose output
 
             CONTAINER="%s"
             BASE_IMAGE="%s"
 
+            echo "Step 1: Checking for existing container..."
             # Check if container already exists
             if lxc list | grep -q "$CONTAINER"; then
                 echo "Container $CONTAINER already exists, removing..."
-                lxc delete --force "$CONTAINER"
+                lxc delete --force "$CONTAINER" --verbose
+                echo "✓ Old container removed"
+            else
+                echo "✓ No existing container found"
             fi
 
-            # Create new container
-            echo "Creating container $CONTAINER from $BASE_IMAGE..."
-            lxc launch "$BASE_IMAGE" "$CONTAINER"
+            echo ""
+            echo "Step 2: Downloading/Creating container from $BASE_IMAGE..."
+            echo "This may take a few minutes if the image needs to be downloaded..."
 
-            # Wait for container to be ready
-            sleep 5
+            # Create new container with verbose output
+            lxc launch "$BASE_IMAGE" "$CONTAINER" --verbose 2>&1 | while IFS= read -r line; do
+                echo "  LXC: $line"
+            done
 
+            echo ""
+            echo "Step 3: Waiting for container to initialize..."
+            # Wait for container to be ready with countdown
+            for i in 5 4 3 2 1; do
+                echo "  Waiting... $i seconds"
+                sleep 1
+            done
+
+            echo ""
+            echo "Step 4: Verifying container status..."
             # Check container status
+            lxc list "$CONTAINER" --format=table
+
             if lxc list | grep "$CONTAINER" | grep -q "RUNNING"; then
-                echo "✓ Container created and running"
+                echo "✓ Container created and running successfully"
             else
                 echo "✗ Container failed to start"
+                lxc info "$CONTAINER" --show-log
                 exit 1
             fi
             """,
