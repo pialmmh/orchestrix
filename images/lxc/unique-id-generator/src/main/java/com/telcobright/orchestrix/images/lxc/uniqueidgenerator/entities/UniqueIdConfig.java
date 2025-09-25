@@ -30,6 +30,11 @@ public class UniqueIdConfig {
     private boolean optimizeSize = true;
     private boolean cleanupOnFailure = true;
 
+    // Source file paths
+    private String serverJsPath = "scripts/server.js";
+    private String packageJsonPath = "scripts/package.json";
+    private String imageName = "unique-id-generator-base";
+
     // Runtime shard configuration (passed at launch, not build)
     private Integer shardId;
     private Integer totalShards;
@@ -116,15 +121,27 @@ public class UniqueIdConfig {
     }
 
     public String getImageName() {
-        return "unique-id-generator-base";
+        return imageName;
+    }
+
+    public void setImageName(String imageName) {
+        this.imageName = imageName;
     }
 
     public String getServerJsPath() {
-        return "scripts/server.js";
+        return serverJsPath;
+    }
+
+    public void setServerJsPath(String serverJsPath) {
+        this.serverJsPath = serverJsPath;
     }
 
     public String getPackageJsonPath() {
-        return "scripts/package.json";
+        return packageJsonPath;
+    }
+
+    public void setPackageJsonPath(String packageJsonPath) {
+        this.packageJsonPath = packageJsonPath;
     }
 
     public boolean validate() {
@@ -139,51 +156,80 @@ public class UniqueIdConfig {
     public static UniqueIdConfig loadFromFile(String configFile) throws Exception {
         UniqueIdConfig config = new UniqueIdConfig();
 
-        // Simple properties file parsing
-        java.util.Properties props = new java.util.Properties();
-        try (java.io.FileInputStream fis = new java.io.FileInputStream(configFile)) {
-            props.load(fis);
+        // Parse shell-style config file
+        java.util.Map<String, String> props = new java.util.HashMap<>();
+
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.FileReader(configFile))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                // Skip comments and empty lines
+                if (line.isEmpty() || line.startsWith("#")) {
+                    continue;
+                }
+                // Parse KEY=VALUE format
+                int equalPos = line.indexOf('=');
+                if (equalPos > 0) {
+                    String key = line.substring(0, equalPos).trim();
+                    String value = line.substring(equalPos + 1).trim();
+                    // Remove quotes if present
+                    if (value.startsWith("\"") && value.endsWith("\"")) {
+                        value = value.substring(1, value.length() - 1);
+                    }
+                    props.put(key, value);
+                }
+            }
         }
 
         // Load values from properties
         if (props.containsKey("BASE_IMAGE")) {
-            config.setBaseImage(props.getProperty("BASE_IMAGE"));
+            config.setBaseImage(props.get("BASE_IMAGE"));
         }
         if (props.containsKey("BUILD_CONTAINER_NAME")) {
-            config.setBuildContainerName(props.getProperty("BUILD_CONTAINER_NAME"));
+            config.setBuildContainerName(props.get("BUILD_CONTAINER_NAME"));
         }
         if (props.containsKey("BRIDGE")) {
-            config.setBridge(props.getProperty("BRIDGE"));
+            config.setBridge(props.get("BRIDGE"));
         }
-        if (props.containsKey("IP_ADDRESS")) {
-            config.setIpAddress(props.getProperty("IP_ADDRESS"));
+        if (props.containsKey("BUILD_IP")) {
+            config.setIpAddress(props.get("BUILD_IP"));
         }
         if (props.containsKey("GATEWAY")) {
-            config.setGateway(props.getProperty("GATEWAY"));
+            config.setGateway(props.get("GATEWAY"));
         }
         if (props.containsKey("DNS_PRIMARY") && props.containsKey("DNS_SECONDARY")) {
             config.setDnsServers(new String[] {
-                props.getProperty("DNS_PRIMARY"),
-                props.getProperty("DNS_SECONDARY")
+                props.get("DNS_PRIMARY"),
+                props.get("DNS_SECONDARY")
             });
         }
         if (props.containsKey("NODE_VERSION")) {
-            config.setNodeVersion(props.getProperty("NODE_VERSION"));
+            config.setNodeVersion(props.get("NODE_VERSION"));
         }
         if (props.containsKey("SERVICE_PORT")) {
-            config.setServicePort(Integer.parseInt(props.getProperty("SERVICE_PORT")));
+            config.setServicePort(Integer.parseInt(props.get("SERVICE_PORT")));
         }
         if (props.containsKey("SERVICE_USER")) {
-            config.setServiceUser(props.getProperty("SERVICE_USER"));
+            config.setServiceUser(props.get("SERVICE_USER"));
         }
         if (props.containsKey("SERVICE_GROUP")) {
-            config.setServiceGroup(props.getProperty("SERVICE_GROUP"));
+            config.setServiceGroup(props.get("SERVICE_GROUP"));
         }
         if (props.containsKey("DATA_DIRECTORY")) {
-            config.setDataDirectory(props.getProperty("DATA_DIRECTORY"));
+            config.setDataDirectory(props.get("DATA_DIRECTORY"));
         }
         if (props.containsKey("LOG_FILE")) {
-            config.setLogFile(props.getProperty("LOG_FILE"));
+            config.setLogFile(props.get("LOG_FILE"));
+        }
+        if (props.containsKey("SERVER_JS_PATH")) {
+            config.setServerJsPath(props.get("SERVER_JS_PATH"));
+        }
+        if (props.containsKey("PACKAGE_JSON_PATH")) {
+            config.setPackageJsonPath(props.get("PACKAGE_JSON_PATH"));
+        }
+        if (props.containsKey("IMAGE_NAME")) {
+            config.setImageName(props.get("IMAGE_NAME"));
         }
 
         return config;
