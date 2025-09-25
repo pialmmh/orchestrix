@@ -83,4 +83,11 @@ public abstract class AbstractLinuxAutomation implements LinuxAutomation {
      */
     public interface DefaultImplementation {
     }
+
+    /**
+     * Get the sudo setting
+     */
+    protected boolean isUsingSudo() {
+        return useSudo;
+    }
 }

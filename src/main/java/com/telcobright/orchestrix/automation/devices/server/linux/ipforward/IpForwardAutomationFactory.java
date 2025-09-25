@@ -7,6 +7,16 @@ import com.telcobright.orchestrix.device.SshDevice;
 
 public class IpForwardAutomationFactory {
 
+    public static IpForwardAutomation createIpForwardAutomation(LinuxDistribution distribution, boolean useSudo) {
+        // Default configuration for simple use case
+        return create(null, distribution, useSudo, true, false, true);
+    }
+
+    public static IpForwardAutomation createIpForwardAutomation(SshDevice device, boolean useSudo) {
+        LinuxDistribution distribution = SystemDetector.detectDistribution(device);
+        return createIpForwardAutomation(distribution, useSudo);
+    }
+
     public static IpForwardAutomation create(SshDevice device, LinuxDistribution distribution,
                                      boolean useSudo, boolean enableIpv4,
                                      boolean enableIpv6, boolean makePersistent) {
