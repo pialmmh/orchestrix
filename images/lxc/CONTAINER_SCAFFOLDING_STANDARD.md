@@ -4,6 +4,8 @@
 
 This document defines the **UNIFIED STANDARD** for all LXC containers in Orchestrix. Every container MUST follow this structure and include mandatory BTRFS storage support with versioning.
 
+**This is the ONLY scaffolding guideline document. All containers MUST follow this standard.**
+
 ## Mandatory Requirements
 
 1. **BTRFS Storage**: All containers MUST use BTRFS with quota management
@@ -109,6 +111,37 @@ EXPORT_PATH="/tmp"
 CREATE_SNAPSHOT="true"
 START_SERVICES="true"
 ```
+
+## How to Build a Container
+
+To build any container following this standard:
+
+1. **Set required storage parameters** in `build/build.conf`:
+```bash
+STORAGE_LOCATION_ID="btrfs_ssd_main"  # Required
+STORAGE_QUOTA_SIZE="30G"               # Required
+```
+
+2. **Run the build**:
+```bash
+cd images/lxc/[container-name]
+./build/build.sh                       # Uses build/build.conf
+# OR with custom config:
+./build/build.sh /path/to/custom.conf
+```
+
+3. **Quick start** (for development):
+```bash
+./startDefault.sh                      # Uses defaults
+```
+
+The build process will:
+- Validate storage configuration
+- Create BTRFS subvolume with quota
+- Build and configure the container
+- Export to `/tmp/[container]-v.[version]-[timestamp].tar.gz`
+- Generate launch scripts in `[container]-v.[version]/generated/`
+- Create BTRFS snapshot for backup
 
 ## Build Script Structure (build/build.sh)
 
@@ -353,6 +386,30 @@ grep -q "STORAGE_LOCATION_ID=" "$CONTAINER_DIR/build/build.conf" || echo "Missin
 grep -q "STORAGE_QUOTA_SIZE=" "$CONTAINER_DIR/build/build.conf" || echo "Missing quota"
 grep -q "STORAGE_MONITOR_ENABLED=" "$CONTAINER_DIR/build/build.conf" || echo "Missing monitor"
 ```
+
+## Storage Quota Guidelines
+
+### Service Types and Recommended Quotas
+
+| Service Type | Min Quota | Recommended | Max Expected |
+|-------------|-----------|-------------|--------------|
+| Database | 20G | 50G | 100G |
+| Logging/Monitoring | 10G | 30G | 50G |
+| Application | 5G | 10G | 20G |
+| Cache | 5G | 10G | 15G |
+| Web Server | 2G | 5G | 10G |
+| Development | 10G | 20G | 50G |
+
+### Specific Service Recommendations
+
+- **Grafana-Loki**: 30G (logs and dashboards)
+- **Prometheus**: 20G (metrics storage)
+- **MySQL/PostgreSQL**: 50G (database)
+- **Redis**: 10G (cache)
+- **Elasticsearch**: 50G (search index)
+- **GitLab**: 100G (code + CI artifacts)
+- **FusionPBX**: 20G (telephony data)
+- **Development Environment**: 20G (code + tools)
 
 ## Common Issues and Solutions
 
