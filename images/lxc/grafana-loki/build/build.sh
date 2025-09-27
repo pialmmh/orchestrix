@@ -4,6 +4,13 @@
 
 set -e
 
+# Check if we should use Java automation
+if [ "$USE_JAVA_AUTOMATION" = "true" ] || [ "$1" = "--java" ]; then
+    echo "Using Java automation for build..."
+    exec /home/mustafa/telcobright-projects/orchestrix/scripts/build-grafana-loki-java.sh "$@"
+    exit $?
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTAINER_DIR="$(dirname "$SCRIPT_DIR")"
 SCRIPTS_DIR="${CONTAINER_DIR}/scripts"
