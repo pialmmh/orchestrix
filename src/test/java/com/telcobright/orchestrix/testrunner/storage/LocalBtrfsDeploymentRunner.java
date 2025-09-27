@@ -1,7 +1,7 @@
 package com.telcobright.orchestrix.testrunner.storage;
 
-import com.telcobright.orchestrix.automation.devices.server.linux.storage.base.*;
-import com.telcobright.orchestrix.automation.devices.server.linux.storage.btrfs.*;
+import com.telcobright.orchestrix.automation.storage.base.*;
+import com.telcobright.orchestrix.automation.storage.btrfs.*;
 import com.telcobright.orchestrix.automation.devices.server.linux.containerdeploy.base.*;
 import com.telcobright.orchestrix.automation.devices.server.linux.containerdeploy.lxc.impl.LxcContainerDeployment;
 import com.telcobright.orchestrix.automation.devices.server.linux.containerdeploy.lxc.preparer.LxcPrerequisitePreparer;

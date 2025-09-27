@@ -1,7 +1,7 @@
 package com.telcobright.orchestrix.automation.runner.storage;
 
-import com.telcobright.orchestrix.automation.devices.server.linux.storage.base.*;
-import com.telcobright.orchestrix.automation.devices.server.linux.storage.btrfs.*;
+import com.telcobright.orchestrix.automation.storage.base.*;
+import com.telcobright.orchestrix.automation.storage.btrfs.*;
 import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxDistribution;
 import com.telcobright.orchestrix.device.SshDevice;
 import com.telcobright.orchestrix.device.SshDeviceImpl;

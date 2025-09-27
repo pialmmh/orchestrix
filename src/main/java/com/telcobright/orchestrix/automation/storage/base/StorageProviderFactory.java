@@ -1,6 +1,6 @@
-package com.telcobright.orchestrix.automation.devices.server.linux.storage.base;
+package com.telcobright.orchestrix.automation.storage.base;
 
-import com.telcobright.orchestrix.automation.devices.server.linux.storage.btrfs.BtrfsStorageProvider;
+import com.telcobright.orchestrix.automation.storage.btrfs.BtrfsStorageProvider;
 import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxDistribution;
 import com.telcobright.orchestrix.device.SshDevice;
 import com.telcobright.orchestrix.automation.devices.server.linux.common.SystemDetector;
