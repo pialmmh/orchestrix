@@ -2,7 +2,8 @@ package com.telcobright.orchestrix.service;
 
 import com.telcobright.orchestrix.device.MikroTikRouter;
 import com.telcobright.orchestrix.device.NetworkingDevice;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -14,9 +15,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 public class DeviceManager {
+
+    private static final Logger log = LoggerFactory.getLogger(DeviceManager.class);
     
     private final Map<String, NetworkingDevice> devices = new ConcurrentHashMap<>();
     

@@ -1,6 +1,7 @@
 package com.telcobright.orchestrix.device;
 
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.Socket;
@@ -13,8 +14,9 @@ import java.util.concurrent.Executors;
  * Telnet implementation of TerminalDevice for legacy device connections.
  * Provides unified interface for Telnet connections alongside SSH and Local devices.
  */
-@Slf4j
 public class TelnetDevice implements TerminalDevice {
+
+    private static final Logger log = LoggerFactory.getLogger(TelnetDevice.class);
 
     private final ExecutorService executorService = Executors.newCachedThreadPool();
 

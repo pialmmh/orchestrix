@@ -4,7 +4,8 @@ import com.telcobright.orchestrix.entity.*;
 import com.telcobright.orchestrix.entity.IPAddress.IPAddressType;
 import com.telcobright.orchestrix.entity.IPAddress.AssignmentMethod;
 import com.telcobright.orchestrix.repository.*;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,9 +15,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@Slf4j
 @Transactional
 public class IPAddressService {
+
+    private static final Logger log = LoggerFactory.getLogger(IPAddressService.class);
     
     @Autowired
     private IPAddressRepository ipAddressRepository;

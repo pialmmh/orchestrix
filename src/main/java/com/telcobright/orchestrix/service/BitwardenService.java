@@ -2,7 +2,8 @@ package com.telcobright.orchestrix.service;
 
 import com.telcobright.orchestrix.dto.BitwardenItemDto;
 import com.telcobright.orchestrix.dto.BitwardenCredentialDto;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -22,8 +23,9 @@ import java.time.format.DateTimeFormatter;
  * Handles credential storage, retrieval, and management
  */
 @Service
-@Slf4j
 public class BitwardenService {
+
+    private static final Logger log = LoggerFactory.getLogger(BitwardenService.class);
     
     @Value("${bitwarden.api.url:http://localhost:8080}")
     private String bitwardenApiUrl;

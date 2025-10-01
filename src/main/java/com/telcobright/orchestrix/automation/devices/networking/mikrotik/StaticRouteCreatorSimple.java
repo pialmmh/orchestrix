@@ -2,7 +2,8 @@ package com.telcobright.orchestrix.automation.devices.networking.mikrotik;
 
 import com.telcobright.orchestrix.device.MikroTikRouter;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,8 +13,9 @@ import java.util.concurrent.TimeUnit;
 /**
  * Simple static route creator automation for MikroTik routers
  */
-@Slf4j
 public class StaticRouteCreatorSimple {
+
+    private static final Logger log = LoggerFactory.getLogger(StaticRouteCreatorSimple.class);
 
     private final MikroTikRouter router;
 

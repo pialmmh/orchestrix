@@ -1,7 +1,8 @@
 package com.telcobright.orchestrix.device;
 
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,8 +12,9 @@ import java.util.concurrent.TimeUnit;
 /**
  * Reusable MikroTik IPsec tunnel configuration manager
  */
-@Slf4j
 public class MikroTikIpsecManager {
+
+    private static final Logger log = LoggerFactory.getLogger(MikroTikIpsecManager.class);
 
     private final MikroTikRouter router;
 

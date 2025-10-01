@@ -6,7 +6,8 @@ import com.telcobright.orchestrix.repository.*;
 import com.telcobright.orchestrix.service.secret.SecretProvider;
 import com.telcobright.orchestrix.service.secret.SecretProviderFactory;
 import com.telcobright.orchestrix.dto.SecretCredentialDto;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,9 +20,10 @@ import java.util.Optional;
  * Service for managing device credentials and their secret provider integration
  */
 @Service
-@Slf4j
 @Transactional
 public class DeviceCredentialService {
+
+    private static final Logger log = LoggerFactory.getLogger(DeviceCredentialService.class);
     
     @Autowired
     private RemoteAccessRepository remoteAccessRepository;

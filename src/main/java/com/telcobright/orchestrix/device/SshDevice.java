@@ -1,7 +1,8 @@
 package com.telcobright.orchestrix.device;
 
 import com.jcraft.jsch.*;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.UUID;
@@ -13,8 +14,9 @@ import java.util.concurrent.Executors;
  * SSH implementation of TerminalDevice for remote command execution.
  * Provides unified interface for SSH connections alongside LocalDevice.
  */
-@Slf4j
 public class SshDevice implements TerminalDevice {
+
+    private static final Logger log = LoggerFactory.getLogger(SshDevice.class);
 
     private final ExecutorService executorService = Executors.newCachedThreadPool();
 

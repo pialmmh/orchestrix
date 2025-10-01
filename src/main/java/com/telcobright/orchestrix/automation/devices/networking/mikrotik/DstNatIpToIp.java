@@ -3,7 +3,8 @@ package com.telcobright.orchestrix.automation.devices.networking.mikrotik;
 import com.telcobright.orchestrix.device.MikroTikRouter;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,9 +16,10 @@ import java.util.regex.Pattern;
  * MikroTik Destination NAT IP-to-IP automation class.
  * Manages destination NAT rules that translate incoming packets from one IP to another.
  */
-@Slf4j
 @RequiredArgsConstructor
 public class DstNatIpToIp {
+
+    private static final Logger log = LoggerFactory.getLogger(DstNatIpToIp.class);
 
     private final MikroTikRouter router;
 

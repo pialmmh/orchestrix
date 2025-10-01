@@ -1,7 +1,8 @@
 package com.telcobright.orchestrix.service.secret;
 
 import com.telcobright.orchestrix.service.secret.SecretProvider.SecretProviderType;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -14,8 +15,9 @@ import java.util.stream.Collectors;
  * Factory for managing and providing secret providers
  */
 @Service
-@Slf4j
 public class SecretProviderFactory {
+
+    private static final Logger log = LoggerFactory.getLogger(SecretProviderFactory.class);
     
     @Value("${secret.provider.default:LOCAL_ENCRYPTED}")
     private String defaultProviderType;

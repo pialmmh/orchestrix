@@ -6,7 +6,8 @@ import com.telcobright.orchestrix.network.entity.lxc.LxcContainer;
 import com.telcobright.orchestrix.network.entity.NetworkInterface;
 import com.telcobright.orchestrix.network.entity.lxc.LxcNetworkConfig;
 import com.telcobright.orchestrix.network.entity.lxc.LxcMount;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -17,8 +18,9 @@ import java.util.concurrent.CompletableFuture;
  * LXC Network Configurator - automates LXC network configuration via SSH
  * Implements ContainerNetworkConfigurator for container-specific operations
  */
-@Slf4j
 public class LxcNetworkConfigurator extends UniversalSshDevice implements ContainerNetworkConfigurator {
+
+    private static final Logger log = LoggerFactory.getLogger(LxcNetworkConfigurator.class);
     
     private static final String DEFAULT_HOST = "localhost";
     private static final int DEFAULT_PORT = 22;

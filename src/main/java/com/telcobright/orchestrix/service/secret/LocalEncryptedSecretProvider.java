@@ -5,7 +5,8 @@ import com.telcobright.orchestrix.dto.SecretItemDto;
 import com.telcobright.orchestrix.entity.LocalSecret;
 import com.telcobright.orchestrix.repository.LocalSecretRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -26,8 +27,9 @@ import java.util.stream.Collectors;
  * Stores secrets in the local database with AES-256-GCM encryption
  */
 @Service
-@Slf4j
 public class LocalEncryptedSecretProvider implements SecretProvider {
+
+    private static final Logger log = LoggerFactory.getLogger(LocalEncryptedSecretProvider.class);
     
     private static final String ALGORITHM = "AES/GCM/NoPadding";
     private static final int GCM_IV_LENGTH = 12;

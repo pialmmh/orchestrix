@@ -1,7 +1,8 @@
 package com.orchestrix.stellar.service;
 
 import com.orchestrix.stellar.model.*;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,8 +17,9 @@ import java.util.stream.Collectors;
  * Service for handling generic entity modifications with lazy hierarchy building and caching
  */
 @Service
-@Slf4j
 public class EntityModificationService {
+
+    private static final Logger log = LoggerFactory.getLogger(EntityModificationService.class);
     
     // Global cache for entity hierarchies
     private final ConcurrentHashMap<String, EntityHierarchy> entityMap = new ConcurrentHashMap<>();

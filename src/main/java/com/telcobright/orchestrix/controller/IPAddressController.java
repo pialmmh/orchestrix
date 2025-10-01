@@ -3,7 +3,8 @@ package com.telcobright.orchestrix.controller;
 import com.telcobright.orchestrix.entity.IPAddress;
 import com.telcobright.orchestrix.entity.IPAddress.IPAddressType;
 import com.telcobright.orchestrix.service.IPAddressService;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,8 +15,9 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/ip-addresses")
 @CrossOrigin(origins = "*")
-@Slf4j
 public class IPAddressController {
+
+    private static final Logger log = LoggerFactory.getLogger(IPAddressController.class);
     
     @Autowired
     private IPAddressService ipAddressService;
