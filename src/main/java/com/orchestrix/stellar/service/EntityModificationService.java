@@ -1,6 +1,6 @@
-package com.orchestrix.stellar.spring.service;
+package com.orchestrix.stellar.service;
 
-import com.orchestrix.stellar.spring.model.*;
+import com.orchestrix.stellar.model.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
