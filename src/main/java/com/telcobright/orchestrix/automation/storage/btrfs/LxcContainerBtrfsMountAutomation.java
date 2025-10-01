@@ -106,7 +106,7 @@ public class LxcContainerBtrfsMountAutomation extends AbstractLinuxAutomation {
         }
 
         // Verify BTRFS is available
-        BtrfsInstallAutomation btrfsInstaller = new BtrfsInstallAutomation(distribution, useSudo);
+        BtrfsInstallAutomation btrfsInstaller = new BtrfsInstallAutomation(supportedDistribution, useSudo);
         if (!btrfsInstaller.verify(device)) {
             logger.info("BTRFS not installed, installing...");
             if (!btrfsInstaller.execute(device)) {

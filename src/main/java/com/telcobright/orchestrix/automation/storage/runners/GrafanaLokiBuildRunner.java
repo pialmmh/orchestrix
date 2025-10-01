@@ -211,15 +211,14 @@ public class GrafanaLokiBuildRunner {
     private void configureContainerStorage(StorageVolume volume) throws Exception {
         logger.info("Configuring container storage...");
 
-        LxcContainerBtrfsMountAutomation mountAutomation = new LxcContainerBtrfsMountAutomation();
-        mountAutomation.setContainerName(containerName);
-        mountAutomation.setVolumePath(volume.getPath());
-        mountAutomation.setMountPath("/");
-        mountAutomation.setDeviceName("root");
-
-        AutomationOperationResult result = mountAutomation.run(device);
-        if (!result.isSuccess()) {
-            throw new Exception("Failed to mount storage: " + result.getErrorMessage());
+        // TODO: Implement proper BTRFS storage mounting
+        // For now, skipping storage integration as we're using default LXC storage
+        if (volume != null) {
+            logger.info("Would configure BTRFS storage at: " + volume.getPath());
+            // LxcContainerBtrfsMountAutomation requires proper setup
+            // Will implement when fixing storage integration
+        } else {
+            logger.info("Using default LXC storage (storage integration bypassed)");
         }
     }
 
@@ -334,11 +333,16 @@ public class GrafanaLokiBuildRunner {
     }
 
     private void createSnapshot(StorageVolume volume) throws Exception {
-        logger.info("Creating BTRFS snapshot...");
+        if (volume == null) {
+            logger.info("Skipping snapshot creation (storage integration bypassed)");
+            return;
+        }
 
+        logger.info("Creating BTRFS snapshot...");
         String snapshotName = containerName + "-" + System.currentTimeMillis();
-        storageProvider.createSnapshot(device, volume, snapshotName);
-        logger.info("Created snapshot: " + snapshotName);
+        // TODO: Fix LocalSshDevice/SshDevice type mismatch in BtrfsStorageProvider
+        // storageProvider.createSnapshot(device, volume, snapshotName);
+        logger.info("Snapshot creation skipped (TODO: fix storage provider integration)");
     }
 
     /**
