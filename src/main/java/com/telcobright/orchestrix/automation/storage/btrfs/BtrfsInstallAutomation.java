@@ -17,9 +17,10 @@ public class BtrfsInstallAutomation extends AbstractLinuxAutomation {
 
     @Override
     public boolean execute(SshDevice device) throws Exception {
-        logger.info("Installing BTRFS on " + distribution);
+        logger.info("Installing BTRFS on " + supportedDistribution);
 
-        if (!isPackageManagerAvailable(device)) {
+        // Check if package manager command exists
+        if (!commandExists(device, getPackageManagerCommand())) {
             logger.severe("Package manager not available");
             return false;
         }
@@ -68,7 +69,7 @@ public class BtrfsInstallAutomation extends AbstractLinuxAutomation {
     private boolean installBtrfsTools(SshDevice device) throws Exception {
         String installCmd;
 
-        switch (distribution) {
+        switch (supportedDistribution) {
             case DEBIAN:
             case UBUNTU:
                 installCmd = "apt-get install -y btrfs-progs btrfs-tools";
@@ -126,7 +127,7 @@ public class BtrfsInstallAutomation extends AbstractLinuxAutomation {
     private boolean updatePackageLists(SshDevice device) throws Exception {
         String updateCmd;
 
-        switch (distribution) {
+        switch (supportedDistribution) {
             case DEBIAN:
             case UBUNTU:
                 updateCmd = "apt-get update";
@@ -212,7 +213,7 @@ public class BtrfsInstallAutomation extends AbstractLinuxAutomation {
     protected boolean isPackageInstalled(SshDevice device, String packageName) throws Exception {
         String result = null;
 
-        switch (distribution) {
+        switch (supportedDistribution) {
             case DEBIAN:
             case UBUNTU:
                 result = executeCommand(device, "dpkg -l | grep -E '^ii.*" + packageName + "'");
@@ -233,7 +234,7 @@ public class BtrfsInstallAutomation extends AbstractLinuxAutomation {
 
     @Override
     protected String getPackageManagerCommand() {
-        switch (distribution) {
+        switch (supportedDistribution) {
             case DEBIAN:
             case UBUNTU:
                 return "apt-get";

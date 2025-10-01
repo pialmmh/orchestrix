@@ -9,8 +9,9 @@ import java.util.logging.Logger;
 /**
  * SSH Device implementation for localhost connections
  * Optimized for connecting to the local machine
+ * Provides simple command execution without requiring explicit connection
  */
-public class LocalSshDevice implements SshDevice {
+public class LocalSshDevice {
 
     private static final Logger logger = Logger.getLogger(LocalSshDevice.class.getName());
 
@@ -30,7 +31,6 @@ public class LocalSshDevice implements SshDevice {
         this.privateKeyPath = System.getProperty("user.home") + "/.ssh/id_rsa";
     }
 
-    @Override
     public boolean connect() {
         try {
             logger.info("Connecting to " + host + ":" + port + " as " + username);
@@ -104,7 +104,6 @@ public class LocalSshDevice implements SshDevice {
         return false;
     }
 
-    @Override
     public boolean disconnect() {
         if (session != null && session.isConnected()) {
             session.disconnect();
@@ -113,7 +112,6 @@ public class LocalSshDevice implements SshDevice {
         return true;
     }
 
-    @Override
     public CompletableFuture<String> sendAndReceive(String command) {
         return CompletableFuture.supplyAsync(() -> {
             // If localhost and no SSH session, try local execution
@@ -199,42 +197,34 @@ public class LocalSshDevice implements SshDevice {
         }
     }
 
-    @Override
     public String getHost() {
         return host;
     }
 
-    @Override
     public void setHost(String host) {
         this.host = host;
     }
 
-    @Override
     public int getPort() {
         return port;
     }
 
-    @Override
     public void setPort(int port) {
         this.port = port;
     }
 
-    @Override
     public String getUsername() {
         return username;
     }
 
-    @Override
     public void setUsername(String username) {
         this.username = username;
     }
 
-    @Override
     public String getPassword() {
         return password;
     }
 
-    @Override
     public void setPassword(String password) {
         this.password = password;
     }
@@ -247,8 +237,27 @@ public class LocalSshDevice implements SshDevice {
         this.privateKeyPath = privateKeyPath;
     }
 
-    @Override
     public boolean isConnected() {
         return session != null && session.isConnected();
+    }
+
+    /**
+     * Execute a command - main method used by automation classes
+     * Auto-handles connection if needed
+     */
+    public String executeCommand(String command) throws Exception {
+        // For localhost, directly execute locally
+        if (host.equals("localhost") || host.equals("127.0.0.1")) {
+            return executeLocally(command);
+        }
+
+        // For remote hosts, ensure SSH connection
+        if (session == null || !session.isConnected()) {
+            if (!connect()) {
+                throw new Exception("Failed to connect to " + host);
+            }
+        }
+
+        return executeViaSsh(command);
     }
 }

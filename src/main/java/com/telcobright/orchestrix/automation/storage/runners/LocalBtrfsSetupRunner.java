@@ -1,11 +1,8 @@
 package com.telcobright.orchestrix.automation.storage.runners;
 
-import com.telcobright.orchestrix.automation.storage.btrfs.BtrfsInstallAutomation;
 import com.telcobright.orchestrix.automation.storage.btrfs.BtrfsStorageProvider;
-import com.telcobright.orchestrix.automation.storage.base.StorageLocation;
 import com.telcobright.orchestrix.automation.storage.base.StorageVolumeConfig;
 import com.telcobright.orchestrix.device.LocalSshDevice;
-import com.telcobright.orchestrix.automation.model.AutomationOperationResult;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -88,14 +85,10 @@ public class LocalBtrfsSetupRunner {
     private void installBtrfsTools() throws Exception {
         logger.info("Installing BTRFS tools...");
 
-        BtrfsInstallAutomation installation = new BtrfsInstallAutomation();
-        installation.setUpdatePackageList(true);
-        installation.setInstallBtrfsProgs(true);
-
-        AutomationOperationResult result = installation.run(device);
-        if (!result.isSuccess()) {
-            throw new Exception("Failed to install BTRFS tools: " + result.getErrorMessage());
-        }
+        // Install btrfs-progs package (assuming Debian/Ubuntu)
+        device.executeCommand("sudo apt-get update");
+        device.executeCommand("sudo apt-get install -y btrfs-progs");
+        logger.info("BTRFS tools installed successfully");
     }
 
     private void createDirectoryStructure() throws Exception {
