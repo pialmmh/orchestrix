@@ -111,12 +111,13 @@
         </dependency>
         
         <!-- Stellar V2 Library -->
+        <!-- NOTE: Requires stellar to be installed in local Maven repo first -->
         <dependency>
             <groupId>com.telcobright</groupId>
             <artifactId>stellar</artifactId>
             <version>0.1.0-SNAPSHOT</version>
         </dependency>
-        
+
         <!-- Utilities -->
         <dependency>
             <groupId>commons-io</groupId>
