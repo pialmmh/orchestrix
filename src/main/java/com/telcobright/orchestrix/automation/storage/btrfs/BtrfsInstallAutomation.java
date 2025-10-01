@@ -69,15 +69,13 @@ public class BtrfsInstallAutomation extends AbstractLinuxAutomation {
     private boolean installBtrfsTools(SshDevice device) throws Exception {
         String installCmd;
 
-        switch (supportedDistribution) {
+        // Switch on family instead of distribution object
+        switch (supportedDistribution.getFamily()) {
             case DEBIAN:
-            case UBUNTU:
                 installCmd = "apt-get install -y btrfs-progs btrfs-tools";
                 break;
 
-            case REDHAT:
-            case CENTOS:
-            case FEDORA:
+            case RHEL:
                 installCmd = "yum install -y btrfs-progs";
                 break;
 
@@ -127,15 +125,12 @@ public class BtrfsInstallAutomation extends AbstractLinuxAutomation {
     private boolean updatePackageLists(SshDevice device) throws Exception {
         String updateCmd;
 
-        switch (supportedDistribution) {
+        switch (supportedDistribution.getFamily()) {
             case DEBIAN:
-            case UBUNTU:
                 updateCmd = "apt-get update";
                 break;
 
-            case REDHAT:
-            case CENTOS:
-            case FEDORA:
+            case RHEL:
                 updateCmd = "yum makecache";
                 break;
 
@@ -213,15 +208,12 @@ public class BtrfsInstallAutomation extends AbstractLinuxAutomation {
     protected boolean isPackageInstalled(SshDevice device, String packageName) throws Exception {
         String result = null;
 
-        switch (supportedDistribution) {
+        switch (supportedDistribution.getFamily()) {
             case DEBIAN:
-            case UBUNTU:
                 result = executeCommand(device, "dpkg -l | grep -E '^ii.*" + packageName + "'");
                 break;
 
-            case REDHAT:
-            case CENTOS:
-            case FEDORA:
+            case RHEL:
                 result = executeCommand(device, "rpm -qa | grep " + packageName);
                 break;
 
@@ -234,14 +226,11 @@ public class BtrfsInstallAutomation extends AbstractLinuxAutomation {
 
     @Override
     protected String getPackageManagerCommand() {
-        switch (supportedDistribution) {
+        switch (supportedDistribution.getFamily()) {
             case DEBIAN:
-            case UBUNTU:
                 return "apt-get";
 
-            case REDHAT:
-            case CENTOS:
-            case FEDORA:
+            case RHEL:
                 return "yum";
 
             case SUSE:
