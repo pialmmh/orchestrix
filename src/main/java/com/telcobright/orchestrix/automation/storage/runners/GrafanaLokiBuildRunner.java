@@ -60,7 +60,16 @@ public class GrafanaLokiBuildRunner {
             if (line.contains("=")) {
                 String[] parts = line.split("=", 2);
                 String key = parts[0].trim();
-                String value = parts[1].trim().replaceAll("^\"|\"$", "");
+                String value = parts[1].trim();
+
+                // Strip inline comments (everything after #)
+                int commentIndex = value.indexOf('#');
+                if (commentIndex > 0) {
+                    value = value.substring(0, commentIndex).trim();
+                }
+
+                // Strip quotes
+                value = value.replaceAll("^\"|\"$", "");
                 buildConfig.setProperty(key, value);
             }
         }

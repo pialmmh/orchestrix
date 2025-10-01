@@ -63,7 +63,16 @@ public class QuarkusBaseContainerBuilder {
             if (line.contains("=")) {
                 String[] parts = line.split("=", 2);
                 String key = parts[0].trim();
-                String value = parts[1].trim().replaceAll("^\"|\"$", "").replace("$(date +%Y%m%d)",
+                String value = parts[1].trim();
+
+                // Strip inline comments (everything after #)
+                int commentIndex = value.indexOf('#');
+                if (commentIndex > 0) {
+                    value = value.substring(0, commentIndex).trim();
+                }
+
+                // Strip quotes and process variables
+                value = value.replaceAll("^\"|\"$", "").replace("$(date +%Y%m%d)",
                     String.valueOf(System.currentTimeMillis() / 1000));
                 config.setProperty(key, value);
             }
