@@ -146,7 +146,13 @@ public class QuarkusBaseContainerBuilder {
         // Step 12: Install Promtail
         if ("true".equals(config.getProperty("PROMTAIL_ENABLED", "true"))) {
             installPromtail();
+            configurePromtailConfig();
+            configurePromtailService();
         }
+
+        // Step 12a: Configure logging infrastructure
+        installLog4j2Configuration();
+        configureLogrotate();
 
         // Step 13: Install monitoring tools
         if ("true".equals(config.getProperty("INSTALL_MONITORING", "true"))) {
@@ -502,6 +508,210 @@ public class QuarkusBaseContainerBuilder {
         device.executeCommand("lxc exec " + containerName + " -- mkdir -p " + cacheDir);
         device.executeCommand("lxc exec " + containerName +
             " -- chown -R quarkus:quarkus " + cacheDir);
+    }
+
+    private void installLog4j2Configuration() throws Exception {
+        logger.info("Installing Log4j2 configuration template...");
+
+        String log4j2Config = createLog4j2ConfigTemplate();
+
+        // Escape single quotes for shell
+        String escapedConfig = log4j2Config.replace("'", "'\\''");
+
+        device.executeCommand("echo '" + escapedConfig + "' | lxc exec " + containerName +
+            " -- tee /etc/quarkus/log4j2.xml.template > /dev/null");
+
+        logger.info("Log4j2 configuration template installed");
+    }
+
+    private String createLog4j2ConfigTemplate() {
+        return String.join("\n",
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+            "<Configuration status=\"WARN\" monitorInterval=\"30\">",
+            "    <Properties>",
+            "        <Property name=\"LOG_DIR\">/var/log/quarkus</Property>",
+            "        <Property name=\"LOG_FILE\">application</Property>",
+            "        <Property name=\"APP_NAME\">${env:APP_NAME:-unknown-app}</Property>",
+            "        <Property name=\"CONTAINER_NAME\">${env:CONTAINER_NAME:-unknown-container}</Property>",
+            "        <Property name=\"LOG_PATTERN\">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>",
+            "    </Properties>",
+            "",
+            "    <Appenders>",
+            "        <Console name=\"Console\" target=\"SYSTEM_OUT\">",
+            "            <PatternLayout pattern=\"${LOG_PATTERN}\"/>",
+            "        </Console>",
+            "",
+            "        <RollingFile name=\"RollingFile\"",
+            "                     fileName=\"${LOG_DIR}/${LOG_FILE}.log\"",
+            "                     filePattern=\"${LOG_DIR}/${LOG_FILE}-%d{yyyy-MM-dd}-%i.log.gz\"",
+            "                     immediateFlush=\"false\">",
+            "",
+            "            <JsonTemplateLayout eventTemplateUri=\"classpath:LogstashJsonEventLayoutV1.json\">",
+            "                <EventTemplateAdditionalField key=\"app\" value=\"${APP_NAME}\"/>",
+            "                <EventTemplateAdditionalField key=\"container\" value=\"${CONTAINER_NAME}\"/>",
+            "                <EventTemplateAdditionalField key=\"env\" value=\"${env:ENV:-dev}\"/>",
+            "            </JsonTemplateLayout>",
+            "",
+            "            <Policies>",
+            "                <TimeBasedTriggeringPolicy interval=\"1\" modulate=\"true\"/>",
+            "                <SizeBasedTriggeringPolicy size=\"100MB\"/>",
+            "            </Policies>",
+            "",
+            "            <DefaultRolloverStrategy max=\"7\">",
+            "                <Delete basePath=\"${LOG_DIR}\" maxDepth=\"1\">",
+            "                    <IfFileName glob=\"${LOG_FILE}-*.log.gz\"/>",
+            "                    <IfLastModified age=\"7d\"/>",
+            "                </Delete>",
+            "            </DefaultRolloverStrategy>",
+            "        </RollingFile>",
+            "",
+            "        <Async name=\"AsyncFile\" includeLocation=\"true\">",
+            "            <AppenderRef ref=\"RollingFile\"/>",
+            "        </Async>",
+            "    </Appenders>",
+            "",
+            "    <Loggers>",
+            "        <Logger name=\"com.yourcompany\" level=\"DEBUG\" additivity=\"false\">",
+            "            <AppenderRef ref=\"AsyncFile\"/>",
+            "            <AppenderRef ref=\"Console\"/>",
+            "        </Logger>",
+            "",
+            "        <Logger name=\"io.quarkus\" level=\"INFO\" additivity=\"false\">",
+            "            <AppenderRef ref=\"AsyncFile\"/>",
+            "        </Logger>",
+            "",
+            "        <Logger name=\"org.hibernate\" level=\"WARN\" additivity=\"false\">",
+            "            <AppenderRef ref=\"AsyncFile\"/>",
+            "        </Logger>",
+            "",
+            "        <Root level=\"INFO\">",
+            "            <AppenderRef ref=\"AsyncFile\"/>",
+            "            <AppenderRef ref=\"Console\"/>",
+            "        </Root>",
+            "    </Loggers>",
+            "</Configuration>"
+        );
+    }
+
+    private void configureLogrotate() throws Exception {
+        logger.info("Configuring logrotate for Quarkus logs...");
+
+        String logrotateConfig = String.join("\n",
+            "/var/log/quarkus/*.log {",
+            "    daily",
+            "    rotate 7",
+            "    maxsize 100M",
+            "    compress",
+            "    delaycompress",
+            "    missingok",
+            "    notifempty",
+            "    create 0640 quarkus quarkus",
+            "    sharedscripts",
+            "}"
+        );
+
+        device.executeCommand("echo '" + logrotateConfig + "' | lxc exec " + containerName +
+            " -- tee /etc/logrotate.d/quarkus > /dev/null");
+
+        logger.info("Logrotate configured");
+    }
+
+    private void configurePromtailService() throws Exception {
+        logger.info("Creating Promtail systemd service...");
+
+        String serviceContent = String.join("\n",
+            "[Unit]",
+            "Description=Promtail Log Shipper for Grafana Loki",
+            "Documentation=https://grafana.com/docs/loki/latest/clients/promtail/",
+            "After=network-online.target",
+            "Wants=network-online.target",
+            "",
+            "[Service]",
+            "Type=simple",
+            "User=root",
+            "Group=root",
+            "WorkingDirectory=/opt/promtail",
+            "ExecStart=/opt/promtail/promtail -config.file=/etc/promtail/config.yml -config.expand-env=true",
+            "Restart=on-failure",
+            "RestartSec=10s",
+            "LimitNOFILE=65536",
+            "StandardOutput=journal",
+            "StandardError=journal",
+            "SyslogIdentifier=promtail",
+            "",
+            "[Install]",
+            "WantedBy=multi-user.target"
+        );
+
+        device.executeCommand("echo '" + serviceContent + "' | lxc exec " + containerName +
+            " -- tee /etc/systemd/system/promtail.service > /dev/null");
+
+        // Enable service (will start on next boot)
+        device.executeCommand("lxc exec " + containerName + " -- systemctl enable promtail.service");
+
+        logger.info("Promtail service enabled");
+    }
+
+    private void configurePromtailConfig() throws Exception {
+        logger.info("Creating Promtail configuration...");
+
+        String lokiEndpoint = config.getProperty("LOKI_ENDPOINT", "http://grafana-loki-v.1:3100");
+        String scrapeInterval = config.getProperty("PROMTAIL_SCRAPE_INTERVAL", "5s");
+
+        String promtailConfig = String.join("\n",
+            "server:",
+            "  http_listen_port: 9080",
+            "  grpc_listen_port: 0",
+            "",
+            "positions:",
+            "  filename: /var/lib/promtail/positions.yaml",
+            "",
+            "clients:",
+            "  - url: " + lokiEndpoint + "/loki/api/v1/push",
+            "    batchwait: 1s",
+            "    batchsize: 1048576",
+            "    backoff_config:",
+            "      min_period: 500ms",
+            "      max_period: 5m",
+            "      max_retries: 10",
+            "    timeout: 10s",
+            "",
+            "scrape_configs:",
+            "  - job_name: quarkus",
+            "    static_configs:",
+            "      - targets:",
+            "          - localhost",
+            "        labels:",
+            "          job: quarkus-app",
+            "          container: ${CONTAINER_NAME}",
+            "          app: ${APP_NAME}",
+            "          env: ${ENV:-dev}",
+            "          __path__: /var/log/quarkus/*.log",
+            "    pipeline_stages:",
+            "      - json:",
+            "          expressions:",
+            "            timestamp: '@timestamp'",
+            "            level: level",
+            "            message: message",
+            "            logger: logger_name",
+            "            thread: thread_name",
+            "      - labels:",
+            "          level:",
+            "          logger:",
+            "      - timestamp:",
+            "          source: timestamp",
+            "          format: RFC3339Nano",
+            "      - output:",
+            "          source: message"
+        );
+
+        device.executeCommand("echo '" + promtailConfig + "' | lxc exec " + containerName +
+            " -- tee /etc/promtail/config.yml > /dev/null");
+
+        // Create positions directory
+        device.executeCommand("lxc exec " + containerName + " -- mkdir -p /var/lib/promtail");
+
+        logger.info("Promtail configuration created");
     }
 
     private void stopContainer() throws Exception {

@@ -100,6 +100,9 @@ public class QuarkusAppContainerBuilder {
         // Configure logging
         configureLogging();
 
+        // Activate Promtail for app
+        activatePromtailForApp();
+
         // Test container
         testContainer();
 
@@ -213,6 +216,31 @@ public class QuarkusAppContainerBuilder {
         // Promtail config already in base, just update labels
     }
 
+    private void activatePromtailForApp() throws Exception {
+        logger.info("Activating Promtail for app container...");
+
+        // Update Promtail config with app-specific values
+        device.executeCommand("lxc exec " + containerName +
+            " -- sed -i 's/\\${CONTAINER_NAME}/" + containerName + "/g' /etc/promtail/config.yml");
+        device.executeCommand("lxc exec " + containerName +
+            " -- sed -i 's/\\${APP_NAME}/" + appName + "/g' /etc/promtail/config.yml");
+
+        String env = config.getProperty("DEPLOYMENT_ENV", "dev");
+        device.executeCommand("lxc exec " + containerName +
+            " -- sed -i 's/\\${ENV:-dev}/" + env + "/g' /etc/promtail/config.yml");
+
+        // Update Log4j2 config with app name
+        device.executeCommand("lxc exec " + containerName +
+            " -- cp /etc/quarkus/log4j2.xml.template /etc/quarkus/log4j2.xml");
+
+        // Set environment variables for logging
+        device.executeCommand("lxc config set " + containerName + " environment.APP_NAME=" + appName);
+        device.executeCommand("lxc config set " + containerName + " environment.CONTAINER_NAME=" + containerName);
+        device.executeCommand("lxc config set " + containerName + " environment.ENV=" + env);
+
+        logger.info("Promtail configuration updated for " + appName);
+    }
+
     private void testContainer() throws Exception {
         logger.info("Testing container...");
 
@@ -222,6 +250,21 @@ public class QuarkusAppContainerBuilder {
         // Check if running
         String status = device.executeCommand("lxc list " + containerName + " --format csv -c s");
         logger.info("Container status: " + status);
+
+        // Check Promtail service
+        try {
+            String promtailStatus = device.executeCommand("lxc exec " + containerName +
+                " -- systemctl is-active promtail.service 2>&1");
+            logger.info("Promtail status: " + promtailStatus.trim());
+
+            if (promtailStatus.contains("active")) {
+                logger.info("✓ Promtail is running");
+            } else {
+                logger.warning("⚠ Promtail is not active: " + promtailStatus);
+            }
+        } catch (Exception e) {
+            logger.warning("Could not check Promtail status: " + e.getMessage());
+        }
     }
 
     private void exportContainer() throws Exception {
