@@ -37,6 +37,8 @@ public class QuarkusBaseContainerBuilder {
     private String storageLocationId;
     private String storageQuotaSize;
     private String imageAlias;
+    private String logMaxFileSize;
+    private int logMaxBackupCount;
 
     public QuarkusBaseContainerBuilder(String configFile) throws Exception {
         this.device = new LocalSshDevice();
@@ -90,6 +92,8 @@ public class QuarkusBaseContainerBuilder {
         storageLocationId = config.getProperty("STORAGE_LOCATION_ID", "btrfs_local_main");
         storageQuotaSize = config.getProperty("STORAGE_QUOTA_SIZE", "15G");
         imageAlias = config.getProperty("IMAGE_ALIAS", "quarkus-runner-base");
+        logMaxFileSize = config.getProperty("LOG_MAX_FILE_SIZE", "100MB");
+        logMaxBackupCount = Integer.parseInt(config.getProperty("LOG_MAX_BACKUP_COUNT", "20"));
 
         // Validate required parameters
         if (storageLocationId.isEmpty()) {
@@ -568,13 +572,13 @@ public class QuarkusBaseContainerBuilder {
             "",
             "            <Policies>",
             "                <TimeBasedTriggeringPolicy interval=\"1\" modulate=\"true\"/>",
-            "                <SizeBasedTriggeringPolicy size=\"100MB\"/>",
+            "                <SizeBasedTriggeringPolicy size=\"" + logMaxFileSize + "\"/>",
             "            </Policies>",
             "",
-            "            <DefaultRolloverStrategy max=\"7\">",
+            "            <DefaultRolloverStrategy max=\"" + logMaxBackupCount + "\">",
             "                <Delete basePath=\"${LOG_DIR}\" maxDepth=\"1\">",
             "                    <IfFileName glob=\"${LOG_FILE}-*.log.gz\"/>",
-            "                    <IfLastModified age=\"7d\"/>",
+            "                    <IfLastModified age=\"" + logMaxBackupCount + "d\"/>",
             "                </Delete>",
             "            </DefaultRolloverStrategy>",
             "        </RollingFile>",
@@ -613,8 +617,8 @@ public class QuarkusBaseContainerBuilder {
         String logrotateConfig = String.join("\n",
             "/var/log/quarkus/*.log {",
             "    daily",
-            "    rotate 7",
-            "    maxsize 100M",
+            "    rotate " + logMaxBackupCount,
+            "    maxsize " + logMaxFileSize,
             "    compress",
             "    delaycompress",
             "    missingok",
