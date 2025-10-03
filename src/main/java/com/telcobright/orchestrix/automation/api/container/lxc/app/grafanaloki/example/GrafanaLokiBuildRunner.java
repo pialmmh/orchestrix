@@ -1,5 +1,6 @@
 package com.telcobright.orchestrix.automation.api.container.lxc.app.grafanaloki.example;
 
+import com.telcobright.orchestrix.automation.core.PrerequisiteChecker;
 import com.telcobright.orchestrix.automation.core.storage.btrfs.BtrfsStorageProvider;
 import com.telcobright.orchestrix.automation.core.storage.btrfs.LxcContainerBtrfsMountAutomation;
 import com.telcobright.orchestrix.automation.core.storage.base.StorageVolume;
@@ -113,6 +114,14 @@ public class GrafanaLokiBuildRunner {
         logger.info("Container: " + containerName);
         logger.info("Storage: " + storageLocationId + " (" + storageQuotaSize + ")");
         logger.info("=========================================");
+
+        // Step 0: Check prerequisites
+        logger.info("");
+        PrerequisiteChecker checker = new PrerequisiteChecker(device, true);
+        if (!checker.checkAll()) {
+            throw new Exception("Prerequisite checks failed. Please fix the errors above and try again.");
+        }
+        logger.info("");
 
         // Step 1: Setup BTRFS storage
         StorageVolume volume = setupBtrfsStorage();

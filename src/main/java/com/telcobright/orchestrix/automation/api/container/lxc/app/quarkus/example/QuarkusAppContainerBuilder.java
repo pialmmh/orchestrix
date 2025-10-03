@@ -1,5 +1,6 @@
 package com.telcobright.orchestrix.automation.api.container.lxc.app.quarkus.example;
 
+import com.telcobright.orchestrix.automation.core.PrerequisiteChecker;
 import com.telcobright.orchestrix.device.LocalSshDevice;
 
 import java.io.File;
@@ -81,6 +82,14 @@ public class QuarkusAppContainerBuilder {
         logger.info("JAR: " + jarPath);
         logger.info("Container: " + containerName);
         logger.info("=========================================");
+
+        // Step 0: Check prerequisites
+        logger.info("");
+        PrerequisiteChecker checker = new PrerequisiteChecker(device, true);
+        if (!checker.checkAll()) {
+            throw new Exception("Prerequisite checks failed. Please fix the errors above and try again.");
+        }
+        logger.info("");
 
         // Clone base container
         cloneBaseContainer();
