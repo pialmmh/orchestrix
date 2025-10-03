@@ -21,7 +21,7 @@ import com.telcobright.orchestrix.automation.api.model.AutomationOperationResult
  *   <li>LVM - Logical volume management (future)</li>
  * </ul>
  */
-public interface StorageAutomationAPI {
+public interface StorageAPI {
 
     /**
      * Install and configure BTRFS filesystem support on a Linux system.
@@ -40,7 +40,7 @@ public interface StorageAutomationAPI {
      *
      * @example
      * <pre>
-     * StorageAutomationAPI api = new StorageAutomationAPIImpl();
+     * StorageAPI api = new StorageAPIImpl();
      * AutomationOperationResult result = api.installBtrfs("/path/to/btrfs-install.conf");
      * if (result.isSuccess()) {
      *     System.out.println("BTRFS installed: " + result.getMessage());

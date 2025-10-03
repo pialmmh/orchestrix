@@ -14,7 +14,7 @@ import com.telcobright.orchestrix.automation.api.model.AutomationOperationResult
  *   <li>App containers: Derived from base, includes application code</li>
  * </ul>
  */
-public interface ContainerAutomationAPI {
+public interface ContainerAPI {
 
     /**
      * Build a base container with infrastructure components.
@@ -36,7 +36,7 @@ public interface ContainerAutomationAPI {
      *
      * @example
      * <pre>
-     * ContainerAutomationAPI api = new ContainerAutomationAPIImpl();
+     * ContainerAPI api = new ContainerAPIImpl();
      * AutomationOperationResult result = api.buildBaseContainer("/path/to/build.conf");
      * if (result.isSuccess()) {
      *     System.out.println("Base container created: " + result.getMessage());
@@ -66,7 +66,7 @@ public interface ContainerAutomationAPI {
      *
      * @example
      * <pre>
-     * ContainerAutomationAPI api = new ContainerAutomationAPIImpl();
+     * ContainerAPI api = new ContainerAPIImpl();
      * AutomationOperationResult result = api.buildAppContainer("/path/to/app-build.conf");
      * if (result.isSuccess()) {
      *     System.out.println("App container created: " + result.getMessage());
