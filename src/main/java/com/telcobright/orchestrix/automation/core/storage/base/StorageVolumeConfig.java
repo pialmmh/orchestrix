@@ -1,4 +1,4 @@
-package com.telcobright.orchestrix.automation.storage.base;
+package com.telcobright.orchestrix.automation.core.storage.base;
 
 import java.util.Properties;
 import java.io.IOException;

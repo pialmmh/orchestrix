@@ -1,4 +1,4 @@
-package com.telcobright.orchestrix.automation.storage.base;
+package com.telcobright.orchestrix.automation.core.storage.base;
 
 /**
  * Represents a storage location with unique ID and path

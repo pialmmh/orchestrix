@@ -1,8 +1,8 @@
 package com.telcobright.orchestrix.automation.example.containers.quarkus;
 
-import com.telcobright.orchestrix.automation.storage.btrfs.BtrfsStorageProvider;
-import com.telcobright.orchestrix.automation.storage.base.StorageVolume;
-import com.telcobright.orchestrix.automation.storage.base.StorageVolumeConfig;
+import com.telcobright.orchestrix.automation.core.storage.btrfs.BtrfsStorageProvider;
+import com.telcobright.orchestrix.automation.core.storage.base.StorageVolume;
+import com.telcobright.orchestrix.automation.core.storage.base.StorageVolumeConfig;
 import com.telcobright.orchestrix.device.LocalSshDevice;
 
 import java.io.File;

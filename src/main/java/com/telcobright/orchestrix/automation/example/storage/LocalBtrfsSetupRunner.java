@@ -1,7 +1,7 @@
-package com.telcobright.orchestrix.automation.storage.runners;
+package com.telcobright.orchestrix.automation.example.storage;
 
-import com.telcobright.orchestrix.automation.storage.btrfs.BtrfsStorageProvider;
-import com.telcobright.orchestrix.automation.storage.base.StorageVolumeConfig;
+import com.telcobright.orchestrix.automation.core.storage.btrfs.BtrfsStorageProvider;
+import com.telcobright.orchestrix.automation.core.storage.base.StorageVolumeConfig;
 import com.telcobright.orchestrix.device.LocalSshDevice;
 
 import java.io.File;

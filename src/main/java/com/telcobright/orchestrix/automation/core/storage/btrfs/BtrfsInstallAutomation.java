@@ -1,4 +1,4 @@
-package com.telcobright.orchestrix.automation.storage.btrfs;
+package com.telcobright.orchestrix.automation.core.storage.btrfs;
 
 import com.telcobright.orchestrix.automation.devices.server.linux.base.AbstractLinuxAutomation;
 import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxDistribution;
