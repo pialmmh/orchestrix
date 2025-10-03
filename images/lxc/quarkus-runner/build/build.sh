@@ -50,7 +50,7 @@ if [ "${BUILD_TYPE:-base}" = "base" ]; then
     # Run Java automation for base container build
     echo "Running Java automation for base container build..."
     sudo mvn exec:java \
-        -Dexec.mainClass="com.telcobright.orchestrix.automation.example.containers.quarkus.QuarkusBaseContainerBuilder" \
+        -Dexec.mainClass="com.telcobright.orchestrix.automation.api.container.lxc.app.quarkus.example.QuarkusBaseContainerBuilder" \
         -Dexec.args="$CONFIG_FILE" \
         -Dexec.classpathScope=compile
 
@@ -82,7 +82,7 @@ else
     # Run Java automation for app container build
     echo "Running Java automation for app container build..."
     sudo mvn exec:java \
-        -Dexec.mainClass="com.telcobright.orchestrix.automation.example.containers.quarkus.QuarkusAppContainerBuilder" \
+        -Dexec.mainClass="com.telcobright.orchestrix.automation.api.container.lxc.app.quarkus.example.QuarkusAppContainerBuilder" \
         -Dexec.args="$CONFIG_FILE" \
         -Dexec.classpathScope=compile
 fi

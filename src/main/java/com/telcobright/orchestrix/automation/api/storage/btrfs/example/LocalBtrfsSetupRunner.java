@@ -1,4 +1,4 @@
-package com.telcobright.orchestrix.automation.example.storage;
+package com.telcobright.orchestrix.automation.api.storage.btrfs.example;
 
 import com.telcobright.orchestrix.automation.core.storage.btrfs.BtrfsStorageProvider;
 import com.telcobright.orchestrix.automation.core.storage.base.StorageVolumeConfig;

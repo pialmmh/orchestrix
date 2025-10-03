@@ -1,4 +1,4 @@
-package com.telcobright.orchestrix.automation.api;
+package com.telcobright.orchestrix.automation.api.container;
 
 import com.telcobright.orchestrix.automation.api.model.AutomationOperationResult;
 

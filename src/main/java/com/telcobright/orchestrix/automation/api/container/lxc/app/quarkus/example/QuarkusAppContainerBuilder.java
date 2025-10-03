@@ -1,4 +1,4 @@
-package com.telcobright.orchestrix.automation.example.containers.quarkus;
+package com.telcobright.orchestrix.automation.api.container.lxc.app.quarkus.example;
 
 import com.telcobright.orchestrix.device.LocalSshDevice;
 
