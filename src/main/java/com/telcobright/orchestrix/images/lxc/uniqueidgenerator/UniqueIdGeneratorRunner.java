@@ -1,6 +1,6 @@
 package com.telcobright.orchestrix.images.lxc.uniqueidgenerator;
 
-import com.telcobright.orchestrix.automation.model.AutomationConfig;
+import com.telcobright.orchestrix.automation.api.model.AutomationConfig;
 import com.telcobright.orchestrix.images.model.ContainerConfig;
 import com.telcobright.orchestrix.model.NetworkConfig;
 import org.slf4j.Logger;

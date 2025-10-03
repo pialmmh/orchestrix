@@ -1,8 +1,8 @@
 package com.telcobright.orchestrix.images.core;
 
 import com.telcobright.orchestrix.automation.core.BaseAutomation;
-import com.telcobright.orchestrix.automation.model.AutomationConfig;
-import com.telcobright.orchestrix.automation.model.CommandResult;
+import com.telcobright.orchestrix.automation.api.model.AutomationConfig;
+import com.telcobright.orchestrix.automation.api.model.CommandResult;
 import com.telcobright.orchestrix.images.model.ContainerConfig;
 import com.telcobright.orchestrix.images.model.ImageBuildContext;
 import com.telcobright.orchestrix.images.model.ImageBuildContext.BuildPhase;

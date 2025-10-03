@@ -1,4 +1,4 @@
-package com.telcobright.orchestrix.automation.containers.quarkus;
+package com.telcobright.orchestrix.automation.example.containers.quarkus;
 
 import com.telcobright.orchestrix.automation.storage.btrfs.BtrfsStorageProvider;
 import com.telcobright.orchestrix.automation.storage.base.StorageVolume;

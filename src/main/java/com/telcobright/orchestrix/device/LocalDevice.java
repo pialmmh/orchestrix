@@ -1,8 +1,8 @@
 package com.telcobright.orchestrix.device;
 
 import com.telcobright.orchestrix.automation.core.LocalCommandExecutor;
-import com.telcobright.orchestrix.automation.model.AutomationConfig;
-import com.telcobright.orchestrix.automation.model.CommandResult;
+import com.telcobright.orchestrix.automation.api.model.AutomationConfig;
+import com.telcobright.orchestrix.automation.api.model.CommandResult;
 
 import java.io.IOException;
 import java.util.UUID;

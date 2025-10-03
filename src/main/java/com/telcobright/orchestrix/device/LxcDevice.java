@@ -1,6 +1,6 @@
 package com.telcobright.orchestrix.device;
 
-import com.telcobright.orchestrix.automation.model.AutomationConfig;
+import com.telcobright.orchestrix.automation.api.model.AutomationConfig;
 
 import java.io.IOException;
 import java.nio.file.Files;

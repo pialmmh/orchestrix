@@ -1,4 +1,4 @@
-package com.telcobright.orchestrix.automation.model;
+package com.telcobright.orchestrix.automation.api.model;
 
 import java.time.LocalDateTime;
 

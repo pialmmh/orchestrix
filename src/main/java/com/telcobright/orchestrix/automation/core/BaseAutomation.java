@@ -1,7 +1,7 @@
 package com.telcobright.orchestrix.automation.core;
 
-import com.telcobright.orchestrix.automation.model.AutomationConfig;
-import com.telcobright.orchestrix.automation.model.CommandResult;
+import com.telcobright.orchestrix.automation.api.model.AutomationConfig;
+import com.telcobright.orchestrix.automation.api.model.CommandResult;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
