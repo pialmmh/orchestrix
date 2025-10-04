@@ -32,6 +32,9 @@ echo "========================================="
 # Build container using Java automation
 cd "$ORCHESTRIX_HOME"
 
+# Set Java 21 (required for compilation)
+export JAVA_HOME=/usr/lib/jvm/java-1.21.0-openjdk-amd64
+
 # Compile if needed
 if [ ! -d "target/classes" ]; then
     echo "Compiling Java automation..."
@@ -40,7 +43,7 @@ fi
 
 # Run Java automation for container build
 echo "Running Java automation for Go ID container build..."
-sudo mvn exec:java \
+sudo JAVA_HOME=$JAVA_HOME mvn exec:java \
     -Dexec.mainClass="com.telcobright.orchestrix.automation.api.container.lxc.app.goid.example.GoIdContainerBuilder" \
     -Dexec.args="$CONFIG_FILE" \
     -Dexec.classpathScope=compile
