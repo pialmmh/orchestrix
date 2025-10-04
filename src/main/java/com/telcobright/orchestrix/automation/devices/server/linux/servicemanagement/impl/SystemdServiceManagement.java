@@ -4,7 +4,7 @@ import com.telcobright.orchestrix.automation.devices.server.linux.servicemanagem
 import com.telcobright.orchestrix.automation.devices.server.linux.base.AbstractLinuxAutomation;
 import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxDistribution;
 import com.telcobright.orchestrix.automation.devices.server.linux.base.AbstractLinuxAutomation.DefaultImplementation;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 import java.util.Map;
 
 public class SystemdServiceManagement extends AbstractLinuxAutomation implements ServiceManagementAutomation, AbstractLinuxAutomation.DefaultImplementation {

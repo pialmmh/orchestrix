@@ -1,4 +1,4 @@
-package com.telcobright.orchestrix.device;
+package com.telcobright.orchestrix.automation.example.device;
 
 import lombok.Data;
 import org.slf4j.Logger;

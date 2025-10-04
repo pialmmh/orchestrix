@@ -4,7 +4,7 @@ import com.telcobright.orchestrix.automation.core.PrerequisiteChecker;
 import com.telcobright.orchestrix.automation.core.storage.btrfs.BtrfsStorageProvider;
 import com.telcobright.orchestrix.automation.core.storage.base.StorageVolume;
 import com.telcobright.orchestrix.automation.core.storage.base.StorageVolumeConfig;
-import com.telcobright.orchestrix.device.LocalSshDevice;
+import com.telcobright.orchestrix.automation.core.device.LocalSshDevice;
 
 import java.io.File;
 import java.util.Properties;

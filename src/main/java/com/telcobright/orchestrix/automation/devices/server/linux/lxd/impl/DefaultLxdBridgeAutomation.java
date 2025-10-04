@@ -4,7 +4,7 @@ import com.telcobright.orchestrix.automation.devices.server.linux.base.AbstractL
 import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxDistribution;
 import com.telcobright.orchestrix.automation.devices.server.linux.lxd.LxdBridgeAutomation;
 import com.telcobright.orchestrix.automation.devices.server.linux.lxd.LxdBridgeConfig;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 
 import java.io.File;
 import java.io.FileWriter;

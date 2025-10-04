@@ -1,7 +1,7 @@
 package com.telcobright.orchestrix.automation.api.container.lxc.app.quarkus.example;
 
 import com.telcobright.orchestrix.automation.core.PrerequisiteChecker;
-import com.telcobright.orchestrix.device.LocalSshDevice;
+import com.telcobright.orchestrix.automation.core.device.LocalSshDevice;
 
 import java.io.File;
 import java.util.Properties;

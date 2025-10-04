@@ -1,4 +1,4 @@
-package com.telcobright.orchestrix.device;
+package com.telcobright.orchestrix.automation.api.device;
 
 import lombok.Getter;
 import lombok.Setter;

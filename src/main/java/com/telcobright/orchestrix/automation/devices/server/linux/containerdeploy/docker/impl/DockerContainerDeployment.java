@@ -1,7 +1,7 @@
 package com.telcobright.orchestrix.automation.devices.server.linux.containerdeploy.docker.impl;
 
 import com.telcobright.orchestrix.automation.devices.server.linux.containerdeploy.base.*;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

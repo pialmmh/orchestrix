@@ -3,7 +3,7 @@ package com.telcobright.orchestrix.automation.devices.server.linux.ipforward.imp
 import com.telcobright.orchestrix.automation.devices.server.linux.ipforward.AbstractIpForwardAutomation;
 import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxDistribution;
 import com.telcobright.orchestrix.automation.devices.server.linux.base.AbstractLinuxAutomation;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 import java.util.Map;
 import java.util.HashMap;
 

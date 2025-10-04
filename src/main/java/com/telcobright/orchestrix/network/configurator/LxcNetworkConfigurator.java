@@ -1,6 +1,6 @@
 package com.telcobright.orchestrix.network.configurator;
 
-import com.telcobright.orchestrix.device.UniversalSshDevice;
+import com.telcobright.orchestrix.automation.core.device.UniversalSshDevice;
 import com.telcobright.orchestrix.network.entity.Bridge;
 import com.telcobright.orchestrix.network.entity.lxc.LxcContainer;
 import com.telcobright.orchestrix.network.entity.NetworkInterface;

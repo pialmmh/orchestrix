@@ -1,6 +1,6 @@
 package com.telcobright.orchestrix.automation.devices.networking.mikrotik;
 
-import com.telcobright.orchestrix.device.MikroTikRouter;
+import com.telcobright.orchestrix.automation.example.device.MikroTikRouter;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

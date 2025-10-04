@@ -2,8 +2,8 @@ package com.telcobright.orchestrix.automation.runners;
 
 import com.telcobright.orchestrix.automation.TerminalRunner;
 import com.telcobright.orchestrix.automation.devices.server.platform.SnapInstallerWithAddToPathAutomation;
-import com.telcobright.orchestrix.device.TerminalDevice;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.api.device.TerminalDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.logging.Logger;

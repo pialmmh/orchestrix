@@ -1,7 +1,7 @@
 package com.telcobright.orchestrix.automation.devices.server.linux.networkconfig;
 
 import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxAutomation;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 import java.util.Map;
 
 public interface NetworkConfigAutomation extends LinuxAutomation {

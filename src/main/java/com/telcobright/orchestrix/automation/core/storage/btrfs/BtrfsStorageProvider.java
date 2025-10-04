@@ -3,7 +3,7 @@ package com.telcobright.orchestrix.automation.core.storage.btrfs;
 import com.telcobright.orchestrix.automation.core.storage.base.*;
 import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxDistribution;
 import com.telcobright.orchestrix.automation.devices.server.linux.common.SystemDetector;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 
 import java.util.List;
 import java.util.ArrayList;

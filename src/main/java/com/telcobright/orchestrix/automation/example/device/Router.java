@@ -1,5 +1,8 @@
-package com.telcobright.orchestrix.device;
+package com.telcobright.orchestrix.automation.example.device;
 
+import com.telcobright.orchestrix.automation.api.device.NetworkingDevice;
+import com.telcobright.orchestrix.automation.api.device.SshCapable;
+import com.telcobright.orchestrix.automation.core.device.SshDeviceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;

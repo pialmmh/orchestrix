@@ -5,7 +5,7 @@ import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxDist
 import com.telcobright.orchestrix.automation.devices.server.linux.snapinstall.SnapInstallAutomation;
 import java.util.List;
 import java.util.ArrayList;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 import java.util.Map;
 import java.util.HashMap;
 

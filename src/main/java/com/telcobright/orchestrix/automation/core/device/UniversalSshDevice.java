@@ -1,4 +1,7 @@
-package com.telcobright.orchestrix.device;
+package com.telcobright.orchestrix.automation.core.device;
+
+import com.telcobright.orchestrix.automation.api.device.NetworkingDevice;
+import com.telcobright.orchestrix.automation.api.device.SshCapable;
 
 import com.jcraft.jsch.*;
 import org.slf4j.Logger;

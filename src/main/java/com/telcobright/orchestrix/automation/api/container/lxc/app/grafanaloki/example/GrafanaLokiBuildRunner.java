@@ -5,7 +5,7 @@ import com.telcobright.orchestrix.automation.core.storage.btrfs.BtrfsStorageProv
 import com.telcobright.orchestrix.automation.core.storage.btrfs.LxcContainerBtrfsMountAutomation;
 import com.telcobright.orchestrix.automation.core.storage.base.StorageVolume;
 import com.telcobright.orchestrix.automation.core.storage.base.StorageVolumeConfig;
-import com.telcobright.orchestrix.device.LocalSshDevice;
+import com.telcobright.orchestrix.automation.core.device.LocalSshDevice;
 import com.telcobright.orchestrix.automation.api.model.AutomationOperationResult;
 
 import java.io.File;

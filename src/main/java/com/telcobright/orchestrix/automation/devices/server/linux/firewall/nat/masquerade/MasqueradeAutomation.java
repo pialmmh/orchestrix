@@ -1,7 +1,7 @@
 package com.telcobright.orchestrix.automation.devices.server.linux.firewall.nat.masquerade;
 
 import com.telcobright.orchestrix.automation.devices.server.linux.firewall.nat.NatAutomation;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 import java.util.List;
 
 public interface MasqueradeAutomation extends NatAutomation {

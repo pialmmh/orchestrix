@@ -1,6 +1,6 @@
 package com.telcobright.orchestrix.automation.devices.server.linux.base;
 
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;

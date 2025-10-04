@@ -14,7 +14,7 @@ import com.telcobright.orchestrix.automation.devices.server.linux.firewall.nat.m
 import com.telcobright.orchestrix.automation.devices.server.linux.firewall.nat.masquerade.MasqueradeAutomationFactory;
 import com.telcobright.orchestrix.automation.devices.server.linux.lxd.LxdBridgeConfig;
 import com.telcobright.orchestrix.automation.devices.server.linux.common.SystemDetector;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 
 import java.util.Map;
 import java.util.HashMap;

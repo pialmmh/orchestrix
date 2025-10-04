@@ -1,7 +1,7 @@
 package com.telcobright.orchestrix.service;
 
-import com.telcobright.orchestrix.device.MikroTikRouter;
-import com.telcobright.orchestrix.device.NetworkingDevice;
+import com.telcobright.orchestrix.automation.example.device.MikroTikRouter;
+import com.telcobright.orchestrix.automation.api.device.NetworkingDevice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

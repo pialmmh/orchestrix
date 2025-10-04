@@ -1,5 +1,8 @@
-package com.telcobright.orchestrix.device;
+package com.telcobright.orchestrix.automation.core.device;
 
+import com.telcobright.orchestrix.automation.api.device.TerminalDevice;
+import com.telcobright.orchestrix.automation.api.device.TerminalDevice.DeviceType;
+import com.telcobright.orchestrix.automation.api.device.TerminalDevice.DeviceStatus;
 import com.telcobright.orchestrix.automation.core.LocalCommandExecutor;
 import com.telcobright.orchestrix.automation.api.model.AutomationConfig;
 import com.telcobright.orchestrix.automation.api.model.CommandResult;

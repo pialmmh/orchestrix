@@ -1,6 +1,6 @@
 package com.telcobright.orchestrix.automation.core.storage.base;
 
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 import java.util.List;
 import java.util.Map;
 

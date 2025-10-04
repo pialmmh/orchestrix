@@ -3,7 +3,7 @@ package com.telcobright.orchestrix.automation.devices.server.linux.firewall.nat.
 import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxDistribution;
 import com.telcobright.orchestrix.automation.devices.server.linux.firewall.nat.masquerade.impl.DefaultMasqueradeAutomation;
 import com.telcobright.orchestrix.automation.devices.server.linux.firewall.nat.masquerade.impl.IptablesMasqueradeAutomation;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 
 public class MasqueradeAutomationFactory {
 

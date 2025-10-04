@@ -1,9 +1,9 @@
 package com.telcobright.orchestrix.automation;
 
-import com.telcobright.orchestrix.device.TerminalDevice;
-import com.telcobright.orchestrix.device.SshDevice;
-import com.telcobright.orchestrix.device.TelnetDevice;
-import com.telcobright.orchestrix.device.LocalShellDevice;
+import com.telcobright.orchestrix.automation.api.device.TerminalDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.TelnetDevice;
+import com.telcobright.orchestrix.automation.core.device.LocalShellDevice;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

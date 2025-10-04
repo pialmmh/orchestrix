@@ -1,6 +1,6 @@
 package com.telcobright.orchestrix.automation.core;
 
-import com.telcobright.orchestrix.device.LocalSshDevice;
+import com.telcobright.orchestrix.automation.core.device.LocalSshDevice;
 
 import java.util.ArrayList;
 import java.util.List;

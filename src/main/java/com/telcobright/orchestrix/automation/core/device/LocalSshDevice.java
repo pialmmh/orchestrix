@@ -1,4 +1,4 @@
-package com.telcobright.orchestrix.device;
+package com.telcobright.orchestrix.automation.core.device;
 
 import com.jcraft.jsch.*;
 import java.io.*;

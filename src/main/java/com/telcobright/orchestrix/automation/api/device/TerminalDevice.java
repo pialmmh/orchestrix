@@ -1,4 +1,4 @@
-package com.telcobright.orchestrix.device;
+package com.telcobright.orchestrix.automation.api.device;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;

@@ -1,6 +1,6 @@
 package com.telcobright.orchestrix.automation;
 
-import com.telcobright.orchestrix.device.TerminalDevice;
+import com.telcobright.orchestrix.automation.api.device.TerminalDevice;
 import java.util.Map;
 
 /**

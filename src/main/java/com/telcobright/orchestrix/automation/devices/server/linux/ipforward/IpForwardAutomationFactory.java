@@ -3,7 +3,7 @@ package com.telcobright.orchestrix.automation.devices.server.linux.ipforward;
 import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxDistribution;
 import com.telcobright.orchestrix.automation.devices.server.linux.common.SystemDetector;
 import com.telcobright.orchestrix.automation.devices.server.linux.ipforward.impl.*;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 
 public class IpForwardAutomationFactory {
 

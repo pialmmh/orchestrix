@@ -1,7 +1,7 @@
 package com.telcobright.orchestrix.automation.devices.server.linux.servicemanagement;
 
 import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxAutomation;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 
 public interface ServiceManagementAutomation extends LinuxAutomation {
     boolean startService(SshDevice device, String serviceName) throws Exception;

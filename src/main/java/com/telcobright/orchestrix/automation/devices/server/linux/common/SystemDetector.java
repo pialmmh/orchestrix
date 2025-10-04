@@ -1,7 +1,7 @@
 package com.telcobright.orchestrix.automation.devices.server.linux.common;
 
 import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxDistribution;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 import java.util.logging.Logger;
 
 /**

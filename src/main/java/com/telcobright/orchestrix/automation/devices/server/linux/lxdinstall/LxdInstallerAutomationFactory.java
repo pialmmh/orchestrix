@@ -2,7 +2,7 @@ package com.telcobright.orchestrix.automation.devices.server.linux.lxdinstall;
 
 import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxDistribution;
 import com.telcobright.orchestrix.automation.devices.server.linux.lxdinstall.impl.*;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 import com.telcobright.orchestrix.automation.devices.server.linux.common.SystemDetector;
 
 public class LxdInstallerAutomationFactory {

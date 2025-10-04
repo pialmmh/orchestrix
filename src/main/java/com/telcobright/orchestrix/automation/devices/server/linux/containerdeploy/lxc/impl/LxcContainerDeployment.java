@@ -3,7 +3,7 @@ package com.telcobright.orchestrix.automation.devices.server.linux.containerdepl
 import com.telcobright.orchestrix.automation.devices.server.linux.containerdeploy.base.*;
 import com.telcobright.orchestrix.automation.devices.server.linux.containerdeploy.lxc.preparer.LxcPrerequisitePreparer;
 import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxDistribution;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;

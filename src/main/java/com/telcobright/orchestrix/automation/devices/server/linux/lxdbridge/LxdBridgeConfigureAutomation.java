@@ -2,7 +2,7 @@ package com.telcobright.orchestrix.automation.devices.server.linux.lxdbridge;
 
 import com.telcobright.orchestrix.automation.devices.server.linux.base.LinuxAutomation;
 import com.telcobright.orchestrix.automation.devices.server.linux.lxd.LxdBridgeConfig;
-import com.telcobright.orchestrix.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.SshDevice;
 
 /**
  * Unit automation for LXD bridge configuration
