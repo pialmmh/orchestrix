@@ -13,6 +13,78 @@ This document defines the **UNIFIED STANDARD** for all LXC containers in Orchest
 3. **Build Structure**: Follow the `build/` folder pattern
 4. **Generated Outputs**: Use `generated/` folder for outputs
 5. **Storage Monitoring**: Include automatic rotation at 80% usage
+6. **Prerequisite Checking**: All builds MUST check system prerequisites before starting
+
+## Prerequisite Checking (Mandatory)
+
+All container builds MUST check system prerequisites before starting. The Java automation includes built-in `PrerequisiteChecker` that validates:
+
+### Checked Prerequisites
+
+1. **BTRFS Installation**
+   - ✓ `btrfs-progs` package installed
+   - ✓ `btrfs` command available
+   - ✓ BTRFS version information
+
+2. **BTRFS Kernel Module**
+   - ✓ `btrfs` kernel module loaded
+   - ✓ Module availability with `lsmod | grep btrfs`
+
+3. **LXC/LXD Installation**
+   - ✓ `lxc` command available
+   - ✓ LXC version information
+   - ✓ LXD service active (`systemctl is-active lxd`)
+
+4. **Network Bridge**
+   - ✓ `lxcbr0` or `lxdbr0` bridge configured
+   - ✓ Network connectivity for containers
+
+5. **Storage Availability**
+   - ✓ Disk space at `/var/lib/lxd`, `/var/lib/lxc`, `/btrfs`
+   - ⚠️  Warns if less than 10GB available
+   - ✓ Quota availability for BTRFS
+
+### Error Handling
+
+- **Errors** (critical): Build stops immediately with clear remediation steps
+- **Warnings** (non-critical): Build continues with informational messages
+
+### Example Output
+
+```
+========================================
+Checking Prerequisites
+========================================
+Checking BTRFS...
+  ✓ BTRFS tools: /usr/bin/btrfs
+    Version: btrfs-progs v6.6.3
+  ✓ BTRFS module: LOADED
+Checking LXC/LXD...
+  ✓ LXC: /usr/bin/lxc
+    Client version: 5.0.2
+  ✓ LXD service: ACTIVE
+Checking Network Bridge...
+  ✓ Bridge: lxcbr0 found
+Checking Storage...
+  ✓ /var/lib/lxd: 45G available (52% used)
+========================================
+✓ All prerequisite checks PASSED
+========================================
+```
+
+### Java Implementation
+
+All Java builders MUST include prerequisite checking:
+
+```java
+// Step 0: Check prerequisites (MANDATORY)
+PrerequisiteChecker checker = new PrerequisiteChecker(device, true);
+if (!checker.checkAll()) {
+    throw new Exception("Prerequisite checks failed. Fix errors and retry.");
+}
+```
+
+This is automatically included in all standard builders (Quarkus, Go-ID, Grafana-Loki, etc.).
 
 ## Directory Structure
 
@@ -148,12 +220,14 @@ The build process will:
 ```bash
 #!/bin/bash
 # Build script following Orchestrix standards
+# Uses Java automation with mandatory prerequisite checking
 
 set -e
 
 # 1. INITIALIZATION
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTAINER_DIR="$(dirname "$SCRIPT_DIR")"
+ORCHESTRIX_HOME="/home/mustafa/telcobright-projects/orchestrix"
 CONFIG_FILE="${1:-${SCRIPT_DIR}/build.conf}"
 
 # 2. LOAD AND VALIDATE CONFIG
@@ -165,7 +239,26 @@ if [ -z "$STORAGE_LOCATION_ID" ] || [ -z "$STORAGE_QUOTA_SIZE" ]; then
     exit 1
 fi
 
-# 3. BUILD METADATA
+# 3. RUN JAVA AUTOMATION WITH PREREQUISITE CHECKS
+# All container builds MUST use Java automation which includes:
+# - Automatic prerequisite checking (BTRFS, LXC, Bridge, Storage)
+# - Standardized build process
+# - Error handling and validation
+
+cd "$ORCHESTRIX_HOME"
+
+# Compile if needed
+if [ ! -d "target/classes" ]; then
+    mvn compile -DskipTests
+fi
+
+# Run Java automation (automatically checks prerequisites before build)
+sudo mvn exec:java \
+    -Dexec.mainClass="com.telcobright.orchestrix.automation.api.container.lxc.app.[container].example.[Container]Builder" \
+    -Dexec.args="$CONFIG_FILE" \
+    -Dexec.classpathScope=compile
+
+# 4. BUILD METADATA (Handled by Java automation)
 BUILD_DATE=$(date +%Y%m%d_%H%M%S)
 CONTAINER_NAME="${CONTAINER_NAME_PREFIX}-v.${CONTAINER_VERSION}"
 GENERATED_DIR="${CONTAINER_DIR}/${CONTAINER_NAME}/generated"
