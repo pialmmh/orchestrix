@@ -251,7 +251,7 @@ public class GoIdContainerBuilder {
         device.executeCommand("sudo lxc exec " + containerName + " -- mkdir -p /opt/go-id");
         device.executeCommand("sudo lxc exec " + containerName + " -- mkdir -p /var/log/go-id");
 
-        // Create Go source code
+        // Create Go source code using Sonyflake library (same config as Node.js version)
         String goCode = String.join("\n",
                 "package main",
                 "",
@@ -260,35 +260,62 @@ public class GoIdContainerBuilder {
                 "    \"fmt\"",
                 "    \"log\"",
                 "    \"net/http\"",
-                "    \"sync/atomic\"",
+                "    \"os\"",
+                "    \"strconv\"",
                 "    \"time\"",
+                "",
+                "    \"github.com/sony/sonyflake\"",
                 ")",
                 "",
-                "// Snowflake ID Generator",
-                "type IDGenerator struct {",
-                "    epoch      int64",
-                "    machineID  int64",
-                "    sequence   int64",
+                "var sf *sonyflake.Sonyflake",
+                "",
+                "// Get shard ID from environment (compatible with Node.js config: SHARD_ID)",
+                "func getShardID() uint16 {",
+                "    if shardID := os.Getenv(\"SHARD_ID\"); shardID != \"\" {",
+                "        id, err := strconv.ParseUint(shardID, 10, 16)",
+                "        if err == nil && id > 0 && id < 65536 {",
+                "            return uint16(id)",
+                "        }",
+                "        log.Printf(\"WARNING: Invalid SHARD_ID=%s. Must be 1-65535. Using default=1\", shardID)",
+                "    }",
+                "    log.Println(\"WARNING: SHARD_ID not set. Using default=1. Set SHARD_ID env for distributed setup.\")",
+                "    return 1",
                 "}",
                 "",
-                "func NewIDGenerator(machineID int64) *IDGenerator {",
-                "    return &IDGenerator{",
-                "        epoch:     1640995200000, // 2022-01-01 00:00:00 UTC",
-                "        machineID: machineID,",
-                "        sequence:  0,",
+                "func init() {",
+                "    shardID := getShardID()",
+                "    log.Printf(\"Initializing Sonyflake with SHARD_ID=%d\", shardID)",
+                "",
+                "    // Configure Sonyflake with custom settings",
+                "    // - Custom time source support (for NTP or clock rollback handling)",
+                "    // - Configurable machine ID from SHARD_ID env var",
+                "    // - 16-bit machine ID (vs 10-bit in Twitter Snowflake)",
+                "    settings := sonyflake.Settings{",
+                "        StartTime: time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC),",
+                "        MachineID: func() (uint16, error) {",
+                "            return shardID, nil",
+                "        },",
+                "        CheckMachineID: func(id uint16) bool {",
+                "            // Validate machine ID is in allowed range",
+                "            return id > 0 && id < 65536",
+                "        },",
+                "    }",
+                "",
+                "    var err error",
+                "    sf = sonyflake.NewSonyflake(settings)",
+                "    if sf == nil {",
+                "        log.Fatalf(\"Failed to initialize Sonyflake: %v\", err)",
                 "    }",
                 "}",
                 "",
-                "func (g *IDGenerator) Generate() int64 {",
-                "    timestamp := time.Now().UnixNano()/1000000 - g.epoch",
-                "    seq := atomic.AddInt64(&g.sequence, 1) & 0xFFF",
-                "    return (timestamp << 22) | (g.machineID << 12) | seq",
-                "}",
-                "",
-                "var generator = NewIDGenerator(1)",
-                "",
                 "func generateHandler(w http.ResponseWriter, r *http.Request) {",
-                "    id := generator.Generate()",
+                "    id, err := sf.NextID()",
+                "    if err != nil {",
+                "        log.Printf(\"Error generating ID: %v\", err)",
+                "        http.Error(w, fmt.Sprintf(\"Error generating ID: %v\", err), http.StatusInternalServerError)",
+                "        return",
+                "    }",
+                "",
                 "    response := map[string]interface{}{",
                 "        \"id\":        id,",
                 "        \"timestamp\": time.Now().Unix(),",
@@ -314,8 +341,14 @@ public class GoIdContainerBuilder {
         String escapedCode = goCode.replace("'", "'\\''");
         device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'echo '" + escapedCode + "' > /opt/go-id/main.go'");
 
-        // Compile Go binary
-        logger.info("Compiling Go binary...");
+        // Initialize Go module and install Sonyflake
+        logger.info("Installing Sonyflake dependency...");
+        device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'cd /opt/go-id && /usr/local/go/bin/go mod init go-id-service'");
+        device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'cd /opt/go-id && /usr/local/go/bin/go get github.com/sony/sonyflake@latest'");
+        device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'cd /opt/go-id && /usr/local/go/bin/go mod tidy'");
+
+        // Compile Go binary with Sonyflake
+        logger.info("Compiling Go binary with Sonyflake...");
         device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'cd /opt/go-id && /usr/local/go/bin/go build -o go-id main.go'");
 
         // Verify binary
