@@ -179,15 +179,35 @@ public class LocalSshDevice {
             Process process = pb.start();
 
             StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
+
+            // Read output in a separate thread to avoid blocking
+            Thread outputReader = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        output.append(line).append("\n");
+                        // Log progress for long-running commands
+                        if (line.contains("%") || line.contains("Retrieving") || line.contains("Unpacking")) {
+                            logger.info(line);
+                        }
+                    }
+                } catch (IOException e) {
+                    logger.warning("Error reading command output: " + e.getMessage());
                 }
+            });
+            outputReader.start();
+
+            // Wait for process with timeout (30 minutes for image downloads)
+            boolean finished = process.waitFor(30, java.util.concurrent.TimeUnit.MINUTES);
+
+            if (!finished) {
+                process.destroyForcibly();
+                throw new Exception("Command timed out after 30 minutes: " + command);
             }
 
-            process.waitFor();
+            // Wait for output reader to finish
+            outputReader.join(5000);
 
             return output.toString();
 
