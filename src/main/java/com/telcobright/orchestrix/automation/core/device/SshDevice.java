@@ -358,4 +358,26 @@ public class SshDevice implements TerminalDevice {
             }
         }, executorService);
     }
+
+    /**
+     * Synchronous wrapper for sendAndReceive - executes command and returns result
+     * Blocks until command completes
+     */
+    public String executeCommand(String command) throws Exception {
+        try {
+            return sendAndReceive(command).get();
+        } catch (Exception e) {
+            log.error("Failed to execute command '{}' on {}: {}", command, hostname, e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Synchronous wrapper for sendAndReceive with PTY flag (ignored - for compatibility)
+     * Blocks until command completes
+     */
+    public String executeCommand(String command, boolean usePty) throws Exception {
+        // PTY flag is ignored in this implementation - just execute normally
+        return executeCommand(command);
+    }
 }

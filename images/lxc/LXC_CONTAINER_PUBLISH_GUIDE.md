@@ -27,12 +27,17 @@ orchestrix/
             ├── .gitignore          # Excludes go-id-v.* directories
             └── go-id-v.1/          # Generated - Not in git
                 └── generated/
-                    ├── go-id-v1-TIMESTAMP.tar.gz
-                    ├── go-id-v1-TIMESTAMP.tar.gz.md5
+                    ├── artifact/
+                    │   ├── go-id-v1-TIMESTAMP.tar.gz
+                    │   └── go-id-v1-TIMESTAMP.tar.gz.md5
+                    ├── publish/
+                    │   ├── publish.sh
+                    │   └── publish-config.conf
+                    ├── test/
+                    │   ├── test-runner.sh
+                    │   └── test-runner.conf
                     ├── sample.conf
-                    ├── startDefault.sh
-                    ├── publish.sh
-                    └── publish-config.conf
+                    └── startDefault.sh
 ```
 
 ### Google Drive Structure (Mirrored)
@@ -43,8 +48,9 @@ gdrive:
         └── go-id/
             └── go-id-v.1/
                 └── generated/
-                    ├── go-id-v1-TIMESTAMP.tar.gz
-                    └── go-id-v1-TIMESTAMP.tar.gz.md5
+                    └── artifact/
+                        ├── go-id-v1-TIMESTAMP.tar.gz
+                        └── go-id-v1-TIMESTAMP.tar.gz.md5
 ```
 
 **Key Points:**
@@ -190,6 +196,8 @@ cd /home/mustafa/telcobright-projects/orchestrix/images/lxc/go-id
 2. Compiles Java automation if needed
 3. Runs SSH-based container build via Maven exec
 4. Creates versioned output in `go-id-v.X/generated/`
+5. Generates test-runner files for deployment testing
+6. Generates publish files for Google Drive upload
 
 ### 2. Generated Artifacts
 
@@ -199,18 +207,43 @@ After build completes, check the versioned `generated/` folder:
 ls -lh go-id-v.1/generated/
 
 # Output:
-# go-id-v1-1749837291.tar.gz
-# go-id-v1-1749837291.tar.gz.md5
-# sample.conf
-# startDefault.sh
-# publish.sh
-# publish-config.conf
+# go-id-v1-1749837291.tar.gz       # Container image
+# go-id-v1-1749837291.tar.gz.md5   # MD5 hash
+# sample.conf                       # Local launch config
+# startDefault.sh                   # Local quick start
+# test-runner.conf                  # Remote deployment config
+# test-runner.sh                    # Remote deployment script
+# publish.sh                        # Google Drive publish
+# publish-config.conf               # Publish configuration
 ```
 
-### 3. Verify MD5 Hash
+### 3. Test Deployment (Optional)
+
+Before publishing, you can test the container on a remote server:
 
 ```bash
-cd go-id-v.1/generated/
+cd go-id-v.1/generated/test
+
+# Edit test-runner.conf with server details
+vim test-runner.conf
+# Set: SERVER_IP, SSH_USER, SSH_PASSWORD
+# Set: CONTAINER_NAME, CONTAINER_IP, PORT_MAPPING
+
+# Deploy to remote server
+./test-runner.sh
+```
+
+**What test-runner.sh does:**
+1. Connects to remote server via SSH
+2. Transfers container image with MD5 verification
+3. Imports image into LXC
+4. Creates and configures container
+5. Starts container and verifies deployment
+
+### 4. Verify MD5 Hash
+
+```bash
+cd go-id-v.1/generated/artifact
 md5sum -c go-id-v1-*.tar.gz.md5
 
 # Output should show: OK
@@ -221,7 +254,7 @@ md5sum -c go-id-v1-*.tar.gz.md5
 ### 1. Review Publish Configuration
 
 ```bash
-cat go-id-v.1/generated/publish-config.conf
+cat go-id-v.1/generated/publish/publish-config.conf
 ```
 
 Expected content:
@@ -231,12 +264,12 @@ ARTIFACT_TYPE=lxc-container
 ARTIFACT_NAME=go-id
 ARTIFACT_VERSION=v1
 ARTIFACT_FILE=go-id-v1-1749837291.tar.gz
-ARTIFACT_PATH=/path/to/go-id-v.1/generated/go-id-v1-1749837291.tar.gz
+ARTIFACT_PATH=/path/to/go-id-v.1/generated/artifact/go-id-v1-1749837291.tar.gz
 BUILD_TIMESTAMP=1749837291
 
 # Publish Location (mirrors local structure)
 RCLONE_REMOTE=gdrive
-RCLONE_TARGET_DIR=images/lxc/go-id/go-id-v.1/generated
+RCLONE_TARGET_DIR=images/lxc/go-id/go-id-v.1/generated/artifact
 
 # Database Connection
 DB_HOST=127.0.0.1
@@ -249,7 +282,7 @@ DB_PASSWORD=123456
 ### 2. Run Publish Script
 
 ```bash
-cd go-id-v.1/generated/
+cd go-id-v.1/generated/publish
 ./publish.sh
 ```
 
@@ -283,7 +316,7 @@ The script will:
 4. **Publish automation steps:**
    ```
    [1/4] Uploading artifact...
-   ✓ Upload completed: gdrive:images/lxc/go-id/go-id-v.1/generated/go-id-v1-1749837291.tar.gz
+   ✓ Upload completed: gdrive:images/lxc/go-id/go-id-v.1/generated/artifact/go-id-v1-1749837291.tar.gz
 
    [2/4] Downloading for verification...
    ✓ Download completed: /tmp/verify-go-id-v1-1749837291.tar.gz
@@ -295,7 +328,7 @@ The script will:
    ✓ Temp file deleted
 
    === Publish Successful ===
-   ✓ Remote Path: gdrive:images/lxc/go-id/go-id-v.1/generated/go-id-v1-1749837291.tar.gz
+   ✓ Remote Path: gdrive:images/lxc/go-id/go-id-v.1/generated/artifact/go-id-v1-1749837291.tar.gz
    ✓ MD5 Verified: true
    ```
 
@@ -398,14 +431,14 @@ ORDER BY build_timestamp DESC;
 ### 1. Check Remote File
 
 ```bash
-rclone ls gdrive:images/lxc/go-id/go-id-v.1/generated/
+rclone ls gdrive:images/lxc/go-id/go-id-v.1/generated/artifact/
 ```
 
 ### 2. Download and Verify
 
 ```bash
 # Download
-rclone copy gdrive:images/lxc/go-id/go-id-v.1/generated/go-id-v1-*.tar.gz ./download/
+rclone copy gdrive:images/lxc/go-id/go-id-v.1/generated/artifact/go-id-v1-*.tar.gz ./download/
 
 # Verify MD5
 cd download/
@@ -598,7 +631,7 @@ go-id-v.*
 
 ## Quick Reference
 
-### Build and Publish Workflow
+### Build, Test, and Publish Workflow
 
 ```bash
 # 1. Configure build
@@ -611,30 +644,38 @@ cd images/lxc/go-id
 # 3. Verify generated artifacts
 ls -lh go-id-v.1/generated/
 
-# 4. Publish to Google Drive
+# 4. Test deployment on remote server (optional)
+cd go-id-v.1/generated/
+vim test-runner.conf  # Set SERVER_IP, SSH_USER, SSH_PASSWORD
+./test-runner.sh
+
+# 5. Publish to Google Drive
 cd go-id-v.1/generated/
 ./publish.sh
 
-# 5. Verify in database
+# 6. Verify in database
 mysql -h 127.0.0.1 -u root -p orchestrix -e "
 SELECT * FROM artifact_publish ORDER BY published_at DESC LIMIT 1;"
 ```
 
-**Note:** `build.sh` is the universal entry point. It internally:
-- Compiles Java automation if needed
-- Runs Maven exec with proper configuration
+**Universal Pattern:** All scripts (`build.sh`, `test-runner.sh`, `publish.sh`) encapsulate Maven/Java:
+- User runs simple shell scripts
+- Scripts internally call Java automation via Maven
 - No need to call Maven directly
+- Consistent interface across all operations
 
 ### Key Files
 
 - **Build Config**: `build/build.conf`
-- **Templates**: `templates/sample.conf`, `templates/startDefault.sh`
+- **Templates**: `templates/` directory
+  - `sample.conf` - Local launch configuration
+  - `startDefault.sh` - Local quick start
+  - `test-runner.conf` - Remote deployment configuration
+  - `test-runner.sh` - Remote deployment script
 - **Versioned Output**: `go-id-v.X/generated/`
-- **Publish Script**: `go-id-v.X/generated/publish.sh`
-- **Publish Config**: `go-id-v.X/generated/publish-config.conf`
-- **MD5 Hash**: `go-id-v.X/generated/[image].tar.gz.md5`
-- **Launch Config**: `go-id-v.X/generated/sample.conf`
-- **Quick Start**: `go-id-v.X/generated/startDefault.sh`
+  - Container image and MD5 hash
+  - All template files (copied and updated)
+  - `publish.sh` and `publish-config.conf` (generated)
 
 ---
 

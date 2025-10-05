@@ -345,17 +345,24 @@ public class GoIdContainerBuilder {
         String versionedDir = basePath + "/go-id-v." + version;
         String generatedDir = versionedDir + "/generated";
 
-        // Create versioned directory structure
-        device.executeCommand("mkdir -p " + generatedDir);
+        // Create organized directory structure
+        String artifactDir = generatedDir + "/artifact";
+        String publishDir = generatedDir + "/publish";
+        String testDir = generatedDir + "/test";
+
+        device.executeCommand("mkdir -p " + artifactDir);
+        device.executeCommand("mkdir -p " + publishDir);
+        device.executeCommand("mkdir -p " + testDir);
 
         // Export container with timestamp
         String timestamp = String.valueOf(System.currentTimeMillis() / 1000);
         String imageName = containerName + "-" + timestamp + ".tar.gz";
-        String exportPath = generatedDir + "/" + imageName;
+        String exportPath = artifactDir + "/" + imageName;
+        String exportPathBase = artifactDir + "/" + containerName + "-" + timestamp;  // Without .tar.gz for LXC
 
         logger.info("Exporting container to: " + exportPath);
         device.executeCommand("sudo lxc publish " + containerName + " --alias " + imageAlias);
-        device.executeCommand("sudo lxc image export " + imageAlias + " " + exportPath);
+        device.executeCommand("sudo lxc image export " + imageAlias + " " + exportPathBase);  // LXC will add .tar.gz
 
         logger.info("Container image exported: " + exportPath);
 
@@ -372,32 +379,59 @@ public class GoIdContainerBuilder {
         logger.info("Copying templates to generated folder...");
         String templateSource = basePath + "/templates";
         if (device.executeCommand("test -d " + templateSource + " && echo exists").contains("exists")) {
+            // Launch templates go to root of generated/
             device.executeCommand("cp " + templateSource + "/sample.conf " + generatedDir + "/");
             device.executeCommand("cp " + templateSource + "/startDefault.sh " + generatedDir + "/");
             device.executeCommand("chmod +x " + generatedDir + "/startDefault.sh");
-            logger.info("✓ Templates copied: sample.conf, startDefault.sh");
+
+            // Test runner files go to test/
+            device.executeCommand("cp " + templateSource + "/test-runner.conf " + testDir + "/");
+            device.executeCommand("cp " + templateSource + "/test-runner.sh " + testDir + "/");
+            device.executeCommand("chmod +x " + testDir + "/test-runner.sh");
+
+            logger.info("✓ Templates copied to organized folders");
         } else {
             logger.warning("⚠ Templates directory not found: " + templateSource);
         }
 
+        // Update test-runner.conf with actual artifact information
+        updateTestRunnerConfig(testDir, imageName, exportPath, version);
+
         // Generate publish script if enabled
         if (generateUploadScript) {
-            generatePublishScript(generatedDir, imageName, timestamp, version);
+            generatePublishScript(publishDir, artifactDir, imageName, timestamp, version);
         }
 
         logger.info("✓ Build artifacts created in: " + versionedDir);
     }
 
-    private void generatePublishScript(String generatedDir, String imageName, String timestamp, String version) throws Exception {
+    private void updateTestRunnerConfig(String testDir, String imageName, String artifactPath, String version) throws Exception {
+        logger.info("Updating test-runner.conf with artifact information...");
+
+        String testRunnerConfPath = testDir + "/test-runner.conf";
+
+        // Update ARTIFACT_NAME
+        device.executeCommand("sed -i 's|ARTIFACT_NAME=\".*\"|ARTIFACT_NAME=\"" + imageName + "\"|' " + testRunnerConfPath);
+
+        // Update ARTIFACT_PATH
+        device.executeCommand("sed -i 's|ARTIFACT_PATH=\".*\"|ARTIFACT_PATH=\"" + artifactPath + "\"|' " + testRunnerConfPath);
+
+        // Update ARTIFACT_VERSION
+        device.executeCommand("sed -i 's|ARTIFACT_VERSION=\".*\"|ARTIFACT_VERSION=\"v" + version + "\"|' " + testRunnerConfPath);
+
+        logger.info("✓ test-runner.conf updated with artifact information");
+    }
+
+    private void generatePublishScript(String publishDir, String artifactDir, String imageName, String timestamp, String version) throws Exception {
         logger.info("Generating publish automation scripts...");
 
         // Compute rclone target directory to mirror local structure
-        // Local: .../orchestrix/images/lxc/go-id/go-id-v.1/generated
-        // GDrive: gdrive:images/lxc/go-id/go-id-v.1/generated
-        String rcloneTargetDir = "images/lxc/go-id/go-id-v." + version + "/generated";
+        // Local: .../orchestrix/images/lxc/go-id/go-id-v.1/generated/artifact
+        // GDrive: gdrive:images/lxc/go-id/go-id-v.1/generated/artifact
+        String rcloneTargetDir = "images/lxc/go-id/go-id-v." + version + "/generated/artifact";
 
         // Generate publish config file
-        String publishConfigPath = generatedDir + "/publish-config.conf";
+        String publishConfigPath = publishDir + "/publish-config.conf";
         String publishConfigContent = String.join("\n",
             "# Publish Configuration",
             "# Generated by Orchestrix container builder",
@@ -407,7 +441,7 @@ public class GoIdContainerBuilder {
             "ARTIFACT_NAME=go-id",
             "ARTIFACT_VERSION=v" + version,
             "ARTIFACT_FILE=" + imageName,
-            "ARTIFACT_PATH=" + generatedDir + "/" + imageName,
+            "ARTIFACT_PATH=" + artifactDir + "/" + imageName,
             "BUILD_TIMESTAMP=" + timestamp,
             "",
             "# Publish Location (mirrors local structure)",
@@ -427,7 +461,7 @@ public class GoIdContainerBuilder {
         device.executeCommand("cat > " + publishConfigPath + " << 'EOF'\n" + publishConfigContent + "\nEOF");
 
         // Generate publish script that uses Java/Maven
-        String publishScriptPath = generatedDir + "/publish.sh";
+        String publishScriptPath = publishDir + "/publish.sh";
         String publishScriptContent = String.join("\n",
             "#!/bin/bash",
             "# LXC Container Publish Script",

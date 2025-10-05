@@ -31,12 +31,17 @@ This guide defines the **FINAL STANDARD** for creating LXC containers in the Orc
 ├── README.md                           # Container documentation
 └── [container-name]-v.X/               # Versioned build artifacts (created by build)
     └── generated/
-        ├── [container-name]-vX-TIMESTAMP.tar.gz      # Container image
-        ├── [container-name]-vX-TIMESTAMP.tar.gz.md5  # MD5 hash file
+        ├── artifact/                                 # Container artifacts
+        │   ├── [container-name]-vX-TIMESTAMP.tar.gz      # Container image
+        │   └── [container-name]-vX-TIMESTAMP.tar.gz.md5  # MD5 hash file
+        ├── publish/                                  # Publishing automation
+        │   ├── publish.sh                                # Publish automation (Java/Maven)
+        │   └── publish-config.conf                       # Publish configuration
+        ├── test/                                     # Testing automation
+        │   ├── test-runner.sh                            # Deploy to remote server for testing
+        │   └── test-runner.conf                          # Test deployment configuration
         ├── sample.conf                               # Sample launch configuration
-        ├── startDefault.sh                           # Quick start script for image
-        ├── publish.sh                                # Publish automation (Java/Maven)
-        └── publish-config.conf                       # Publish configuration
+        └── startDefault.sh                           # Quick start script for image
 
 ```
 
@@ -287,46 +292,64 @@ This ensures each version has its own isolated build artifacts and can be mainta
 ```
 go-id-v.1/
 └── generated/
-    ├── go-id-v1-1749837291.tar.gz
-    ├── go-id-v1-1749837291.tar.gz.md5
+    ├── artifact/
+    │   ├── go-id-v1-1749837291.tar.gz
+    │   └── go-id-v1-1749837291.tar.gz.md5
+    ├── publish/
+    │   ├── publish.sh
+    │   └── publish-config.conf
+    ├── test/
+    │   ├── test-runner.sh
+    │   └── test-runner.conf
     ├── sample.conf
-    ├── startDefault.sh
-    ├── publish.sh
-    └── publish-config.conf
+    └── startDefault.sh
 ```
 
-The `generated/` folder contains all artifacts needed to distribute and launch the container:
+The `generated/` folder contains all artifacts organized into subfolders:
 
-**Container Image Files:**
+**artifact/** - Container image files:
 - `[container-name]-vX-TIMESTAMP.tar.gz` - LXC container image
 - `[container-name]-vX-TIMESTAMP.tar.gz.md5` - MD5 hash file for verification
 
-**Launch Files:**
-- `sample.conf` - Sample configuration with all parameters documented (copied from templates/)
-- `startDefault.sh` - Self-contained launch script that:
-  - Imports the container image from the same directory
-  - Reads configuration from sample.conf
-  - Creates and starts the container
-  - Configures network, ports, mounts, and environment variables
+**publish/** - Publishing automation:
+- `publish.sh` - Publish automation script (Java/Maven)
+- `publish-config.conf` - Publish configuration
 
-**Publish Files:**
-- `publish.sh` - Publish automation script that:
-  - Prompts user for upload confirmation
-  - Uses Java/Maven to execute PublishManager
-  - Uploads to Google Drive via rclone
-  - Downloads and verifies MD5 hash
-  - Updates database with publish records
-- `publish-config.conf` - Configuration for publish automation containing artifact metadata and DB connection info
+**test/** - Testing automation:
+- `test-runner.sh` - Automated deployment script that:
+  - Prompts user for deployment confirmation
+  - Uses Java/Maven to execute DeploymentManager
+  - Connects to remote server via SSH
+  - Transfers and verifies container image (MD5 check)
+  - Imports image and creates container
+  - Configures network, ports, and resources
+  - Starts container and verifies deployment
+- `test-runner.conf` - Test deployment configuration containing:
+  - Remote server details (IP, SSH user, password/key)
+  - Container configuration (name, network, ports)
+  - Auto-updated with artifact information during build
 
-This folder can be distributed as a complete package for deploying the container on any system.
+**Root files** (generated/):
+- `sample.conf` - Sample launch configuration with all parameters documented
+- `startDefault.sh` - Self-contained launch script that imports the image and creates a container
+
+The organized structure allows:
+- **Artifact isolation**: Container images separate from automation scripts
+- **Clear separation**: Testing, publishing, and launch files in dedicated folders
+- **Easy distribution**: Copy entire `generated/` folder for complete deployment package
 
 ### Templates Folder
 The `templates/` folder contains template files that are copied to each versioned build:
 
-- `sample.conf` - Template configuration file
-- `startDefault.sh` - Template quick start script
+- `sample.conf` - Template configuration file (copied to generated/)
+- `startDefault.sh` - Template quick start script (copied to generated/)
+- `test-runner.conf` - Template test deployment configuration (copied to generated/test/)
+- `test-runner.sh` - Template test deployment script (copied to generated/test/)
 
-These templates are copied during the build process to `[container-name]-v.X/generated/`
+During the build process:
+1. Templates are copied to appropriate subfolders in `[container-name]-v.X/generated/`
+2. Test runner config is automatically updated with artifact information (image name, path, version)
+3. Publish scripts are generated in `generated/publish/` if publishing is enabled
 
 ## Key Development Principles
 
@@ -508,10 +531,44 @@ chmod +x build${CONTAINER^}.sh
 # Build container
 ./build/build.sh
 
-# Test
+# Test locally
 cd ${CONTAINER}-v.1/generated
 ./startDefault.sh
+
+# Or deploy to remote server for testing
+cd ${CONTAINER}-v.1/generated/test
+vim test-runner.conf  # Update with server details
+./test-runner.sh
 ```
+
+### Test & Deploy Workflow
+
+**After build, test deployment to remote server:**
+```bash
+cd ${CONTAINER}-v.1/generated/test
+
+# Edit test-runner.conf
+vim test-runner.conf
+# Set: SERVER_IP, SSH_USER, SSH_PASSWORD (or SSH_KEY_PATH)
+# Set: CONTAINER_NAME, CONTAINER_IP, etc.
+
+# Run automated deployment
+./test-runner.sh
+
+# Workflow:
+# 1. Connects to remote server via SSH
+# 2. Transfers container image
+# 3. Verifies MD5 hash
+# 4. Imports image
+# 5. Creates and configures container
+# 6. Starts container
+# 7. Verifies deployment
+```
+
+**Prerequisites for test-runner:**
+- Remote server with LXC/LXD installed
+- SSH access (password or key)
+- `sshpass` installed locally (if using password auth): `sudo apt-get install sshpass`
 
 ### Universal Build Pattern
 
