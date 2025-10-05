@@ -1,6 +1,6 @@
 package com.telcobright.orchestrix.automation.infrastructure.consul;
 
-import com.telcobright.orchestrix.automation.core.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.CommandExecutor;
 import com.telcobright.orchestrix.automation.infrastructure.consul.entity.ConsulClusterConfig;
 import com.telcobright.orchestrix.automation.infrastructure.consul.entity.ConsulNode;
 import com.telcobright.orchestrix.automation.infrastructure.consul.entity.ConsulNodeRole;
@@ -25,9 +25,9 @@ import java.util.logging.Logger;
 public class ConsulClusterAutomation {
     private static final Logger logger = Logger.getLogger(ConsulClusterAutomation.class.getName());
 
-    private final SshDevice device;
+    private final CommandExecutor device;
 
-    public ConsulClusterAutomation(SshDevice device) {
+    public ConsulClusterAutomation(CommandExecutor device) {
         this.device = device;
     }
 

@@ -1,6 +1,6 @@
 package com.telcobright.orchestrix.automation.publish;
 
-import com.telcobright.orchestrix.automation.core.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.CommandExecutor;
 import com.telcobright.orchestrix.automation.publish.entity.Artifact;
 import com.telcobright.orchestrix.automation.publish.entity.ArtifactPublish;
 import com.telcobright.orchestrix.automation.publish.entity.PublishLocation;
@@ -26,10 +26,10 @@ import java.util.logging.Logger;
  */
 public class PublishManager {
     private static final Logger logger = Logger.getLogger(PublishManager.class.getName());
-    private final SshDevice device;
+    private final CommandExecutor device;
     private final RcloneManager rcloneManager;
 
-    public PublishManager(SshDevice device) {
+    public PublishManager(CommandExecutor device) {
         this.device = device;
         this.rcloneManager = new RcloneManager(device);
     }

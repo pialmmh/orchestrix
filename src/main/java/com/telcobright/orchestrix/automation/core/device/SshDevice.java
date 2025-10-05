@@ -18,7 +18,7 @@ import java.util.concurrent.Executors;
  * SSH implementation of TerminalDevice for remote command execution.
  * Provides unified interface for SSH connections alongside LocalDevice.
  */
-public class SshDevice implements TerminalDevice {
+public class SshDevice implements TerminalDevice, CommandExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(SshDevice.class);
 

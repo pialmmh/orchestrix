@@ -1,6 +1,6 @@
 package com.telcobright.orchestrix.automation.infrastructure.consul.example;
 
-import com.telcobright.orchestrix.automation.core.device.impl.LocalSshDevice;
+import com.telcobright.orchestrix.automation.core.device.LocalSshDevice;
 import com.telcobright.orchestrix.automation.infrastructure.consul.ConsulClusterAutomation;
 import com.telcobright.orchestrix.automation.infrastructure.consul.ConsulClusterAutomationFactory;
 import com.telcobright.orchestrix.automation.infrastructure.consul.entity.ConsulClusterConfig;
@@ -88,7 +88,7 @@ public class ConsulSetupRunner {
             logger.info("");
 
             // Create SSH device (local)
-            LocalSshDevice device = new LocalSshDevice("localhost", 22, System.getProperty("user.name"));
+            LocalSshDevice device = new LocalSshDevice();
             device.connect();
 
             try {

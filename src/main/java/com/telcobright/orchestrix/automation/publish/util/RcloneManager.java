@@ -1,6 +1,6 @@
 package com.telcobright.orchestrix.automation.publish.util;
 
-import com.telcobright.orchestrix.automation.core.device.SshDevice;
+import com.telcobright.orchestrix.automation.core.device.CommandExecutor;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -12,9 +12,9 @@ import java.util.logging.Logger;
  */
 public class RcloneManager {
     private static final Logger logger = Logger.getLogger(RcloneManager.class.getName());
-    private final SshDevice device;
+    private final CommandExecutor device;
 
-    public RcloneManager(SshDevice device) {
+    public RcloneManager(CommandExecutor device) {
         this.device = device;
     }
 

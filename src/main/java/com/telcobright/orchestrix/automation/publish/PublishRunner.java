@@ -1,6 +1,6 @@
 package com.telcobright.orchestrix.automation.publish;
 
-import com.telcobright.orchestrix.automation.core.device.impl.LocalSshDevice;
+import com.telcobright.orchestrix.automation.core.device.LocalSshDevice;
 import com.telcobright.orchestrix.automation.core.executor.ExecutionMode;
 import com.telcobright.orchestrix.automation.core.executor.MultiTargetExecutor;
 import com.telcobright.orchestrix.automation.core.executor.Task;
@@ -44,7 +44,7 @@ public class PublishRunner {
             logger.info("");
 
             // Create local SSH device for executing commands
-            LocalSshDevice device = new LocalSshDevice("localhost", 22, System.getProperty("user.name"));
+            LocalSshDevice device = new LocalSshDevice();
             device.connect();
 
             try {

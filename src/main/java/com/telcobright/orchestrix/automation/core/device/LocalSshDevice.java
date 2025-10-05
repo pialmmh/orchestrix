@@ -11,7 +11,7 @@ import java.util.logging.Logger;
  * Optimized for connecting to the local machine
  * Provides simple command execution without requiring explicit connection
  */
-public class LocalSshDevice {
+public class LocalSshDevice implements CommandExecutor {
 
     private static final Logger logger = Logger.getLogger(LocalSshDevice.class.getName());
 
