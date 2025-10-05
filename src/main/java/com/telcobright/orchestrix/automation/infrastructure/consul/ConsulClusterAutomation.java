@@ -4,6 +4,7 @@ import com.telcobright.orchestrix.automation.core.device.SshDevice;
 import com.telcobright.orchestrix.automation.infrastructure.consul.entity.ConsulClusterConfig;
 import com.telcobright.orchestrix.automation.infrastructure.consul.entity.ConsulNode;
 import com.telcobright.orchestrix.automation.infrastructure.consul.entity.ConsulNodeRole;
+import com.telcobright.orchestrix.automation.infrastructure.consul.entity.OsType;
 
 import java.util.List;
 import java.util.logging.Logger;
@@ -82,11 +83,47 @@ public class ConsulClusterAutomation {
     }
 
     /**
-     * Install Consul on a node
+     * Install Consul on a node (auto-detects OS)
      */
     public void installConsul(ConsulNode node, ConsulClusterConfig config) throws Exception {
         logger.info("Installing Consul on " + node.getName() + " (" + node.getIpAddress() + ")...");
 
+        OsType osType = detectOS(node);
+        logger.info("Detected OS: " + osType);
+
+        if (osType == OsType.ALPINE) {
+            installConsulAlpine(node, config);
+        } else {
+            installConsulDebian(node, config);
+        }
+
+        logger.info("✓ Consul installed on " + node.getName());
+    }
+
+    /**
+     * Detect OS type on a node
+     */
+    private OsType detectOS(ConsulNode node) throws Exception {
+        try {
+            String result = device.executeCommand("ssh -o StrictHostKeyChecking=no root@" +
+                node.getIpAddress() + " 'cat /etc/os-release'");
+
+            if (result.toLowerCase().contains("alpine")) {
+                return OsType.ALPINE;
+            } else if (result.toLowerCase().contains("debian") || result.toLowerCase().contains("ubuntu")) {
+                return OsType.DEBIAN;
+            }
+        } catch (Exception e) {
+            logger.warning("Could not detect OS, defaulting to Debian");
+        }
+
+        return OsType.DEBIAN;
+    }
+
+    /**
+     * Install Consul on Debian/Ubuntu
+     */
+    private void installConsulDebian(ConsulNode node, ConsulClusterConfig config) throws Exception {
         String downloadUrl = String.format(
             "https://releases.hashicorp.com/consul/%s/consul_%s_linux_amd64.zip",
             config.getConsulVersion(), config.getConsulVersion()
@@ -107,7 +144,33 @@ public class ConsulClusterAutomation {
         );
 
         device.executeCommand("ssh -o StrictHostKeyChecking=no root@" + node.getIpAddress() + " '" + installScript + "'");
-        logger.info("✓ Consul installed on " + node.getName());
+    }
+
+    /**
+     * Install Consul on Alpine Linux
+     */
+    private void installConsulAlpine(ConsulNode node, ConsulClusterConfig config) throws Exception {
+        String downloadUrl = String.format(
+            "https://releases.hashicorp.com/consul/%s/consul_%s_linux_amd64.zip",
+            config.getConsulVersion(), config.getConsulVersion()
+        );
+
+        String installScript = String.join("\n",
+            "set -e",
+            "apk add --no-cache wget ca-certificates unzip",
+            "cd /tmp",
+            "wget -q " + downloadUrl,
+            "unzip -o consul_" + config.getConsulVersion() + "_linux_amd64.zip",
+            "mv consul /usr/local/bin/",
+            "chmod +x /usr/local/bin/consul",
+            "mkdir -p /etc/consul.d /var/lib/consul",
+            "adduser -D -s /bin/false consul 2>/dev/null || true",
+            "chown -R consul:consul /var/lib/consul",
+            "rm -f consul_" + config.getConsulVersion() + "_linux_amd64.zip",
+            "echo 'Consul installed successfully'"
+        );
+
+        device.executeCommand("ssh -o StrictHostKeyChecking=no root@" + node.getIpAddress() + " '" + installScript + "'");
     }
 
     /**
@@ -183,14 +246,27 @@ public class ConsulClusterAutomation {
         device.executeCommand("ssh -o StrictHostKeyChecking=no root@" + node.getIpAddress() +
             " 'sudo chown consul:consul /etc/consul.d/consul.hcl'");
 
-        // Create systemd service
-        createSystemdService(node);
+        // Create service (systemd or OpenRC based on OS)
+        createService(node);
 
         logger.info("✓ " + node.getName() + " configured");
     }
 
     /**
-     * Create systemd service for Consul
+     * Create service for Consul (auto-detects systemd vs OpenRC)
+     */
+    private void createService(ConsulNode node) throws Exception {
+        OsType osType = detectOS(node);
+
+        if (osType == OsType.ALPINE) {
+            createOpenRCService(node);
+        } else {
+            createSystemdService(node);
+        }
+    }
+
+    /**
+     * Create systemd service for Consul (Debian/Ubuntu)
      */
     private void createSystemdService(ConsulNode node) throws Exception {
         String serviceContent = String.join("\n",
@@ -224,13 +300,51 @@ public class ConsulClusterAutomation {
     }
 
     /**
-     * Start Consul on a node
+     * Create OpenRC service for Consul (Alpine)
+     */
+    private void createOpenRCService(ConsulNode node) throws Exception {
+        String serviceContent = String.join("\n",
+            "#!/sbin/openrc-run",
+            "",
+            "name=\"consul\"",
+            "description=\"Consul Agent\"",
+            "command=\"/usr/local/bin/consul\"",
+            "command_args=\"agent -config-dir=/etc/consul.d\"",
+            "command_user=\"consul:consul\"",
+            "pidfile=\"/run/${RC_SVCNAME}.pid\"",
+            "command_background=\"yes\"",
+            "",
+            "depend() {",
+            "    need net",
+            "    after firewall",
+            "}"
+        );
+
+        String escapedService = serviceContent.replace("'", "'\\''");
+        device.executeCommand("ssh -o StrictHostKeyChecking=no root@" + node.getIpAddress() +
+            " 'echo '\"'" + escapedService + "'\"' | tee /etc/init.d/consul > /dev/null'");
+
+        device.executeCommand("ssh -o StrictHostKeyChecking=no root@" + node.getIpAddress() +
+            " 'chmod +x /etc/init.d/consul'");
+    }
+
+    /**
+     * Start Consul on a node (auto-detects systemd vs OpenRC)
      */
     public void startConsul(ConsulNode node) throws Exception {
         logger.info("Starting Consul on " + node.getName() + "...");
 
-        device.executeCommand("ssh -o StrictHostKeyChecking=no root@" + node.getIpAddress() +
-            " 'sudo systemctl enable consul && sudo systemctl start consul'");
+        OsType osType = detectOS(node);
+
+        if (osType == OsType.ALPINE) {
+            // OpenRC commands
+            device.executeCommand("ssh -o StrictHostKeyChecking=no root@" + node.getIpAddress() +
+                " 'rc-update add consul default && rc-service consul start'");
+        } else {
+            // Systemd commands
+            device.executeCommand("ssh -o StrictHostKeyChecking=no root@" + node.getIpAddress() +
+                " 'sudo systemctl enable consul && sudo systemctl start consul'");
+        }
 
         logger.info("✓ Consul started on " + node.getName());
     }

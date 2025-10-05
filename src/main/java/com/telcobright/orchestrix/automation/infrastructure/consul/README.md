@@ -50,6 +50,7 @@ device.disconnect();
 ✅ **Automated**: Full cluster setup in ~5 minutes
 ✅ **Flexible**: 1-7 servers, unlimited clients
 ✅ **HA Ready**: 3+ servers for high availability
+✅ **Multi-OS Support**: Auto-detects and supports both Debian/Ubuntu (systemd) and Alpine (OpenRC)
 
 ## Architecture
 
@@ -171,6 +172,24 @@ boolean installed = automation.isConsulInstalled(node);
 String version = automation.getConsulVersion(node);
 ```
 
+## Operating System Support
+
+The automation **automatically detects** the OS on each node and uses the appropriate commands:
+
+### Debian/Ubuntu (systemd)
+- Uses `apt` for dependencies
+- Creates systemd service files
+- Uses `systemctl` for service management
+- ~230 MB per Consul server node
+
+### Alpine Linux (OpenRC)
+- Uses `apk` for dependencies
+- Creates OpenRC service files
+- Uses `rc-service` and `rc-update` for service management
+- ~125 MB per Consul server node (45% smaller!)
+
+**Recommendation**: Use Alpine for infrastructure containers (Consul, CoreDNS) to save storage and memory. The automation handles all OS differences transparently.
+
 ## Best Practices
 
 1. **Use 3 servers** for HA (survives 1 failure)
@@ -178,6 +197,7 @@ String version = automation.getConsulVersion(node);
 3. **Co-locate with apps** to save resources
 4. **Disable DNS** if using IP-based discovery
 5. **Monitor via UI** at http://server:8500/ui
+6. **Use Alpine** for infrastructure to save 45% storage per node
 
 ## Troubleshooting
 
