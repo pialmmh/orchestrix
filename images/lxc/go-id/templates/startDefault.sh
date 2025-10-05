@@ -126,10 +126,11 @@ for i in {1..10}; do
     fi
 done
 
-# Set Go-ID specific environment
-sudo lxc config set "${CONTAINER_NAME}" environment.GO_ID_PORT "${GO_ID_PORT}"
-sudo lxc config set "${CONTAINER_NAME}" environment.GO_ID_SHARD_ID "${GO_ID_SHARD_ID}"
-sudo lxc config set "${CONTAINER_NAME}" environment.GO_ID_DATACENTER_ID "${GO_ID_DATACENTER_ID}"
+# Set Go-ID specific environment (mapped to what the Go service expects)
+echo "Setting shard configuration: SHARD_ID=${GO_ID_SHARD_ID}"
+sudo lxc config set "${CONTAINER_NAME}" environment.SHARD_ID "${GO_ID_SHARD_ID}"
+sudo lxc config set "${CONTAINER_NAME}" environment.TOTAL_SHARDS "${GO_ID_TOTAL_SHARDS:-1}"
+sudo lxc config set "${CONTAINER_NAME}" environment.SERVICE_PORT "${GO_ID_PORT}"
 
 # Start container
 echo -e "\nStarting container..."
