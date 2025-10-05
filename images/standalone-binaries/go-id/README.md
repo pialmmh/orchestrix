@@ -2,18 +2,17 @@
 
 Statically-linked Go binary for distributed unique ID generation.
 
-## Quick Build
+## How Binary is Obtained
 
-```bash
-# Build latest version (v.1)
-./build.sh
+Binaries in this directory are either:
+1. **Built automatically** by the automation system
+2. **Downloaded** from a release/artifact repository
 
-# Build specific version
-./build.sh 2
-```
+**No build script exists here.** Binaries are managed by automation or downloaded.
 
-## Prerequisites
+## Prerequisites for Auto-Building
 
+If automation builds the binary:
 - Go 1.21+ installed on build machine
 - SSH access to localhost (for automation)
 

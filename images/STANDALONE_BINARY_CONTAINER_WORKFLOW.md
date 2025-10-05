@@ -9,12 +9,15 @@ This workflow applies to: **LXC, Docker, Podman, and any container technology**
 **Two INDEPENDENT operations:**
 
 ### Phase 1: Binary Building (Standalone Operation)
-Build and test binaries. **This is the end of the operation.**
-```bash
-cd images/standalone-binaries/go-id
-./build.sh
-# Result: Tested binary at go-id-binary-v.1/go-id
-# Operation complete. No containers involved.
+Build or download binaries. **This is the end of the operation.**
+```
+Automation either:
+  - Builds binary automatically (Java automation)
+  - Downloads existing binary from repository
+
+Result: Binary at standalone-binaries/go-id/go-id-binary-v.1/go-id
+Operation complete. No containers involved.
+NO BUILD SCRIPT in standalone-binaries/ directory.
 ```
 
 ### Phase 2: Container Scaffolding (Separate Operation)
@@ -43,20 +46,28 @@ Later, when needed, create containers that use existing binaries.
 │  Binary Building - INDEPENDENT OPERATION                     │
 │  Location: images/standalone-binaries/[app]/                │
 ├─────────────────────────────────────────────────────────────┤
-│  1. Generate source code                                    │
-│  2. Compile static binary (CGO_ENABLED=0)                   │
-│  3. Run automated tests                                     │
-│  4. Store: images/standalone-binaries/[app]/[version]/      │
+│  NO BUILD SCRIPT - Automation handles this                  │
+│                                                              │
+│  Automation either:                                         │
+│    Option 1: Build automatically                            │
+│      1. Generate source code                                │
+│      2. Compile static binary (CGO_ENABLED=0)               │
+│      3. Run automated tests                                 │
+│      4. Store: standalone-binaries/[app]/[version]/         │
+│                                                              │
+│    Option 2: Download from repository                       │
+│      1. Download release binary                             │
+│      2. Verify checksum                                     │
+│      3. Store: standalone-binaries/[app]/[version]/         │
 │                                                              │
 │  OPERATION COMPLETE. Binary ready.                          │
-│  No containers created.                                     │
+│  No containers created. No build script.                    │
 └─────────────────────────────────────────────────────────────┘
 
 User can now:
   - Use binary directly
   - Create containers later (separate operation)
-  - Build different versions
-  - Test binary without containers
+  - Request different versions
 ```
 
 ### Phase 2: Container Scaffolding (Separate Operation)
@@ -284,18 +295,22 @@ public abstract class BinaryContainerScaffolder {
 
 **User:** "Build go-id binary"
 
-```bash
-cd images/standalone-binaries/go-id
-./build.sh
+**AI:** Runs automation directly (no build script)
+```
+Running GoIdBinaryBuildRunner automation...
+  - Generating Go source code
+  - Installing dependencies (sonyflake, gorilla/mux, consul)
+  - Compiling static binary (CGO_ENABLED=0)
+  - Running tests (5 tests)
 
-# Output:
-#   ✓ Binary: go-id-binary-v.1/go-id
-#   ✓ Size: 18.5 MB
-#   ✓ Tests: 5/5 passed
-#   Operation complete.
+✓ Binary: standalone-binaries/go-id/go-id-binary-v.1/go-id
+✓ Size: 18.5 MB
+✓ Tests: 5/5 passed
+Operation complete.
 ```
 
 **End of operation.** Binary is ready, tested, and stored. Can be used directly or containerized later.
+**NO build.sh created** in standalone-binaries/.
 
 ---
 
@@ -390,27 +405,40 @@ Savings: 144 MB (85% reduction!)
 
 ## AI Agent Instructions
 
-### When User Says: "Build [app] binary"
+### When User Says: "Build [app] binary" or "Get [app] binary"
 
-**This is a standalone operation. It ends when the binary is built and tested.**
+**This is a standalone operation. No build script involved.**
 
-1. Navigate to `images/standalone-binaries/[app]/`
-2. Check if `build.sh` exists
-   - If not, check if `automation/binary/[app]/` builder exists
-   - If no builder, ask: "No builder found. Create one?"
-3. Run `./build.sh [version]`
-4. Report results: binary path, size, tests
+1. Check if automation exists: `automation/binary/[app]/`
+   - If exists: Run automation to build binary
+   - If not exists: Ask "Download from repository or create builder?"
+
+2. **If building automatically:**
+   - Run Java automation (e.g., GoIdBinaryBuildRunner)
+   - Binary is compiled, tested, and stored
+   - No shell script executed
+
+3. **If downloading:**
+   - Download from artifact repository
+   - Verify checksum
+   - Store in `standalone-binaries/[app]/[version]/`
+
+4. Report results: binary path, size, tests (if built)
 5. **Operation complete.** No container scaffolding.
 
-**Example:**
-```bash
-cd images/standalone-binaries/go-id
-./build.sh          # Build version 1
-./build.sh 2        # Build version 2
-
-# Result: go-id-binary-v.2/go-id (18 MB, 5/5 tests passed)
-# Operation complete.
+**Example (automatic build):**
 ```
+User: "Build go-id binary version 1"
+
+AI: Running binary builder automation...
+    [Compiles Go code, runs tests]
+    ✓ Binary: standalone-binaries/go-id/go-id-binary-v.1/go-id
+    ✓ Size: 18.5 MB
+    ✓ Tests: 5/5 passed
+    Operation complete.
+```
+
+**NO build.sh script** in standalone-binaries directory.
 
 ---
 
