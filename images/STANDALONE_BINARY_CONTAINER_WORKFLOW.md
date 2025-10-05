@@ -67,17 +67,25 @@ User can now:
 ├─────────────────────────────────────────────────────────────┤
 │  Prerequisite: Binary must exist in standalone-binaries/    │
 │                                                              │
-│  1. Check for binary in standalone-binaries/[app]/         │
-│  2. Detect available versions                               │
-│  3. Prompt user for version selection (if multiple)        │
-│  4. Confirm understanding with user                         │
-│  5. Create minimal base container (Alpine, etc.)            │
-│  6. Copy binary from standalone-binaries/                   │
-│  7. Configure service (systemd, OpenRC, supervisor)         │
-│  8. Export container image                                  │
+│  AI creates container scaffolding with:                     │
+│    - build.sh (copies existing binary, builds container)   │
+│    - launch.sh (launches container instances)              │
+│    - sample-config.conf                                     │
+│    - README.md                                              │
 │                                                              │
-│  OPERATION COMPLETE. Container ready.                       │
+│  User then runs:                                            │
+│    ./build.sh  → Creates container image with binary       │
+│    ./launch.sh → Deploys container instances               │
+│                                                              │
+│  FOLLOWS CONTAINER SCAFFOLDING CONVENTIONS                  │
 └─────────────────────────────────────────────────────────────┘
+
+Container build.sh workflow:
+  1. Copy binary from standalone-binaries/[app]/[version]/
+  2. Create Alpine container base
+  3. Install binary at /usr/local/bin/
+  4. Create service file (OpenRC/systemd)
+  5. Export container image
 
 These are INDEPENDENT operations, not a pipeline.
 ```
@@ -315,26 +323,41 @@ Understanding:
 
 **User:** "yes"
 
-**AI Agent:** [Creates container scaffolding automation following CONTAINER_SCAFFOLD_TEMPLATE.md]
+**AI Agent:** [Creates container scaffolding following CONTAINER_SCAFFOLD_TEMPLATE.md]
 ```
 Created: images/lxc/go-id-alpine/
-  - buildGoIdAlpine.sh
-  - launchGoIdAlpine.sh
-  - sample-config.conf
-  - README.md
-Container ready. Build with: cd images/lxc/go-id-alpine && ./buildGoIdAlpine.sh
+  - buildGoIdAlpine.sh         # Builds container with existing binary
+  - launchGoIdAlpine.sh        # Launches instances
+  - sample-config.conf          # Configuration
+  - README.md                   # Documentation
+
+Container scaffolding ready.
 ```
+
+**What buildGoIdAlpine.sh does:**
+1. Copies binary from `standalone-binaries/go-id/go-id-binary-v.1/go-id`
+2. Creates Alpine container base image
+3. Installs binary into container at `/usr/local/bin/go-id`
+4. Creates OpenRC service file
+5. Exports container image: `go-id-alpine`
+
+**Note:** buildGoIdAlpine.sh does NOT compile Go code. It uses the pre-built binary.
 
 ---
 
-### Operation 3: Build and Deploy Container
+### Operation 3: Build Container Image
 
 ```bash
-# Build the container image (using binary from v.1)
+# Build container (copies existing binary into Alpine)
 cd images/lxc/go-id-alpine
 ./buildGoIdAlpine.sh
+```
 
-# Deploy
+### Operation 4: Deploy Container
+
+```bash
+# Launch container instance
+cd images/lxc/go-id-alpine
 ./launchGoIdAlpine.sh config.conf
 ```
 
