@@ -132,6 +132,17 @@ sudo lxc config set "${CONTAINER_NAME}" environment.SHARD_ID "${GO_ID_SHARD_ID}"
 sudo lxc config set "${CONTAINER_NAME}" environment.TOTAL_SHARDS "${GO_ID_TOTAL_SHARDS:-1}"
 sudo lxc config set "${CONTAINER_NAME}" environment.SERVICE_PORT "${GO_ID_PORT}"
 
+# Set Consul service discovery (optional)
+if [ -n "$CONSUL_URL" ]; then
+    echo "Configuring Consul service discovery: ${CONSUL_URL}"
+    sudo lxc config set "${CONTAINER_NAME}" environment.CONSUL_URL "${CONSUL_URL}"
+fi
+if [ -n "$SERVICE_NAME" ]; then
+    sudo lxc config set "${CONTAINER_NAME}" environment.SERVICE_NAME "${SERVICE_NAME}"
+fi
+# Always set container IP for Consul health checks
+sudo lxc config set "${CONTAINER_NAME}" environment.CONTAINER_IP "${CONTAINER_IP}"
+
 # Start container
 echo -e "\nStarting container..."
 sudo lxc start "${CONTAINER_NAME}"

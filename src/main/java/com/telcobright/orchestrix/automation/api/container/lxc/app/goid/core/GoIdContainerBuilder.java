@@ -282,10 +282,11 @@ public class GoIdContainerBuilder {
         device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'echo '" + escapedCode + "' > /opt/go-id/main.go'");
 
         // Initialize Go module and install dependencies
-        logger.info("Installing Go dependencies (Sonyflake + Gorilla Mux)...");
+        logger.info("Installing Go dependencies (Sonyflake + Gorilla Mux + Consul)...");
         device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'cd /opt/go-id && /usr/local/go/bin/go mod init go-id-service'");
         device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'cd /opt/go-id && /usr/local/go/bin/go get github.com/sony/sonyflake@latest'");
         device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'cd /opt/go-id && /usr/local/go/bin/go get github.com/gorilla/mux@latest'");
+        device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'cd /opt/go-id && /usr/local/go/bin/go get github.com/hashicorp/consul/api@latest'");
         device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'cd /opt/go-id && /usr/local/go/bin/go mod tidy'");
 
         // Compile Go binary
