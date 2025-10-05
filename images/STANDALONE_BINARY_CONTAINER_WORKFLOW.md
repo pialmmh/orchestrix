@@ -6,53 +6,80 @@ This workflow applies to: **LXC, Docker, Podman, and any container technology**
 
 ## Overview
 
-Instead of building software **inside** containers, we:
-1. **Build binaries locally** (on build server using `build.sh`)
-2. **Test binaries locally** (automated tests)
-3. **Bundle into minimal containers** (Alpine, distroless)
+**Two INDEPENDENT operations:**
+
+### Phase 1: Binary Building (Standalone Operation)
+Build and test binaries. **This is the end of the operation.**
+```bash
+cd images/standalone-binaries/go-id
+./build.sh
+# Result: Tested binary at go-id-binary-v.1/go-id
+# Operation complete. No containers involved.
+```
+
+### Phase 2: Container Scaffolding (Separate Operation)
+Later, when needed, create containers that use existing binaries.
+```bash
+# User: "Scaffold go-id container based on existing binary"
+# AI: Checks images/standalone-binaries/go-id/ for versions
+# AI: "Found versions: v.1, v.2. Which version?"
+# User: "v.1"
+# AI: Creates images/lxc/go-id-alpine/ with binary from v.1
+```
 
 **Benefits:**
 - 🚀 **85% smaller containers** (Alpine 25 MB vs Debian 169 MB)
-- ⚡ **Faster builds** (no dependency download in container)
-- ✅ **Tested binaries** (known-good before containerization)
+- ⚡ **Binary tested before containerization**
 - 🔄 **Reusable** (same binary → multiple container types)
-
-**Quick Start:**
-```bash
-# Step 1: Build binary
-cd images/standalone-binaries/go-id
-./build.sh
-
-# Step 2: Create Alpine container (future automation)
-# Step 3: Deploy
-```
+- 📦 **Independent** (build binaries without containers)
 
 ---
 
 ## Architecture
 
+### Phase 1: Binary Building (Standalone Operation)
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Phase 1: Binary Building (Automation 1)                    │
-│  Location: images/standalone-binaries/                      │
+│  Binary Building - INDEPENDENT OPERATION                     │
+│  Location: images/standalone-binaries/[app]/                │
 ├─────────────────────────────────────────────────────────────┤
 │  1. Generate source code                                    │
 │  2. Compile static binary (CGO_ENABLED=0)                   │
 │  3. Run automated tests                                     │
 │  4. Store: images/standalone-binaries/[app]/[version]/      │
+│                                                              │
+│  OPERATION COMPLETE. Binary ready.                          │
+│  No containers created.                                     │
 └─────────────────────────────────────────────────────────────┘
-                            ↓
+
+User can now:
+  - Use binary directly
+  - Create containers later (separate operation)
+  - Build different versions
+  - Test binary without containers
+```
+
+### Phase 2: Container Scaffolding (Separate Operation)
+```
 ┌─────────────────────────────────────────────────────────────┐
-│  Phase 2: Container Scaffolding (Automation 2)              │
+│  Container Scaffolding - REQUIRES EXISTING BINARY            │
 │  Location: images/lxc/, images/docker/, etc.                │
 ├─────────────────────────────────────────────────────────────┤
-│  1. Detect available binary versions                        │
-│  2. Select or prompt user for version                       │
-│  3. Create minimal base container (Alpine, etc.)            │
-│  4. Copy binary into container                              │
-│  5. Configure service (systemd, OpenRC, supervisor)         │
-│  6. Export container image                                  │
+│  Prerequisite: Binary must exist in standalone-binaries/    │
+│                                                              │
+│  1. Check for binary in standalone-binaries/[app]/         │
+│  2. Detect available versions                               │
+│  3. Prompt user for version selection (if multiple)        │
+│  4. Confirm understanding with user                         │
+│  5. Create minimal base container (Alpine, etc.)            │
+│  6. Copy binary from standalone-binaries/                   │
+│  7. Configure service (systemd, OpenRC, supervisor)         │
+│  8. Export container image                                  │
+│                                                              │
+│  OPERATION COMPLETE. Container ready.                       │
 └─────────────────────────────────────────────────────────────┘
+
+These are INDEPENDENT operations, not a pipeline.
 ```
 
 ---
@@ -243,47 +270,72 @@ public abstract class BinaryContainerScaffolder {
 
 ---
 
-## Complete Example: Go-ID Container
+## Complete Example: Go-ID Binary and Container
 
-### Step 1: Build Binary (Phase 1)
+### Operation 1: Build Binary (Standalone)
+
+**User:** "Build go-id binary"
 
 ```bash
 cd images/standalone-binaries/go-id
-
-# Build version 1 (default)
 ./build.sh
 
-# Or build specific version
-./build.sh 2
-
-# Result:
+# Output:
 #   ✓ Binary: go-id-binary-v.1/go-id
 #   ✓ Size: 18.5 MB
 #   ✓ Tests: 5/5 passed
+#   Operation complete.
 ```
 
-### Step 2: Scaffold Alpine Container (Phase 2)
+**End of operation.** Binary is ready, tested, and stored. Can be used directly or containerized later.
 
-```bash
-# Future automation (to be created):
-mvn exec:java \
-  -Dexec.mainClass="com.telcobright.orchestrix.automation.container.lxc.BinaryContainerScaffolder" \
-  -Dexec.args="go-id alpine"
+---
 
-# AI Agent Actions:
-#   1. Detect versions: found go-id-binary-v.1
-#   2. Auto-select v.1 (only version)
-#   3. Create Alpine container
-#   4. Copy binary (18.5 MB)
-#   5. Create OpenRC service
-#   6. Export: go-id-alpine (total: ~25 MB)
+### Operation 2: Scaffold Container (Separate, Later)
+
+**User:** "Scaffold go-id container based on existing binary"
+
+**AI Agent:**
+```
+Checking for go-id binaries...
+Found versions: v.1
+Using go-id binary v.1. Proceed? (yes/no)
 ```
 
-### Step 3: Deploy
+**User:** "yes"
+
+**AI Agent:**
+```
+Understanding:
+  - Create LXC Alpine container: images/lxc/go-id-alpine/
+  - Use binary: images/standalone-binaries/go-id/go-id-binary-v.1/go-id
+  - Container size: ~25 MB (Alpine + binary)
+  Confirm? (yes/no)
+```
+
+**User:** "yes"
+
+**AI Agent:** [Creates container scaffolding automation following CONTAINER_SCAFFOLD_TEMPLATE.md]
+```
+Created: images/lxc/go-id-alpine/
+  - buildGoIdAlpine.sh
+  - launchGoIdAlpine.sh
+  - sample-config.conf
+  - README.md
+Container ready. Build with: cd images/lxc/go-id-alpine && ./buildGoIdAlpine.sh
+```
+
+---
+
+### Operation 3: Build and Deploy Container
 
 ```bash
-# Same deployment as before - binary runs inside Alpine
-lxc launch go-id-alpine my-go-id-instance
+# Build the container image (using binary from v.1)
+cd images/lxc/go-id-alpine
+./buildGoIdAlpine.sh
+
+# Deploy
+./launchGoIdAlpine.sh config.conf
 ```
 
 ---
@@ -317,35 +369,89 @@ Savings: 144 MB (85% reduction!)
 
 ### When User Says: "Build [app] binary"
 
-1. Check if `images/standalone-binaries/[app]/build.sh` exists
-2. If not, check if `automation/binary/[app]/` exists
-   - If automation exists, create build.sh wrapper
-   - If not, ask: "No builder found. Create one?"
-3. Run build.sh script
+**This is a standalone operation. It ends when the binary is built and tested.**
+
+1. Navigate to `images/standalone-binaries/[app]/`
+2. Check if `build.sh` exists
+   - If not, check if `automation/binary/[app]/` builder exists
+   - If no builder, ask: "No builder found. Create one?"
+3. Run `./build.sh [version]`
 4. Report results: binary path, size, tests
+5. **Operation complete.** No container scaffolding.
 
 **Example:**
 ```bash
 cd images/standalone-binaries/go-id
 ./build.sh          # Build version 1
 ./build.sh 2        # Build version 2
+
+# Result: go-id-binary-v.2/go-id (18 MB, 5/5 tests passed)
+# Operation complete.
 ```
 
-### When User Says: "Scaffold [app] container"
+---
 
-1. Check `images/standalone-binaries/[app]/`
-   - If missing → "No binary found. Build one first?"
-   - If found → Continue
+### When User Says: "Scaffold [app] container based on existing binary"
 
-2. List versions, prompt if needed
+**This is a separate operation. Requires binary to exist first.**
 
-3. Ask: "Container type? (lxc-alpine, lxc-debian, docker, podman)"
+1. **Check for binary existence:**
+   ```bash
+   ls images/standalone-binaries/[app]/
+   ```
 
-4. Create container scaffolding automation if needed
+2. **If no binary found:**
+   - Respond: "No binary found for [app]. Build one first?"
+   - Stop. Do not proceed.
 
-5. Execute scaffolding
+3. **If binary found - detect versions:**
+   ```bash
+   # Example: Found go-id-binary-v.1/ and go-id-binary-v.2/
+   ```
 
-6. Report: container image, size, ready for deployment
+4. **If only 1 version:**
+   - Auto-select that version
+   - Confirm with user: "Using [app] binary v.X. Proceed?"
+
+5. **If multiple versions:**
+   - List versions to user
+   - Ask: "Which version? (1, 2, 3...)"
+   - Wait for user selection
+
+6. **Discuss understanding:**
+   - "I will create [container-type] container in images/[type]/[app]-alpine/"
+   - "Using binary from images/standalone-binaries/[app]/[app]-binary-v.X/"
+   - "Container will be ~25 MB (Alpine + binary)"
+   - Ask: "Confirm?"
+
+7. **After confirmation:**
+   - Follow container scaffolding guidelines
+   - Create in appropriate location (images/lxc/, images/docker/, etc.)
+   - Copy binary from standalone-binaries
+   - Create service files, configs, scripts
+   - Report: container location, size, ready for deployment
+
+**Example Flow:**
+```
+User: "Scaffold go-id container based on existing binary"
+
+AI: Checking for go-id binaries...
+AI: Found versions: v.1, v.2
+AI: Which version? (1 or 2)
+
+User: "1"
+
+AI: Understanding:
+    - Create LXC Alpine container: images/lxc/go-id-alpine/
+    - Use binary: images/standalone-binaries/go-id/go-id-binary-v.1/go-id
+    - Container size: ~25 MB
+    - Confirm?
+
+User: "yes"
+
+AI: [Creates container scaffolding]
+AI: Container ready at images/lxc/go-id-alpine/
+```
 
 ### When User Says: "Deploy [app]"
 
