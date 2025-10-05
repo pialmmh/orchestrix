@@ -27,8 +27,14 @@ public class LocalSshDevice {
         this.jsch = new JSch();
         // Default to current user
         this.username = System.getProperty("user.name");
-        // Default SSH key
-        this.privateKeyPath = System.getProperty("user.home") + "/.ssh/id_rsa";
+        // Default SSH key - use JSch-compatible key if available
+        String jschKey = System.getProperty("user.home") + "/.ssh/id_rsa_jsch";
+        File jschKeyFile = new File(jschKey);
+        if (jschKeyFile.exists()) {
+            this.privateKeyPath = jschKey;
+        } else {
+            this.privateKeyPath = System.getProperty("user.home") + "/.ssh/id_rsa";
+        }
     }
 
     public boolean connect() {
@@ -51,11 +57,21 @@ public class LocalSshDevice {
             // Create session
             session = jsch.getSession(username, host, port);
 
-            // Configure session
+            // Configure session - disable all host key checking
             Properties config = new Properties();
             config.put("StrictHostKeyChecking", "no");
             config.put("PreferredAuthentications", "publickey,password");
+            config.put("CheckHostIP", "no");
+            config.put("UserKnownHostsFile", "/dev/null");
+            // Use modern RSA signature algorithms (ssh-rsa is deprecated)
+            config.put("server_host_key", "ssh-rsa,rsa-sha2-256,rsa-sha2-512");
+            config.put("PubkeyAcceptedAlgorithms", "rsa-sha2-256,rsa-sha2-512,ssh-rsa");
             session.setConfig(config);
+
+            // Also set global config
+            JSch.setConfig("StrictHostKeyChecking", "no");
+            JSch.setConfig("server_host_key", "ssh-rsa,rsa-sha2-256,rsa-sha2-512");
+            JSch.setConfig("PubkeyAcceptedAlgorithms", "rsa-sha2-256,rsa-sha2-512,ssh-rsa");
 
             // Set password if provided
             if (password != null && !password.isEmpty()) {
@@ -120,15 +136,17 @@ public class LocalSshDevice {
                 return executeLocally(command);
             }
 
-            // Use SSH session
-            return executeViaSsh(command);
+            // Use SSH session with conditional PTY
+            return executeViaSsh(command, shouldUsePty(command));
         });
     }
 
     /**
      * Execute command via SSH session
+     * @param command The command to execute
+     * @param usePty Whether to allocate pseudo-terminal (needed for lxc, apt-get, etc.)
      */
-    private String executeViaSsh(String command) {
+    private String executeViaSsh(String command, boolean usePty) {
         if (session == null || !session.isConnected()) {
             logger.warning("Not connected to " + host);
             return null;
@@ -136,6 +154,15 @@ public class LocalSshDevice {
 
         try {
             ChannelExec channel = (ChannelExec) session.openChannel("exec");
+
+            // Request PTY only if needed
+            // PTY enables progress bars and terminal features but keeps channel open longer
+            if (usePty) {
+                channel.setPty(true);
+                // Provide empty stdin when using PTY
+                channel.setInputStream(new java.io.ByteArrayInputStream(new byte[0]));
+            }
+
             channel.setCommand(command);
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -146,18 +173,31 @@ public class LocalSshDevice {
 
             channel.connect();
 
-            // Wait for command to complete
-            while (!channel.isClosed()) {
+            // Wait for command to complete by checking exit status (not channel close)
+            // With PTY, channel may stay open even after command completes
+            int maxWait = 3000; // 5 minutes max (300 seconds)
+            int waited = 0;
+            while (channel.getExitStatus() == -1 && waited < maxWait) {
                 Thread.sleep(100);
+                waited++;
             }
+
+            // Check if command timed out
+            if (channel.getExitStatus() == -1) {
+                logger.warning("Command did not complete within timeout");
+                channel.disconnect();
+                throw new Exception("Command execution timeout");
+            }
+
+            int exitStatus = channel.getExitStatus();
 
             channel.disconnect();
 
             String output = outputStream.toString();
             String error = errorStream.toString();
 
-            if (!error.isEmpty()) {
-                logger.warning("Command error: " + error);
+            if (!error.isEmpty() && exitStatus != 0) {
+                logger.warning("Command error (exit " + exitStatus + "): " + error);
             }
 
             return output;
@@ -263,21 +303,40 @@ public class LocalSshDevice {
 
     /**
      * Execute a command - main method used by automation classes
-     * Auto-handles connection if needed
+     * REQUIRES SSH connection (no ProcessBuilder fallback for automation)
+     * Automatically determines if PTY is needed based on command
      */
     public String executeCommand(String command) throws Exception {
-        // For localhost, directly execute locally
-        if (host.equals("localhost") || host.equals("127.0.0.1")) {
-            return executeLocally(command);
-        }
+        return executeCommand(command, shouldUsePty(command));
+    }
 
-        // For remote hosts, ensure SSH connection
+    /**
+     * Execute a command with explicit PTY control
+     * @param command The command to execute
+     * @param usePty Whether to allocate a pseudo-terminal
+     */
+    public String executeCommand(String command, boolean usePty) throws Exception {
+        // Ensure SSH connection exists
         if (session == null || !session.isConnected()) {
-            if (!connect()) {
-                throw new Exception("Failed to connect to " + host);
-            }
+            throw new Exception("SSH connection required. Please connect() first. No ProcessBuilder fallback allowed.");
         }
 
-        return executeViaSsh(command);
+        return executeViaSsh(command, usePty);
+    }
+
+    /**
+     * Determine if command requires PTY (pseudo-terminal)
+     * PTY is needed for commands that:
+     * - Show progress bars (lxc, apt-get, docker)
+     * - Expect interactive terminal (systemctl, some installers)
+     * - Use terminal control codes for output
+     */
+    private boolean shouldUsePty(String command) {
+        return command.contains("lxc ") ||
+               command.contains("apt-get") ||
+               command.contains("apt ") ||
+               command.contains("docker ") ||
+               command.contains("systemctl") ||
+               command.contains("dpkg");
     }
 }

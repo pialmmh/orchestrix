@@ -1,5 +1,6 @@
-package com.telcobright.orchestrix.automation.api.container.lxc.app.goid.example;
+package com.telcobright.orchestrix.automation.api.container.lxc.app.goid.core;
 
+import com.telcobright.orchestrix.automation.api.container.lxc.app.goid.scripts.GoIdServiceCode;
 import com.telcobright.orchestrix.automation.core.PrerequisiteChecker;
 import com.telcobright.orchestrix.automation.core.storage.btrfs.BtrfsStorageProvider;
 import com.telcobright.orchestrix.automation.core.storage.base.StorageVolume;
@@ -11,14 +12,16 @@ import java.util.Properties;
 import java.util.logging.Logger;
 
 /**
- * Java automation for building Go-based Unique ID Generator Container
+ * Go ID Container Builder - Core Logic
+ *
+ * <p><b>REQUIRES:</b> Connected SshDevice (no ProcessBuilder fallback)
  *
  * <p>Features:
  * <ul>
- *   <li>Go-based REST API for unique ID generation</li>
- *   <li>Snowflake algorithm for distributed ID generation</li>
- *   <li>Small image size (10-30MB vs 150-300MB Node.js)</li>
- *   <li>High concurrency with goroutines</li>
+ *   <li>Complete REST API matching Node.js unique-id-generator</li>
+ *   <li>Sonyflake distributed ID generation</li>
+ *   <li>Sharded sequential IDs (int, long)</li>
+ *   <li>State persistence with JSON</li>
  *   <li>BTRFS storage with quota management</li>
  *   <li>Systemd service for auto-start</li>
  * </ul>
@@ -27,7 +30,7 @@ public class GoIdContainerBuilder {
 
     private static final Logger logger = Logger.getLogger(GoIdContainerBuilder.class.getName());
 
-    private LocalSshDevice device;
+    private final LocalSshDevice device;
     private BtrfsStorageProvider storageProvider;
     private Properties config;
 
@@ -40,8 +43,24 @@ public class GoIdContainerBuilder {
     private String imageAlias;
     private int servicePort;
 
-    public GoIdContainerBuilder(String configFile) throws Exception {
-        this.device = new LocalSshDevice();
+    // Publish configuration
+    private String rcloneRemote;
+    private boolean generateUploadScript;
+    private String exportedImagePath;
+
+    /**
+     * Create builder with connected SSH device
+     *
+     * @param device Connected LocalSshDevice (must be already connected)
+     * @param configFile Path to build configuration file
+     * @throws Exception if device not connected or config invalid
+     */
+    public GoIdContainerBuilder(LocalSshDevice device, String configFile) throws Exception {
+        if (device == null || !device.isConnected()) {
+            throw new IllegalArgumentException("LocalSshDevice must be connected");
+        }
+
+        this.device = device;
         this.storageProvider = new BtrfsStorageProvider(true);
 
         loadConfiguration(configFile);
@@ -88,6 +107,10 @@ public class GoIdContainerBuilder {
         storageQuotaSize = config.getProperty("STORAGE_QUOTA_SIZE");
         imageAlias = config.getProperty("IMAGE_ALIAS", "go-id-base");
         servicePort = Integer.parseInt(config.getProperty("SERVICE_PORT", "7001"));
+
+        // Publish configuration
+        rcloneRemote = config.getProperty("RCLONE_REMOTE", "gdrive");
+        generateUploadScript = Boolean.parseBoolean(config.getProperty("GENERATE_UPLOAD_SCRIPT", "true"));
 
         // Validate required parameters
         if (storageLocationId == null || storageLocationId.isEmpty()) {
@@ -200,19 +223,17 @@ public class GoIdContainerBuilder {
         logger.info("Starting container...");
         device.executeCommand("sudo lxc start " + containerName);
 
-        // Wait for container to be ready
-        Thread.sleep(5000);
+        // Wait for container to be ready and network to initialize
+        logger.info("Waiting for container network...");
+        Thread.sleep(10000);
 
-        // Wait for network
-        for (int i = 0; i < 30; i++) {
-            String result = device.executeCommand("sudo lxc exec " + containerName + " -- ping -c 1 8.8.8.8 2>/dev/null || true");
-            if (result != null && result.contains("1 packets transmitted, 1 received")) {
-                logger.info("Container network ready");
-                return;
-            }
-            Thread.sleep(2000);
+        // Verify container is running
+        String status = device.executeCommand("sudo lxc list " + containerName + " -c s --format csv");
+        if (status == null || !status.toUpperCase().contains("RUNNING")) {
+            throw new Exception("Container failed to start");
         }
-        throw new Exception("Container network not ready after 60 seconds");
+
+        logger.info("Container started successfully");
     }
 
     private void updateSystem() throws Exception {
@@ -245,114 +266,43 @@ public class GoIdContainerBuilder {
     }
 
     private void createGoIdService() throws Exception {
-        logger.info("Creating Go ID Generator service...");
+        logger.info("Creating Go ID Generator service with complete API...");
 
         // Create directories
         device.executeCommand("sudo lxc exec " + containerName + " -- mkdir -p /opt/go-id");
         device.executeCommand("sudo lxc exec " + containerName + " -- mkdir -p /var/log/go-id");
+        device.executeCommand("sudo lxc exec " + containerName + " -- mkdir -p /var/lib/go-id");
 
-        // Create Go source code using Sonyflake library (same config as Node.js version)
-        String goCode = String.join("\n",
-                "package main",
-                "",
-                "import (",
-                "    \"encoding/json\"",
-                "    \"fmt\"",
-                "    \"log\"",
-                "    \"net/http\"",
-                "    \"os\"",
-                "    \"strconv\"",
-                "    \"time\"",
-                "",
-                "    \"github.com/sony/sonyflake\"",
-                ")",
-                "",
-                "var sf *sonyflake.Sonyflake",
-                "",
-                "// Get shard ID from environment (compatible with Node.js config: SHARD_ID)",
-                "func getShardID() uint16 {",
-                "    if shardID := os.Getenv(\"SHARD_ID\"); shardID != \"\" {",
-                "        id, err := strconv.ParseUint(shardID, 10, 16)",
-                "        if err == nil && id > 0 && id < 65536 {",
-                "            return uint16(id)",
-                "        }",
-                "        log.Printf(\"WARNING: Invalid SHARD_ID=%s. Must be 1-65535. Using default=1\", shardID)",
-                "    }",
-                "    log.Println(\"WARNING: SHARD_ID not set. Using default=1. Set SHARD_ID env for distributed setup.\")",
-                "    return 1",
-                "}",
-                "",
-                "func init() {",
-                "    shardID := getShardID()",
-                "    log.Printf(\"Initializing Sonyflake with SHARD_ID=%d\", shardID)",
-                "",
-                "    // Configure Sonyflake with custom settings",
-                "    // - Custom time source support (for NTP or clock rollback handling)",
-                "    // - Configurable machine ID from SHARD_ID env var",
-                "    // - 16-bit machine ID (vs 10-bit in Twitter Snowflake)",
-                "    settings := sonyflake.Settings{",
-                "        StartTime: time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC),",
-                "        MachineID: func() (uint16, error) {",
-                "            return shardID, nil",
-                "        },",
-                "        CheckMachineID: func(id uint16) bool {",
-                "            // Validate machine ID is in allowed range",
-                "            return id > 0 && id < 65536",
-                "        },",
-                "    }",
-                "",
-                "    var err error",
-                "    sf = sonyflake.NewSonyflake(settings)",
-                "    if sf == nil {",
-                "        log.Fatalf(\"Failed to initialize Sonyflake: %v\", err)",
-                "    }",
-                "}",
-                "",
-                "func generateHandler(w http.ResponseWriter, r *http.Request) {",
-                "    id, err := sf.NextID()",
-                "    if err != nil {",
-                "        log.Printf(\"Error generating ID: %v\", err)",
-                "        http.Error(w, fmt.Sprintf(\"Error generating ID: %v\", err), http.StatusInternalServerError)",
-                "        return",
-                "    }",
-                "",
-                "    response := map[string]interface{}{",
-                "        \"id\":        id,",
-                "        \"timestamp\": time.Now().Unix(),",
-                "    }",
-                "    w.Header().Set(\"Content-Type\", \"application/json\")",
-                "    json.NewEncoder(w).Encode(response)",
-                "}",
-                "",
-                "func healthHandler(w http.ResponseWriter, r *http.Request) {",
-                "    w.WriteHeader(http.StatusOK)",
-                "    fmt.Fprintf(w, \"OK\")",
-                "}",
-                "",
-                "func main() {",
-                "    http.HandleFunc(\"/generate\", generateHandler)",
-                "    http.HandleFunc(\"/health\", healthHandler)",
-                "    log.Printf(\"Starting Go ID Generator on port " + servicePort + "\")",
-                "    log.Fatal(http.ListenAndServe(\":" + servicePort + "\", nil))",
-                "}"
-        );
+        // Get complete service code from GoIdServiceCode
+        GoIdServiceCode serviceCode = new GoIdServiceCode(servicePort);
+        String goCode = serviceCode.getServiceCode();
 
         // Write Go code to file
         String escapedCode = goCode.replace("'", "'\\''");
         device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'echo '" + escapedCode + "' > /opt/go-id/main.go'");
 
-        // Initialize Go module and install Sonyflake
-        logger.info("Installing Sonyflake dependency...");
+        // Initialize Go module and install dependencies
+        logger.info("Installing Go dependencies (Sonyflake + Gorilla Mux)...");
         device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'cd /opt/go-id && /usr/local/go/bin/go mod init go-id-service'");
         device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'cd /opt/go-id && /usr/local/go/bin/go get github.com/sony/sonyflake@latest'");
+        device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'cd /opt/go-id && /usr/local/go/bin/go get github.com/gorilla/mux@latest'");
         device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'cd /opt/go-id && /usr/local/go/bin/go mod tidy'");
 
-        // Compile Go binary with Sonyflake
-        logger.info("Compiling Go binary with Sonyflake...");
+        // Compile Go binary
+        logger.info("Compiling Go binary...");
         device.executeCommand("sudo lxc exec " + containerName + " -- bash -c 'cd /opt/go-id && /usr/local/go/bin/go build -o go-id main.go'");
 
         // Verify binary
         device.executeCommand("sudo lxc exec " + containerName + " -- chmod +x /opt/go-id/go-id");
+
+        logger.info("✓ Complete API created with endpoints:");
+        logger.info("  - GET /api/next-id/:entityName?dataType=snowflake");
+        logger.info("  - GET /api/next-batch/:entityName?dataType=int&batchSize=100");
+        logger.info("  - GET /api/status/:entityName");
+        logger.info("  - GET /api/list");
+        logger.info("  - GET /api/types");
+        logger.info("  - GET /health");
+        logger.info("  - GET /shard-info");
     }
 
     private void configureSystemdService() throws Exception {
@@ -389,28 +339,191 @@ public class GoIdContainerBuilder {
         logger.info("Stopping container...");
         device.executeCommand("sudo lxc stop " + containerName);
 
-        // Export container
-        String exportPath = config.getProperty("EXPORT_PATH", "/tmp") + "/" + containerName + "-" +
-                            System.currentTimeMillis() / 1000 + ".tar.gz";
+        // Determine versioned generated folder path
+        String basePath = config.getProperty("BASE_PATH", "/home/mustafa/telcobright-projects/orchestrix/images/lxc/go-id");
+        String version = config.getProperty("CONTAINER_VERSION", "1");
+        String versionedDir = basePath + "/go-id-v." + version;
+        String generatedDir = versionedDir + "/generated";
+
+        // Create versioned directory structure
+        device.executeCommand("mkdir -p " + generatedDir);
+
+        // Export container with timestamp
+        String timestamp = String.valueOf(System.currentTimeMillis() / 1000);
+        String imageName = containerName + "-" + timestamp + ".tar.gz";
+        String exportPath = generatedDir + "/" + imageName;
+
         logger.info("Exporting container to: " + exportPath);
         device.executeCommand("sudo lxc publish " + containerName + " --alias " + imageAlias);
         device.executeCommand("sudo lxc image export " + imageAlias + " " + exportPath);
 
         logger.info("Container image exported: " + exportPath);
+
+        // Generate MD5 hash file
+        logger.info("Generating MD5 hash file...");
+        String md5Command = "md5sum \"" + exportPath + "\" | awk '{print $1 \"  " + imageName + "\"}' > \"" + exportPath + ".md5\"";
+        device.executeCommand(md5Command);
+        logger.info("✓ MD5 hash file created: " + exportPath + ".md5");
+
+        // Save export path for publish script generation
+        this.exportedImagePath = exportPath;
+
+        // Copy template files to generated folder
+        logger.info("Copying templates to generated folder...");
+        String templateSource = basePath + "/templates";
+        if (device.executeCommand("test -d " + templateSource + " && echo exists").contains("exists")) {
+            device.executeCommand("cp " + templateSource + "/sample.conf " + generatedDir + "/");
+            device.executeCommand("cp " + templateSource + "/startDefault.sh " + generatedDir + "/");
+            device.executeCommand("chmod +x " + generatedDir + "/startDefault.sh");
+            logger.info("✓ Templates copied: sample.conf, startDefault.sh");
+        } else {
+            logger.warning("⚠ Templates directory not found: " + templateSource);
+        }
+
+        // Generate publish script if enabled
+        if (generateUploadScript) {
+            generatePublishScript(generatedDir, imageName, timestamp, version);
+        }
+
+        logger.info("✓ Build artifacts created in: " + versionedDir);
     }
 
+    private void generatePublishScript(String generatedDir, String imageName, String timestamp, String version) throws Exception {
+        logger.info("Generating publish automation scripts...");
+
+        // Compute rclone target directory to mirror local structure
+        // Local: .../orchestrix/images/lxc/go-id/go-id-v.1/generated
+        // GDrive: gdrive:images/lxc/go-id/go-id-v.1/generated
+        String rcloneTargetDir = "images/lxc/go-id/go-id-v." + version + "/generated";
+
+        // Generate publish config file
+        String publishConfigPath = generatedDir + "/publish-config.conf";
+        String publishConfigContent = String.join("\n",
+            "# Publish Configuration",
+            "# Generated by Orchestrix container builder",
+            "",
+            "# Artifact Information",
+            "ARTIFACT_TYPE=lxc-container",
+            "ARTIFACT_NAME=go-id",
+            "ARTIFACT_VERSION=v" + version,
+            "ARTIFACT_FILE=" + imageName,
+            "ARTIFACT_PATH=" + generatedDir + "/" + imageName,
+            "BUILD_TIMESTAMP=" + timestamp,
+            "",
+            "# Publish Location (mirrors local structure)",
+            "RCLONE_REMOTE=" + rcloneRemote,
+            "RCLONE_TARGET_DIR=" + rcloneTargetDir,
+            "",
+            "# Database Connection",
+            "DB_HOST=127.0.0.1",
+            "DB_PORT=3306",
+            "DB_NAME=orchestrix",
+            "DB_USER=root",
+            "DB_PASSWORD=123456",
+            ""
+        );
+
+        // Write publish config
+        device.executeCommand("cat > " + publishConfigPath + " << 'EOF'\n" + publishConfigContent + "\nEOF");
+
+        // Generate publish script that uses Java/Maven
+        String publishScriptPath = generatedDir + "/publish.sh";
+        String publishScriptContent = String.join("\n",
+            "#!/bin/bash",
+            "# LXC Container Publish Script",
+            "# Uses Java/Maven automation for artifact publishing",
+            "",
+            "set -e",
+            "",
+            "# Colors",
+            "RED='\\033[0;31m'",
+            "GREEN='\\033[0;32m'",
+            "YELLOW='\\033[1;33m'",
+            "NC='\\033[0m'",
+            "",
+            "SCRIPT_DIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)\"",
+            "CONFIG_FILE=\"${SCRIPT_DIR}/publish-config.conf\"",
+            "",
+            "echo -e \"${GREEN}=== LXC Container Publish ===${NC}\\n\"",
+            "",
+            "# Load configuration",
+            "if [ ! -f \"$CONFIG_FILE\" ]; then",
+            "    echo -e \"${RED}Error: Configuration file not found: $CONFIG_FILE${NC}\"",
+            "    exit 1",
+            "fi",
+            "",
+            "source \"$CONFIG_FILE\"",
+            "",
+            "# Display artifact information",
+            "echo \"Artifact Type:    $ARTIFACT_TYPE\"",
+            "echo \"Name:             $ARTIFACT_NAME\"",
+            "echo \"Version:          $ARTIFACT_VERSION\"",
+            "echo \"File:             $ARTIFACT_FILE\"",
+            "echo \"Build Timestamp:  $BUILD_TIMESTAMP\"",
+            "echo \"\"",
+            "echo \"Publish Location: ${RCLONE_REMOTE}:${RCLONE_TARGET_DIR}\"",
+            "echo \"\"",
+            "",
+            "# Prompt for upload",
+            "read -p \"Do you want to upload this artifact? (y/N): \" -n 1 -r",
+            "echo",
+            "echo \"\"",
+            "",
+            "if [[ ! $REPLY =~ ^[Yy]$ ]]; then",
+            "    echo -e \"${YELLOW}Publish cancelled${NC}\"",
+            "    exit 0",
+            "fi",
+            "",
+            "# Navigate to Orchestrix project root",
+            "PROJECT_ROOT=\"/home/mustafa/telcobright-projects/orchestrix\"",
+            "",
+            "if [ ! -d \"$PROJECT_ROOT\" ]; then",
+            "    echo -e \"${RED}Error: Orchestrix project not found at $PROJECT_ROOT${NC}\"",
+            "    exit 1",
+            "fi",
+            "",
+            "cd \"$PROJECT_ROOT\"",
+            "",
+            "# Run Java publish automation via Maven",
+            "echo -e \"${GREEN}Starting publish automation...${NC}\\n\"",
+            "",
+            "mvn exec:java \\",
+            "    -Dexec.mainClass=\"com.telcobright.orchestrix.automation.publish.PublishRunner\" \\",
+            "    -Dexec.args=\"$CONFIG_FILE\"",
+            "",
+            "echo \"\"",
+            "echo -e \"${GREEN}=== Publish Complete ===${NC}\"",
+            ""
+        );
+
+        // Write publish script
+        device.executeCommand("cat > " + publishScriptPath + " << 'EOF'\n" + publishScriptContent + "\nEOF");
+
+        // Make script executable
+        device.executeCommand("chmod +x " + publishScriptPath);
+
+        logger.info("✓ Publish script generated: " + publishScriptPath);
+        logger.info("✓ Publish config generated: " + publishConfigPath);
+        logger.info("");
+        logger.info("To publish the artifact:");
+        logger.info("  1. Ensure rclone is configured: rclone config");
+        logger.info("  2. Run: " + publishScriptPath);
+        logger.info("  3. Script will prompt for upload confirmation");
+        logger.info("  4. Java automation will:");
+        logger.info("     - Create artifact record in DB");
+        logger.info("     - Upload to Google Drive via rclone");
+        logger.info("     - Download and verify MD5 hash");
+        logger.info("     - Update publish record with verification status");
+    }
+
+    /**
+     * @deprecated Use GoIdBuildRunner instead - this main method is deprecated
+     */
+    @Deprecated
     public static void main(String[] args) {
-        try {
-            String configFile = args.length > 0 ? args[0] :
-                "/home/mustafa/telcobright-projects/orchestrix/images/lxc/go-id/build/build.conf";
-
-            GoIdContainerBuilder builder = new GoIdContainerBuilder(configFile);
-            builder.build();
-
-        } catch (Exception e) {
-            Logger.getLogger(GoIdContainerBuilder.class.getName()).severe("Build failed: " + e.getMessage());
-            e.printStackTrace();
-            System.exit(1);
-        }
+        System.err.println("WARNING: This main method is deprecated.");
+        System.err.println("Please use GoIdBuildRunner instead:");
+        System.err.println("  com.telcobright.orchestrix.automation.api.container.lxc.app.goid.example.GoIdBuildRunner");
+        System.exit(1);
     }
 }

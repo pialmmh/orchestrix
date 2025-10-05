@@ -41,10 +41,11 @@ if [ ! -d "target/classes" ]; then
     mvn compile -DskipTests
 fi
 
-# Run Java automation for container build
+# Run Java automation for container build (SSH-based, no ProcessBuilder)
 echo "Running Java automation for Go ID container build..."
-sudo JAVA_HOME=$JAVA_HOME mvn exec:java \
-    -Dexec.mainClass="com.telcobright.orchestrix.automation.api.container.lxc.app.goid.example.GoIdContainerBuilder" \
+echo "NOTE: Running as current user (not sudo) to use SSH authentication"
+JAVA_HOME=$JAVA_HOME mvn exec:java \
+    -Dexec.mainClass="com.telcobright.orchestrix.automation.api.container.lxc.app.goid.example.GoIdBuildRunner" \
     -Dexec.args="$CONFIG_FILE" \
     -Dexec.classpathScope=compile
 

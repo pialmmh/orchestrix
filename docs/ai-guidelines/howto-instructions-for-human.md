@@ -27,7 +27,7 @@ This directory contains specialized AI agents that extend Claude Code with domai
 ### Method 1: Direct Agent Session (Recommended)
 ```bash
 # Navigate to the specific agent directory
-cd /home/mustafa/telcobright-projects/orchestrix/ai-agents/ssh/networking/mikrotik
+cd /home/mustafa/telcobright-projects/orchestrix/ai-guidelines/ssh/networking/mikrotik
 
 # Start Claude Code session
 claude-code
@@ -41,13 +41,13 @@ The agent will automatically load its specialized instructions and context.
 claude-code
 
 # Then in the session:
-"Please act as the MikroTik agent defined in ai-agents/ssh/networking/mikrotik/AGENT_INSTRUCTIONS.md"
+"Please act as the MikroTik agent defined in ai-guidelines/ssh/networking/mikrotik/AGENT_INSTRUCTIONS.md"
 ```
 
 ### Method 3: Agent Parameter (If Supported)
 ```bash
 # From orchestrix root
-claude-code --agent ai-agents/ssh/networking/mikrotik
+claude-code --agent ai-guidelines/ssh/networking/mikrotik
 ```
 
 ## Agent Directory Structure
@@ -64,7 +64,7 @@ ai-agents/
 │           └── history.log             # Session logs (optional)
 ```
 
-Example: `ai-agents/ssh/networking/mikrotik/`
+Example: `ai-guidelines/ssh/networking/mikrotik/`
 
 ## MikroTik Agent Quick Start
 
@@ -75,7 +75,7 @@ Example: `ai-agents/ssh/networking/mikrotik/`
 
 ### Usage Examples
 ```bash
-cd ai-agents/ssh/networking/mikrotik
+cd ai-guidelines/ssh/networking/mikrotik
 claude-code
 
 # In session:
@@ -227,7 +227,7 @@ lxc list
 
 ### MikroTik Network Management Session
 ```bash
-cd ai-agents/ssh/networking/mikrotik
+cd ai-guidelines/ssh/networking/mikrotik
 claude-code
 
 # In session:

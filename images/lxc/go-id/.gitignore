@@ -1,0 +1,6 @@
+# Exclude all versioned build artifacts
+go-id-v.*
+
+# Keep build configuration and templates
+!build/
+!templates/
