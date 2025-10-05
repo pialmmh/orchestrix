@@ -7,7 +7,7 @@ This workflow applies to: **LXC, Docker, Podman, and any container technology**
 ## Overview
 
 Instead of building software **inside** containers, we:
-1. **Build binaries locally** (on build server)
+1. **Build binaries locally** (on build server using `build.sh`)
 2. **Test binaries locally** (automated tests)
 3. **Bundle into minimal containers** (Alpine, distroless)
 
@@ -16,6 +16,16 @@ Instead of building software **inside** containers, we:
 - ⚡ **Faster builds** (no dependency download in container)
 - ✅ **Tested binaries** (known-good before containerization)
 - 🔄 **Reusable** (same binary → multiple container types)
+
+**Quick Start:**
+```bash
+# Step 1: Build binary
+cd images/standalone-binaries/go-id
+./build.sh
+
+# Step 2: Create Alpine container (future automation)
+# Step 3: Deploy
+```
 
 ---
 
@@ -238,14 +248,16 @@ public abstract class BinaryContainerScaffolder {
 ### Step 1: Build Binary (Phase 1)
 
 ```bash
-cd /path/to/orchestrix
+cd images/standalone-binaries/go-id
 
-mvn exec:java \
-  -Dexec.mainClass="com.telcobright.orchestrix.automation.binary.goid.GoIdBinaryBuildRunner" \
-  -Dexec.args="1"
+# Build version 1 (default)
+./build.sh
+
+# Or build specific version
+./build.sh 2
 
 # Result:
-#   ✓ Binary: images/standalone-binaries/go-id/go-id-binary-v.1/go-id
+#   ✓ Binary: go-id-binary-v.1/go-id
 #   ✓ Size: 18.5 MB
 #   ✓ Tests: 5/5 passed
 ```
@@ -305,10 +317,19 @@ Savings: 144 MB (85% reduction!)
 
 ### When User Says: "Build [app] binary"
 
-1. Check if `automation/binary/[app]/` exists
-2. If not, ask: "No builder found. Create one?"
-3. If yes, run builder
+1. Check if `images/standalone-binaries/[app]/build.sh` exists
+2. If not, check if `automation/binary/[app]/` exists
+   - If automation exists, create build.sh wrapper
+   - If not, ask: "No builder found. Create one?"
+3. Run build.sh script
 4. Report results: binary path, size, tests
+
+**Example:**
+```bash
+cd images/standalone-binaries/go-id
+./build.sh          # Build version 1
+./build.sh 2        # Build version 2
+```
 
 ### When User Says: "Scaffold [app] container"
 

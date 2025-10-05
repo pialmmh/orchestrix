@@ -9,7 +9,11 @@ import java.util.logging.Logger;
 /**
  * Runner for building Go-ID binary
  *
- * Usage:
+ * Recommended Usage (via shell script):
+ *   cd images/standalone-binaries/go-id
+ *   ./build.sh 1
+ *
+ * Direct Maven Usage:
  *   mvn exec:java \
  *     -Dexec.mainClass="com.telcobright.orchestrix.automation.binary.goid.GoIdBinaryBuildRunner" \
  *     -Dexec.args="1"
