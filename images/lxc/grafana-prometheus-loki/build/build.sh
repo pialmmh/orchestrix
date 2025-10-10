@@ -1,10 +1,11 @@
 #!/bin/bash
 #
-# Build script for Grafana-Loki Container
+# Build script for Grafana-Prometheus-Loki Container
 # Follows Orchestrix Container Scaffolding Standard v2.0
 #
 # This script builds a Full-Stack Debian container with:
 # - Grafana 10.2.3
+# - Prometheus 2.48.0
 # - Loki 2.9.4
 # - Promtail 2.9.4
 # - BTRFS storage with quota management
@@ -16,7 +17,7 @@ set -e
 # ============================================
 # ABSOLUTE PATHS (Critical for LXC snap)
 # ============================================
-BASE_DIR="/home/mustafa/telcobright-projects/orchestrix/images/lxc/grafana-loki"
+BASE_DIR="/home/mustafa/telcobright-projects/orchestrix/images/lxc/grafana-prometheus-loki"
 SCRIPT_DIR="$BASE_DIR/build"
 TEMPLATES_DIR="$BASE_DIR/templates"
 SCRIPTS_DIR="$BASE_DIR/scripts"
@@ -62,11 +63,12 @@ EXPORT_FILE="${ARTIFACT_DIR}/${CONTAINER_NAME_PREFIX}-v${CONTAINER_VERSION}-${TI
 mkdir -p "$ARTIFACT_DIR"
 
 echo "========================================="
-echo "Building Grafana-Loki Container"
+echo "Building Grafana-Prometheus-Loki Container"
 echo "========================================="
 echo "Version: ${CONTAINER_VERSION}"
 echo "Container: ${CONTAINER_NAME}"
 echo "Grafana: ${GRAFANA_VERSION}"
+echo "Prometheus: ${PROMETHEUS_VERSION}"
 echo "Loki: ${LOKI_VERSION}"
 echo "Storage: ${STORAGE_LOCATION_ID} (${STORAGE_QUOTA_SIZE})"
 echo "Output: ${ARTIFACT_DIR}"
@@ -274,7 +276,55 @@ lxc exec "$CONTAINER_NAME" -- bash -c "wget -q -O /usr/share/keyrings/grafana.ke
 lxc exec "$CONTAINER_NAME" -- bash -c "echo 'deb [signed-by=/usr/share/keyrings/grafana.key] ${GRAFANA_APT_REPO} stable main' > /etc/apt/sources.list.d/grafana.list"
 lxc exec "$CONTAINER_NAME" -- apt-get update
 lxc exec "$CONTAINER_NAME" -- apt-get install -y grafana
-echo "✓ Grafana installed"
+
+# Configure Grafana datasources
+echo "Configuring Grafana datasources..."
+lxc exec "$CONTAINER_NAME" -- mkdir -p /etc/grafana/provisioning/datasources
+lxc exec "$CONTAINER_NAME" -- mkdir -p /etc/grafana/provisioning/dashboards
+
+# Create datasources provisioning file
+lxc exec "$CONTAINER_NAME" -- bash -c "cat > /etc/grafana/provisioning/datasources/datasources.yaml << 'DSEOF'
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://localhost:${PROMETHEUS_PORT}
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: 15s
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://localhost:${LOKI_PORT}
+    editable: true
+    jsonData:
+      maxLines: 1000
+DSEOF"
+
+# Create dashboard provisioning file
+lxc exec "$CONTAINER_NAME" -- bash -c "cat > /etc/grafana/provisioning/dashboards/dashboards.yaml << 'DBEOF'
+apiVersion: 1
+
+providers:
+  - name: 'default'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+DBEOF"
+
+# Copy OmniQueue dashboard
+lxc file push "${SCRIPTS_DIR}/omniqueue-dashboard.json" "$CONTAINER_NAME/etc/grafana/provisioning/dashboards/"
+
+echo "✓ Grafana installed and configured"
 echo ""
 
 # ============================================
@@ -319,6 +369,54 @@ SVCEOF"
 
 lxc exec "$CONTAINER_NAME" -- systemctl daemon-reload
 echo "✓ Loki installed"
+echo ""
+
+# ============================================
+# INSTALL PROMETHEUS
+# ============================================
+echo "Installing Prometheus ${PROMETHEUS_VERSION}..."
+lxc exec "$CONTAINER_NAME" -- mkdir -p "$PROMETHEUS_DATA_DIR" "$PROMETHEUS_CONFIG_DIR"
+lxc exec "$CONTAINER_NAME" -- bash -c "wget -q -O /tmp/prometheus.tar.gz ${PROMETHEUS_DOWNLOAD_URL}"
+lxc exec "$CONTAINER_NAME" -- bash -c "cd /tmp && tar xzf prometheus.tar.gz && cd prometheus-${PROMETHEUS_VERSION}.linux-amd64 && mv prometheus promtool /usr/local/bin/ && mv consoles console_libraries /etc/prometheus/ && rm -rf /tmp/prometheus*"
+
+# Create Prometheus config
+echo "Deploying Prometheus config..."
+cat "${SCRIPTS_DIR}/prometheus.yml" | \
+  sed "s|\${PROMETHEUS_SCRAPE_INTERVAL}|${PROMETHEUS_SCRAPE_INTERVAL}|g" | \
+  sed "s|\${PROMETHEUS_EVALUATION_INTERVAL}|${PROMETHEUS_EVALUATION_INTERVAL}|g" | \
+  sed "s|\${PROMETHEUS_PORT}|${PROMETHEUS_PORT}|g" | \
+  sed "s|\${GRAFANA_PORT}|${GRAFANA_PORT}|g" | \
+  sed "s|\${LOKI_PORT}|${LOKI_PORT}|g" > /tmp/prometheus-config-processed.yml
+
+lxc file push /tmp/prometheus-config-processed.yml "$CONTAINER_NAME${PROMETHEUS_CONFIG_DIR}/prometheus.yml"
+rm /tmp/prometheus-config-processed.yml
+echo "✓ Prometheus config deployed"
+
+# Create Prometheus systemd service
+lxc exec "$CONTAINER_NAME" -- bash -c "cat > /etc/systemd/system/prometheus.service << 'SVCEOF'
+[Unit]
+Description=Prometheus Monitoring System
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/prometheus \
+  --config.file=${PROMETHEUS_CONFIG_DIR}/prometheus.yml \
+  --storage.tsdb.path=${PROMETHEUS_DATA_DIR} \
+  --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME} \
+  --storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE} \
+  --web.listen-address=0.0.0.0:${PROMETHEUS_PORT} \
+  --web.enable-lifecycle
+Restart=always
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF"
+
+lxc exec "$CONTAINER_NAME" -- systemctl daemon-reload
+echo "✓ Prometheus installed"
 echo ""
 
 # ============================================
@@ -378,6 +476,7 @@ echo "Configuring services..."
 
 # Enable services
 lxc exec "$CONTAINER_NAME" -- systemctl enable grafana-server
+lxc exec "$CONTAINER_NAME" -- systemctl enable prometheus
 lxc exec "$CONTAINER_NAME" -- systemctl enable loki
 lxc exec "$CONTAINER_NAME" -- systemctl enable promtail
 
@@ -386,6 +485,8 @@ if [ "$START_SERVICES" = "true" ]; then
     echo "Starting services..."
     lxc exec "$CONTAINER_NAME" -- systemctl start grafana-server
     sleep 5
+    lxc exec "$CONTAINER_NAME" -- systemctl start prometheus
+    sleep 3
     lxc exec "$CONTAINER_NAME" -- systemctl start loki
     sleep 3
     lxc exec "$CONTAINER_NAME" -- systemctl start promtail
@@ -496,6 +597,6 @@ echo "  cd $GENERATED_DIR"
 echo "  ./startDefault.sh"
 echo ""
 echo "Or launch manually:"
-echo "  lxc image import $EXPORT_FILE --alias grafana-loki-v${CONTAINER_VERSION}"
-echo "  lxc launch grafana-loki-v${CONTAINER_VERSION} my-grafana-loki"
+echo "  lxc image import $EXPORT_FILE --alias grafana-prometheus-loki-v${CONTAINER_VERSION}"
+echo "  lxc launch grafana-prometheus-loki-v${CONTAINER_VERSION} my-grafana-prometheus-loki"
 echo "========================================="

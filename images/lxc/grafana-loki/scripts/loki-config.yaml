@@ -1,0 +1,90 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+
+ingester:
+  lifecycler:
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1
+    final_sleep: 0s
+  chunk_idle_period: 5m
+  chunk_retain_period: 30s
+  max_transfer_retries: 0
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: boltdb-shipper
+      object_store: filesystem
+      schema: v11
+      index:
+        prefix: index_
+        period: 24h
+
+storage_config:
+  boltdb_shipper:
+    active_index_directory: ${LOKI_DATA_DIR}/boltdb-shipper-active
+    cache_location: ${LOKI_DATA_DIR}/boltdb-shipper-cache
+    shared_store: filesystem
+  filesystem:
+    directory: ${LOKI_CHUNKS_DIR}
+
+limits_config:
+  # Enforce metric name validation
+  enforce_metric_name: false
+
+  # Reject old samples
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+
+  # Ingestion rate limits
+  ingestion_rate_mb: ${LOKI_INGESTION_RATE_MB}
+  ingestion_burst_size_mb: ${LOKI_INGESTION_BURST_MB}
+
+  # Query limits
+  max_query_length: 721h
+  max_query_lookback: ${LOKI_RETENTION_PERIOD}
+  max_entries_limit_per_query: 10000
+
+  # Label limits (CRITICAL for distributed tracing)
+  # Allow more labels for trace_id, queue_name, event, backend, etc.
+  max_streams_per_user: 0  # Unlimited streams (high cardinality support)
+  max_global_streams_per_user: 0  # Unlimited global streams
+  max_label_names_per_series: 30  # Allow up to 30 labels
+  max_label_value_length: 2048  # Allow long trace IDs
+  max_label_name_length: 1024
+
+  # Chunk limits
+  max_chunks_per_query: 2000000
+  max_query_series: 500
+
+compactor:
+  working_directory: ${LOKI_DATA_DIR}/compactor
+  shared_store: filesystem
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: ${LOKI_RETENTION_DELETE_DELAY}
+  retention_delete_worker_count: 150
+
+chunk_store_config:
+  max_look_back_period: ${LOKI_RETENTION_PERIOD}
+
+table_manager:
+  retention_deletes_enabled: true
+  retention_period: ${LOKI_RETENTION_PERIOD}
+
+# Query frontend for better performance with high-cardinality queries
+query_range:
+  align_queries_with_step: true
+  max_retries: 5
+  cache_results: true
+  results_cache:
+    cache:
+      enable_fifocache: true
+      fifocache:
+        max_size_bytes: 500MB
+        validity: 24h

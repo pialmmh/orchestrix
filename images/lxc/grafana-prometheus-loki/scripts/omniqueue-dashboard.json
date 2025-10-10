@@ -1,0 +1,130 @@
+{
+  "dashboard": {
+    "title": "OmniQueue Distributed Tracing",
+    "tags": ["omniqueue", "distributed-tracing", "logs"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "app",
+          "label": "Application",
+          "type": "query",
+          "datasource": "Loki",
+          "query": "label_values(app)",
+          "multi": false,
+          "includeAll": false,
+          "refresh": 1
+        },
+        {
+          "name": "trace_id",
+          "label": "Trace ID",
+          "type": "query",
+          "datasource": "Loki",
+          "query": "label_values({app=\"$app\"}, trace_id)",
+          "multi": false,
+          "includeAll": false,
+          "refresh": 2
+        },
+        {
+          "name": "queue_name",
+          "label": "Queue Name",
+          "type": "query",
+          "datasource": "Loki",
+          "query": "label_values({app=\"$app\"}, queue_name)",
+          "multi": true,
+          "includeAll": true,
+          "refresh": 1
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "type": "logs",
+        "title": "Trace Journey - ${trace_id}",
+        "gridPos": {"x": 0, "y": 0, "w": 24, "h": 12},
+        "targets": [
+          {
+            "expr": "{app=\"$app\", trace_id=\"$trace_id\"}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "wrapLogMessage": true,
+          "enableLogDetails": true,
+          "sortOrder": "Ascending"
+        }
+      },
+      {
+        "id": 2,
+        "type": "graph",
+        "title": "Queue Event Volume",
+        "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (queue_name, event) (count_over_time({app=\"$app\", queue_name=~\"$queue_name\"}[1m]))",
+            "refId": "A",
+            "legendFormat": "{{queue_name}} - {{event}}"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "type": "stat",
+        "title": "Processing Time (Avg)",
+        "gridPos": {"x": 12, "y": 12, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "avg_over_time({app=\"$app\"} | json | __error__=\"\" | processing_time_ms > 0 [5m])",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "unit": "ms"
+        }
+      },
+      {
+        "id": 4,
+        "type": "stat",
+        "title": "Error Rate",
+        "gridPos": {"x": 18, "y": 12, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(count_over_time({app=\"$app\", level=\"ERROR\"}[5m]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "thresholds": [
+            {"value": 0, "color": "green"},
+            {"value": 10, "color": "yellow"},
+            {"value": 50, "color": "red"}
+          ]
+        }
+      },
+      {
+        "id": 5,
+        "type": "table",
+        "title": "Recent Events by Queue",
+        "gridPos": {"x": 0, "y": 20, "w": 24, "h": 10},
+        "targets": [
+          {
+            "expr": "{app=\"$app\", queue_name=~\"$queue_name\"} | json | line_format \"{{.timestamp}} | {{.queue_name}} | {{.event}} | {{.message}}\"",
+            "refId": "A"
+          }
+        ]
+      }
+    ]
+  },
+  "overwrite": true
+}
