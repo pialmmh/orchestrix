@@ -389,6 +389,14 @@ if [ "$START_SERVICES" = "true" ]; then
     lxc exec "$CONTAINER_NAME" -- systemctl start loki
     sleep 3
     lxc exec "$CONTAINER_NAME" -- systemctl start promtail
+
+    # Import OmniQueue dashboard via Grafana API
+    echo "Importing OmniQueue dashboard..."
+    lxc exec "$CONTAINER_NAME" -- curl -s -X POST -H "Content-Type: application/json" \
+      -d @/etc/grafana/provisioning/dashboards/omniqueue-dashboard.json \
+      http://admin:admin@localhost:3000/api/dashboards/db > /dev/null 2>&1
+    echo "✓ OmniQueue dashboard imported"
+
     echo "✓ Services started"
 fi
 echo ""
