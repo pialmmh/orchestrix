@@ -28,8 +28,12 @@ cleanup() {
 
 trap cleanup SIGINT SIGTERM
 
-# Array to track tunnel PIDs
+# Arrays to track tunnel information
 declare -a TUNNEL_PIDS
+declare -a TUNNEL_NAMES
+declare -a TUNNEL_LOCAL_PORTS
+declare -a TUNNEL_SSH_HOSTS
+declare -a TUNNEL_REMOTE_DESTS
 
 # Check for config file argument or use default
 if [ -z "$1" ]; then
@@ -166,6 +170,10 @@ start_tunnel() {
     # Check if process is still running
     if kill -0 "$TUNNEL_PID" 2>/dev/null; then
         TUNNEL_PIDS+=("$TUNNEL_PID")
+        TUNNEL_NAMES+=("$name")
+        TUNNEL_LOCAL_PORTS+=("$local_port")
+        TUNNEL_SSH_HOSTS+=("$ssh_user@$ssh_addr:$ssh_port")
+        TUNNEL_REMOTE_DESTS+=("$remote_host:$remote_port")
         echo -e "  ${GREEN}✓ Started (PID: $TUNNEL_PID)${NC}"
     else
         echo -e "  ${RED}✗ Failed to start (check SSH credentials/connectivity)${NC}"
@@ -231,29 +239,32 @@ echo -e "${GREEN}✓ $tunnel_count tunnel(s) active${NC}"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 
-# Show active tunnels
-echo "Active SSH Tunnels:"
-echo "-------------------"
-for pid in "${TUNNEL_PIDS[@]}"; do
-    ps -p "$pid" -o args= 2>/dev/null | grep -oE "127.0.0.1:[0-9]+" | sed 's/^/  → /'
+# Show tunnel forwarding summary
+echo "Port Forwarding Summary:"
+echo "───────────────────────────────────────────────────────────────"
+printf "%-20s %-25s → %-30s\n" "Tunnel" "Local" "Remote (via SSH)"
+echo "───────────────────────────────────────────────────────────────"
+for i in "${!TUNNEL_NAMES[@]}"; do
+    local_info="127.0.0.1:${TUNNEL_LOCAL_PORTS[$i]}"
+    ssh_info="${TUNNEL_SSH_HOSTS[$i]}"
+    remote_info="${TUNNEL_REMOTE_DESTS[$i]}"
+    printf "%-20s ${GREEN}%-25s${NC} → ${BLUE}%-30s${NC}\n" "${TUNNEL_NAMES[$i]}" "$local_info" "$remote_info"
+    if [ $i -lt $((${#TUNNEL_NAMES[@]} - 1)) ]; then
+        echo ""
+    fi
 done
-
+echo "───────────────────────────────────────────────────────────────"
 echo ""
-echo "Local Listening Ports:"
-echo "----------------------"
-if command -v netstat &> /dev/null; then
-    netstat -tlnp 2>/dev/null | grep "127.0.0.1:" | grep -E "(ssh|sshpass)" | awk '{print "  → " $4}' || echo "  (Use 'sudo netstat -tlnp' for details)"
-elif command -v ss &> /dev/null; then
-    ss -tlnp 2>/dev/null | grep "127.0.0.1:" | grep -E "(ssh|sshpass)" | awk '{print "  → " $4}' || echo "  (Use 'sudo ss -tlnp' for details)"
-fi
+
+echo "Your applications connect to:"
+for i in "${!TUNNEL_NAMES[@]}"; do
+    echo -e "  ${TUNNEL_NAMES[$i]}: ${GREEN}127.0.0.1:${TUNNEL_LOCAL_PORTS[$i]}${NC}"
+done
 
 echo ""
 echo "════════════════════════════════════════════════════════════════"
 echo -e "${GREEN}Tunnels are running!${NC}"
 echo "════════════════════════════════════════════════════════════════"
-echo ""
-echo "Your applications can now connect to:"
-echo "  → 127.0.0.1:<local-port>"
 echo ""
 echo -e "${YELLOW}Press Ctrl+C to stop all tunnels${NC}"
 echo ""
