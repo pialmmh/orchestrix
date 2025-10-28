@@ -1,0 +1,73 @@
+
+╔════════════════════════════════════════════════════════════════╗
+║                   TUNNEL GATEWAY - FOR DEVELOPERS              ║
+║              Access Remote Services via SSH Tunnels            ║
+╚════════════════════════════════════════════════════════════════╝
+
+📥 DOWNLOAD (2 files)
+─────────────────────────────────────────────────────────────────
+  1. tunnel-gateway-v1-20251028-035621.tar.gz.tar.gz (11 MB)
+  2. install-tunnel-gateway.sh (9 KB)
+
+
+⚡ INSTALL (One command)
+─────────────────────────────────────────────────────────────────
+  chmod +x install-tunnel-gateway.sh
+  ./install-tunnel-gateway.sh
+
+
+❓ WHAT IT ASKS
+─────────────────────────────────────────────────────────────────
+  Container name?     → Press Enter (use default)
+  Container IP?       → Press Enter (use default: 10.10.199.150)
+  
+  For each service to tunnel:
+    Service name?     → Example: mysql-prod
+    Local port?       → Example: 3306
+    SSH host?         → Example: db.production.com  
+    SSH username?     → Example: dbuser
+    Auth type?        → password or key
+    Password/Key?     → Enter your credentials
+    Remote host?      → Usually: localhost
+    Remote port?      → Example: 3306
+  
+  Type "done" when finished adding services
+
+
+✅ USAGE (In your code)
+─────────────────────────────────────────────────────────────────
+  MySQL:    jdbc:mysql://10.10.199.150:3306/mydb
+  Kafka:    bootstrap.servers=10.10.199.150:9092
+  PostgreSQL: jdbc:postgresql://10.10.199.150:5432/mydb
+  Redis:    10.10.199.150:6379
+
+
+🔧 MANAGE
+─────────────────────────────────────────────────────────────────
+  List containers:   sudo lxc list
+  Stop:              sudo lxc stop tunnel-gateway-dev
+  Start:             sudo lxc start tunnel-gateway-dev
+  List tunnels:      sudo lxc exec tunnel-gateway-dev -- \
+                       /usr/local/bin/list-tunnels.sh
+
+
+💡 WHY USE THIS?
+─────────────────────────────────────────────────────────────────
+  ✓ Access production services from home/laptop
+  ✓ No VPN needed
+  ✓ No firewall changes
+  ✓ No IP whitelisting
+  ✓ Works from anywhere
+  ✓ Secure (encrypted via SSH)
+  ✓ Easy setup (2 minutes)
+
+
+📚 MORE INFO
+─────────────────────────────────────────────────────────────────
+  QUICKSTART.md    - Quick reference
+  INSTALL.md       - Detailed installation guide
+  DISTRIBUTION.md  - Distribution methods
+  README.md        - Technical documentation
+
+
+═══════════════════════════════════════════════════════════════════
