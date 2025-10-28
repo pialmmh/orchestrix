@@ -36,10 +36,15 @@
 
 3️⃣  RUN IT
    ───────────────────────────────────────────────────────────
-   ./tunnel-gateway-local.sh local-tunnels.conf
+   # With default config file (local-tunnels.conf):
+   ./tunnel-gateway-local.sh
+
+   # Or specify a custom config:
+   ./tunnel-gateway-local.sh my-custom.conf
 
    Output:
    ════════════════════════════════════════════════════════════
+   Using default config: local-tunnels.conf
    ✓ All dependencies installed
    ✓ Started (PID: 123456)
    ✓ 2 tunnel(s) active

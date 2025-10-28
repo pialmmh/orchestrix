@@ -31,21 +31,34 @@ trap cleanup SIGINT SIGTERM
 # Array to track tunnel PIDs
 declare -a TUNNEL_PIDS
 
-# Check for config file argument
+# Check for config file argument or use default
 if [ -z "$1" ]; then
-    echo -e "${RED}Usage: $0 <config-file>${NC}"
-    echo ""
-    echo "Example: $0 my-tunnels.conf"
-    echo ""
-    echo "The config file should use INI format with tunnel definitions."
-    exit 1
-fi
+    # Use default config file in the same directory as this script
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    CONFIG_FILE="${SCRIPT_DIR}/local-tunnels.conf"
 
-CONFIG_FILE="$1"
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo -e "${RED}No config file specified and default not found${NC}"
+        echo ""
+        echo -e "${YELLOW}Usage: $0 [config-file]${NC}"
+        echo ""
+        echo "Example: $0 my-tunnels.conf"
+        echo ""
+        echo "Default config file: local-tunnels.conf (in same directory)"
+        echo "Expected at: $CONFIG_FILE"
+        echo ""
+        echo "The config file should use INI format with tunnel definitions."
+        exit 1
+    fi
 
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo -e "${RED}Error: Config file '$CONFIG_FILE' not found${NC}"
-    exit 1
+    echo -e "${GREEN}Using default config: local-tunnels.conf${NC}"
+else
+    CONFIG_FILE="$1"
+
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo -e "${RED}Error: Config file '$CONFIG_FILE' not found${NC}"
+        exit 1
+    fi
 fi
 
 echo ""

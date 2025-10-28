@@ -11,7 +11,9 @@ A single bash script that creates SSH tunnels directly on your local Ubuntu mach
 nano local-tunnels.conf
 
 # 2. Run the script
-./tunnel-gateway-local.sh local-tunnels.conf
+./tunnel-gateway-local.sh              # Uses local-tunnels.conf by default
+# OR
+./tunnel-gateway-local.sh my-custom.conf  # Specify custom config
 
 # 3. Keep it running while you need tunnels
 # Press Ctrl+C to stop all tunnels
