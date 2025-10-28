@@ -20,26 +20,57 @@
 ─────────────────────────────────────────────────────────────────
   Container name?     → Press Enter (use default)
   Container IP?       → Press Enter (use default: 10.10.199.150)
-  
+
   For each service to tunnel:
     Service name?     → Example: mysql-prod
     Local port?       → Example: 3306
-    SSH host?         → Example: db.production.com  
+    SSH host?         → Example: db.production.com
     SSH username?     → Example: dbuser
     Auth type?        → password or key
     Password/Key?     → Enter your credentials
     Remote host?      → Usually: localhost
     Remote port?      → Example: 3306
-  
+
   Type "done" when finished adding services
+
+  📝 Creates an INI-style config file with your settings
+
+
+📝 CONFIG FILE FORMAT (INI-style)
+─────────────────────────────────────────────────────────────────
+  CONTAINER_NAME="tunnel-gateway-dev"
+  CONTAINER_IP="10.10.199.150"
+
+  [mysql-prod]
+  sshAddress = db.production.com
+  sshUsername = dbuser
+  sshPassword = your_ssh_password
+  localPort = 3306
+  remoteHost = localhost
+  remotePort = 3306
+  dbUsername = root              # For your app
+  dbPassword = mysql_password    # For your app
+
+  [kafka-prod]
+  sshAddress = kafka.production.com
+  sshUsername = kafkauser
+  sshKeyFile = /keys/kafka_key   # Or use sshPassword
+  localPort = 9092
+  remoteHost = localhost
+  remotePort = 9092
+
+  AUTO_START="true"
 
 
 ✅ USAGE (In your code)
 ─────────────────────────────────────────────────────────────────
-  MySQL:    jdbc:mysql://10.10.199.150:3306/mydb
-  Kafka:    bootstrap.servers=10.10.199.150:9092
+  MySQL:      jdbc:mysql://10.10.199.150:3306/mydb
+  Kafka:      bootstrap.servers=10.10.199.150:9092
   PostgreSQL: jdbc:postgresql://10.10.199.150:5432/mydb
-  Redis:    10.10.199.150:6379
+  Redis:      10.10.199.150:6379
+
+  🔑 All connections go through encrypted SSH tunnels!
+  🔑 Use database credentials (dbUsername/dbPassword) in your app
 
 
 🔧 MANAGE
@@ -47,8 +78,19 @@
   List containers:   sudo lxc list
   Stop:              sudo lxc stop tunnel-gateway-dev
   Start:             sudo lxc start tunnel-gateway-dev
+  Restart:           sudo lxc restart tunnel-gateway-dev
+
   List tunnels:      sudo lxc exec tunnel-gateway-dev -- \
                        /usr/local/bin/list-tunnels.sh
+
+  Stop tunnels:      sudo lxc exec tunnel-gateway-dev -- \
+                       /usr/local/bin/stop-tunnels.sh
+
+  Start tunnels:     sudo lxc exec tunnel-gateway-dev -- \
+                       /usr/local/bin/start-tunnels.sh
+
+  View logs:         sudo lxc exec tunnel-gateway-dev -- \
+                       cat /var/log/tunnel-gateway/startup.log
 
 
 💡 WHY USE THIS?
@@ -60,6 +102,25 @@
   ✓ Works from anywhere
   ✓ Secure (encrypted via SSH)
   ✓ Easy setup (2 minutes)
+  ✓ Clear INI config format
+  ✓ Multiple services in one container
+
+
+🔑 ADVANCED: Manual Configuration
+─────────────────────────────────────────────────────────────────
+  1. Create your own config file (INI format):
+     cp sample.conf my-tunnels.conf
+     nano my-tunnels.conf
+
+  2. Launch manually:
+     cd tunnel-gateway-v.1/generated
+     ./launchTunnelGateway.sh /path/to/my-tunnels.conf
+
+  3. Config supports:
+     - Password auth:  sshPassword = yourpass
+     - Key auth:       sshKeyFile = /path/to/key
+     - Multiple tunnels per container
+     - Custom ports for each service
 
 
 📚 MORE INFO
