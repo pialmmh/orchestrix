@@ -153,16 +153,35 @@ Connection examples:
 
 ## Configuration File
 
-The script generates a configuration file (e.g., `tunnel-gateway-config-20251028-041530.conf`) that you can:
+The script generates a configuration file in INI format (e.g., `tunnel-gateway-config-20251028-041530.conf`) that you can:
 
 - **Reuse** for identical setups on other machines
 - **Modify** for different environments
 - **Version control** with your project
 
+**Configuration Format:** The generated file uses clear INI-style syntax with named parameters:
+```ini
+CONTAINER_NAME="my-dev-tunnels"
+CONTAINER_IP="10.10.199.150"
+
+[mysql-prod]
+sshAddress = db.production.com
+sshUsername = dbadmin
+sshPassword = mypass123
+localPort = 3306
+remoteHost = localhost
+remotePort = 3306
+dbUsername = root
+dbPassword = DbPassword456
+
+AUTO_START="true"
+```
+
 ## Common Use Cases
 
 ### 1. MySQL Development Database
 
+**Interactive Setup:**
 ```
 Service name: mysql-prod
 Local port: 3306
@@ -173,6 +192,17 @@ Remote host: localhost
 Remote port: 3306
 ```
 
+**Generated Configuration:**
+```ini
+[mysql-prod]
+sshAddress = db.production.com
+sshUsername = dbuser
+sshPassword = [your password]
+localPort = 3306
+remoteHost = localhost
+remotePort = 3306
+```
+
 **Usage in your code:**
 ```java
 jdbc:mysql://10.10.199.150:3306/mydb
@@ -180,6 +210,7 @@ jdbc:mysql://10.10.199.150:3306/mydb
 
 ### 2. Kafka Development Cluster
 
+**Interactive Setup:**
 ```
 Service name: kafka-staging
 Local port: 9092
@@ -189,6 +220,17 @@ Auth: key
 Key path: /home/user/.ssh/kafka_key
 Remote host: localhost
 Remote port: 9092
+```
+
+**Generated Configuration:**
+```ini
+[kafka-staging]
+sshAddress = kafka.staging.com
+sshUsername = kafkauser
+sshKeyFile = /home/user/.ssh/kafka_key
+localPort = 9092
+remoteHost = localhost
+remotePort = 9092
 ```
 
 **Usage in your code:**

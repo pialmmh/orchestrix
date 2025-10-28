@@ -90,51 +90,102 @@ if [ ! -f /etc/tunnel-gateway/tunnels.conf ]; then
     exit 0
 fi
 
-source /etc/tunnel-gateway/tunnels.conf
-
 echo "Starting SSH tunnels..."
 echo "======================"
 
-# Start each tunnel
-for tunnel_def in "${TUNNELS[@]}"; do
-    IFS=':' read -r name local_port ssh_host ssh_user auth_type auth_value remote_host remote_port <<< "$tunnel_def"
+# Function to start a tunnel
+start_tunnel() {
+    local name="${tunnel[name]}"
+    local ssh_addr="${tunnel[sshAddress]}"
+    local ssh_user="${tunnel[sshUsername]}"
+    local ssh_pass="${tunnel[sshPassword]}"
+    local ssh_key="${tunnel[sshKeyFile]}"
+    local ssh_port="${tunnel[sshPort]:-22}"
+    local local_port="${tunnel[localPort]}"
+    local remote_host="${tunnel[remoteHost]:-localhost}"
+    local remote_port="${tunnel[remotePort]}"
 
+    # Validate required fields
+    if [ -z "$ssh_addr" ] || [ -z "$ssh_user" ] || [ -z "$local_port" ] || [ -z "$remote_port" ]; then
+        echo "  Error: Missing required fields for tunnel '\''$name'\''"
+        return 1
+    fi
+
+    echo ""
     echo "Starting tunnel: $name"
-    echo "  Local: 0.0.0.0:$local_port -> SSH: $ssh_user@$ssh_host -> Remote: $remote_host:$remote_port"
+    echo "  SSH: $ssh_user@$ssh_addr:$ssh_port"
+    echo "  Forward: 0.0.0.0:$local_port -> $remote_host:$remote_port"
 
-    if [ "$auth_type" = "PASSWORD" ]; then
-        # Password authentication - uses ssh -f
-        sshpass -p "$auth_value" ssh -f -N \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=3 \
-            -o LogLevel=ERROR \
-            -L 0.0.0.0:${local_port}:${remote_host}:${remote_port} \
-            ${ssh_user}@${ssh_host}
-    elif [ "$auth_type" = "KEY" ]; then
-        # Key authentication - uses autossh for auto-reconnection
-        autossh -M 0 -f -N \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=3 \
-            -o LogLevel=ERROR \
-            -i "$auth_value" \
-            -L 0.0.0.0:${local_port}:${remote_host}:${remote_port} \
-            ${ssh_user}@${ssh_host}
+    # Build SSH command
+    local ssh_opts="-f -N -p $ssh_port"
+    ssh_opts="$ssh_opts -o StrictHostKeyChecking=no"
+    ssh_opts="$ssh_opts -o UserKnownHostsFile=/dev/null"
+    ssh_opts="$ssh_opts -o ServerAliveInterval=30"
+    ssh_opts="$ssh_opts -o ServerAliveCountMax=3"
+    ssh_opts="$ssh_opts -o LogLevel=ERROR"
+    ssh_opts="$ssh_opts -L 0.0.0.0:${local_port}:${remote_host}:${remote_port}"
+
+    # Start tunnel with appropriate auth
+    if [ -n "$ssh_key" ]; then
+        # Key authentication
+        ssh $ssh_opts -i "$ssh_key" "${ssh_user}@${ssh_addr}"
+    elif [ -n "$ssh_pass" ]; then
+        # Password authentication
+        sshpass -p "$ssh_pass" ssh $ssh_opts "${ssh_user}@${ssh_addr}"
     else
-        echo "  Error: Unknown auth type: $auth_type"
+        echo "  Error: No authentication method specified (need sshPassword or sshKeyFile)"
+        return 1
+    fi
+
+    echo "  ✓ Started"
+}
+
+# Parse INI file and start tunnels
+current_section=""
+declare -A tunnel
+
+while IFS= read -r line || [ -n "$line" ]; do
+    # Skip comments and empty lines
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ -z "${line// }" ]] && continue
+
+    # Check for section header [name]
+    if [[ "$line" =~ ^\[(.*)\]$ ]]; then
+        # If we have a previous tunnel, start it
+        if [ -n "$current_section" ]; then
+            start_tunnel
+        fi
+
+        # Start new section
+        current_section="${BASH_REMATCH[1]}"
+        unset tunnel
+        declare -A tunnel
+        tunnel[name]="$current_section"
         continue
     fi
 
-    echo "  Started successfully"
-done
+    # Parse key = value
+    if [[ "$line" =~ ^[[:space:]]*([^=]+)[[:space:]]*=[[:space:]]*(.*)$ ]]; then
+        key="${BASH_REMATCH[1]// }"
+        value="${BASH_REMATCH[2]}"
+        # Remove trailing comments
+        value="${value%% #*}"
+        # Trim whitespace
+        value="${value## }"
+        value="${value%% }"
+        tunnel[$key]="$value"
+    fi
+done < /etc/tunnel-gateway/tunnels.conf
+
+# Start the last tunnel
+if [ -n "$current_section" ]; then
+    start_tunnel
+fi
 
 echo ""
 echo "All tunnels started"
-echo "Tunnel processes:"
-ps aux | grep -E "(autossh|ssh.*ServerAlive)" | grep -v grep
+echo "Active SSH processes:"
+ps aux | grep -E "ssh.*ServerAlive" | grep -v grep | grep -v "start-tunnels"
 EOF
 '
 

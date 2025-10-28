@@ -57,45 +57,107 @@ nano my-tunnels.conf  # Edit tunnel definitions
 
 ## Configuration Format
 
-Edit `sample.conf`:
+Edit `sample.conf` using INI-style format:
 
-```bash
+```ini
 # Container settings
 CONTAINER_NAME="tunnel-gateway-dev"
 CONTAINER_IP="10.10.199.150"
 
-# Tunnel definitions
-# Format: NAME:LOCAL_PORT:SSH_HOST:SSH_USER:AUTH_TYPE:AUTH_VALUE:REMOTE_HOST:REMOTE_PORT
+# Each [section] defines one tunnel with named parameters
+[mysql-prod]
+# SSH Connection (creates the tunnel)
+sshAddress = db.prod.com
+sshUsername = dbadmin
+sshPassword = mypass123
+# sshPort = 22                   # Optional, default 22
 
-TUNNELS=(
-    # MySQL with password
-    "mysql-prod:3306:db.prod.com:dbadmin:PASSWORD:mypass123:localhost:3306"
+# Tunnel Configuration
+localPort = 3306                 # Port on THIS container
+remoteHost = localhost           # Target from SSH server's perspective
+remotePort = 3306                # MySQL port on target
 
-    # Kafka with SSH key
-    "kafka:9092:kafka.prod.com:kafkauser:KEY:/keys/kafka_key:localhost:9092"
+# Database Credentials (for documentation - use these in your app)
+dbUsername = root
+dbPassword = DbPassword456
+dbName = production_db
 
-    # PostgreSQL with password
-    "postgres:5432:pg.staging.com:pguser:PASSWORD:pgpass456:localhost:5432"
-)
+# Your app connects to:
+#   JDBC: jdbc:mysql://10.10.199.150:3306/production_db
+#   Username: root
+#   Password: DbPassword456
+
+
+[kafka-prod]
+# SSH Connection (using key authentication)
+sshAddress = kafka.prod.com
+sshUsername = kafkauser
+sshKeyFile = /keys/kafka_key
+sshPort = 22
+
+# Tunnel Configuration
+localPort = 9092
+remoteHost = localhost
+remotePort = 9092
+
+# Kafka Configuration (for documentation)
+kafkaBootstrapServers = 10.10.199.150:9092
+
+
+[postgres-staging]
+# SSH Connection
+sshAddress = pg.staging.com
+sshUsername = pguser
+sshPassword = pgpass456
+
+# Tunnel Configuration
+localPort = 5432
+remoteHost = localhost
+remotePort = 5432
+
+# Database Credentials
+dbUsername = postgres
+dbPassword = PostgresPass123
+dbName = staging_db
 
 # Optional SSH key mounts
 BIND_MOUNTS=(
     "/home/mustafa/.ssh:/keys:ro"
 )
+
+# Auto-start tunnels on container boot
+AUTO_START="true"
 ```
 
-## Tunnel Definition Fields
+## Configuration Parameters
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| **NAME** | Tunnel identifier | `mysql-prod` |
-| **LOCAL_PORT** | Port container listens on | `3306` |
-| **SSH_HOST** | SSH server address | `db.example.com` |
-| **SSH_USER** | SSH username | `dbadmin` |
-| **AUTH_TYPE** | `PASSWORD` or `KEY` | `PASSWORD` |
-| **AUTH_VALUE** | Password or key path | `mypass123` or `/keys/id_rsa` |
-| **REMOTE_HOST** | Target host (via SSH) | `localhost` |
-| **REMOTE_PORT** | Target port | `3306` |
+### SSH Connection Parameters
+| Parameter | Required | Description | Example |
+|-----------|----------|-------------|---------|
+| **sshAddress** | Yes | SSH server address | `db.example.com` |
+| **sshUsername** | Yes | SSH username | `dbadmin` |
+| **sshPassword** | Either* | SSH password | `mypass123` |
+| **sshKeyFile** | Either* | Path to SSH key | `/keys/id_rsa` |
+| **sshPort** | No | SSH port (default 22) | `2222` |
+
+*Either password or key file is required
+
+### Tunnel Parameters
+| Parameter | Required | Description | Example |
+|-----------|----------|-------------|---------|
+| **localPort** | Yes | Port container listens on | `3306` |
+| **remoteHost** | No | Target host (default localhost) | `localhost` |
+| **remotePort** | Yes | Target port | `3306` |
+
+### Service Credentials (Documentation)
+These parameters are for **your reference** - they document the credentials your application will use to connect to the service through the tunnel:
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| **dbUsername** | Database username | `root` |
+| **dbPassword** | Database password | `DbPassword456` |
+| **dbName** | Database name | `production_db` |
+| **kafkaBootstrapServers** | Kafka connection string | `10.10.199.150:9092` |
 
 ## Building the Image
 
@@ -199,10 +261,17 @@ const client = new Client({
 
 ### Password Authentication
 
-```bash
-TUNNELS=(
-    "mysql:3306:db.example.com:user:PASSWORD:mypassword:localhost:3306"
-)
+```ini
+[mysql-prod]
+# SSH Connection with password
+sshAddress = db.example.com
+sshUsername = user
+sshPassword = mypassword
+
+# Tunnel Configuration
+localPort = 3306
+remoteHost = localhost
+remotePort = 3306
 ```
 
 **Note:** Passwords are stored in plaintext in config file. Ensure proper file permissions:
@@ -212,16 +281,23 @@ chmod 600 sample.conf
 
 ### SSH Key Authentication
 
-```bash
+```ini
 # 1. Mount SSH keys into container
 BIND_MOUNTS=(
     "/home/mustafa/.ssh:/keys:ro"
 )
 
-# 2. Reference key in tunnel definition
-TUNNELS=(
-    "mysql:3306:db.example.com:user:KEY:/keys/id_rsa:localhost:3306"
-)
+# 2. Configure tunnel with key file
+[mysql-prod]
+# SSH Connection with key authentication
+sshAddress = db.example.com
+sshUsername = user
+sshKeyFile = /keys/id_rsa
+
+# Tunnel Configuration
+localPort = 3306
+remoteHost = localhost
+remotePort = 3306
 ```
 
 **SSH Key Requirements:**
