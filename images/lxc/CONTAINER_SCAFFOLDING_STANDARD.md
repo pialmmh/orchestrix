@@ -29,10 +29,17 @@ images/lxc/[container-name]/
 │
 ├── [container-name]-v.[version]/  # VERSIONED OUTPUT (Generated)
 │   └── generated/                 # Generated files
+│       ├── artifact/              # Exported container artifacts
+│       │   └── *.tar.gz          # Built container images
+│       ├── deployments/           # Deployment configurations
+│       │   ├── deploy-from-published.sh  # Deploy from remote
+│       │   ├── published-v.X.yml  # Published deployment config
+│       │   ├── local-*.yml        # Local deployment configs
+│       │   └── production-*.yml   # Production configs
+│       ├── publish.sh             # Symlink to generic publisher
 │       ├── launch.sh              # Launch script
 │       ├── sample.conf            # Sample configuration
-│       ├── README-v.X.md          # Version documentation
-│       └── *.tar.gz              # Exported container
+│       └── README-v.X.md          # Version documentation
 │
 ├── README.md                       # Container documentation
 ├── startDefault.sh                 # Quick start script
@@ -193,10 +200,24 @@ GENERATED_DIR="${CONTAINER_DIR}/${CONTAINER_NAME}/generated"
 # - Create BTRFS snapshot
 
 # 8. GENERATE OUTPUTS
-mkdir -p "${GENERATED_DIR}"
+mkdir -p "${GENERATED_DIR}/artifact"
+mkdir -p "${GENERATED_DIR}/deployments"
+
+# - Move exported artifact to artifact/
+mv "${EXPORT_PATH}/${CONTAINER_NAME}-*.tar.gz" "${GENERATED_DIR}/artifact/"
+
 # - Generate launch.sh
 # - Generate sample.conf
 # - Generate README-v.X.md
+
+# - Create publish.sh symlink
+ln -sf /path/to/orchestrix/automation/scripts/publish.sh "${GENERATED_DIR}/publish.sh"
+
+# - Generate deployment scripts
+#   - deploy-from-published.sh
+#   - published-v.X.yml
+#   - local-*.yml
+#   - production-*.yml
 ```
 
 ## Storage Requirements File (storage-requirements.conf)
@@ -260,12 +281,144 @@ After build, the following structure is created:
 ```
 [container-name]-v.[version]/
 └── generated/
+    ├── artifact/           # EXPORTED ARTIFACTS
+    │   └── [name]-v.X-[timestamp].tar.gz  # Built container image
+    │
+    ├── deployments/        # DEPLOYMENT CONFIGURATIONS
+    │   ├── deploy-from-published.sh       # Deploy from published remote
+    │   ├── published-v.X.yml              # Published artifact deployment
+    │   ├── local-single.yml               # Local single instance
+    │   ├── local-3node-cluster.yml        # Local multi-instance
+    │   ├── production-cluster.yml         # Production deployment
+    │   └── ssh-remote-cluster.yml         # SSH remote deployment
+    │
+    ├── publish.sh          # Symlink to /automation/scripts/publish.sh
     ├── launch.sh           # Auto-generated launch script
     ├── sample.conf         # Configuration template
-    ├── README-v.X.md       # Version-specific docs
-    └── exports/
-        └── [name]-v.X-[timestamp].tar.gz
+    └── README-v.X.md       # Version-specific docs
 ```
+
+## Publish and Deployment Workflow
+
+### Phase 1: Build (SCAFFOLD)
+```bash
+cd images/lxc/[container-name]
+./build/build.sh
+# Output: [container-name]-v.X/generated/artifact/[name]-v.X-[timestamp].tar.gz
+```
+
+### Phase 2: Publish (MANDATORY before deployment)
+```bash
+cd [container-name]-v.X/generated
+./publish.sh artifact/[name]-v.X-*.tar.gz
+
+# This uses the reusable Java automation:
+# - Uploads to all enabled publish nodes (e.g., Google Drive via rclone)
+# - Maintains directory structure: orchestrix/images/lxc/[container]/...
+# - Tracks in database with publish_id
+# - Returns: PUB_[NAME]_[VERSION]_[TIMESTAMP]
+```
+
+### Phase 3: Deploy (From published artifact)
+```bash
+cd deployments/
+./deploy-from-published.sh
+
+# This script:
+# - Queries database for latest published artifact
+# - Downloads from rclone remote (e.g., Google Drive)
+# - Imports image to LXC
+# - Deploys containers based on YAML configuration
+```
+
+### Reusable Publish Automation
+
+**Location**: `/home/mustafa/telcobright-projects/orchestrix/automation/api/publish/ArtifactPublishManager.java`
+
+**Usage** (works for ANY container):
+```bash
+# Publish any container artifact
+/path/to/orchestrix/automation/scripts/publish.sh \
+    /path/to/images/lxc/[container]/generated/artifact/*.tar.gz
+
+# The automation automatically:
+# 1. Extracts metadata from path (container name, version)
+# 2. Queries enabled publish_nodes from database
+# 3. Uploads to all enabled nodes maintaining directory structure
+# 4. Tracks publish_id in artifact_publications table
+# 5. Returns publish_id for deployment YAML
+```
+
+### Database-Driven Publishing
+
+**Tables**:
+1. **publish_nodes** - Inventory of publish destinations
+   - Controls which remotes to publish to via `enabled` flag
+   - Currently enabled: `GDRIVE_PIALMMHTB` (pialmmhtb Google Drive)
+
+2. **artifact_publications** - Main publication records
+   - One record per publish with unique publish_id
+   - References artifact metadata
+
+3. **artifact_publish_locations** - Location tracking
+   - Multiple records per publication (one per enabled node)
+   - Stores rclone URLs, status, download counts
+
+### Deployment YAML Format
+
+All deployment configs in `generated/deployments/` must follow:
+
+```yaml
+deployment:
+  name: "[container-name]-published"
+  type: "multi-instance"  # or "single"
+  environment: "production"
+
+# PUBLISHED ARTIFACT (mandatory)
+artifact:
+  source: "published"  # ONLY valid value
+  publish_id: "PUB_[NAME]_[VERSION]_YYYYMMDD_HHMMSS"
+
+  # System auto-fetches from database:
+  # - artifact_name, version, checksum
+  # - publish_url from artifact_publish_locations
+
+terminal:
+  type: "ssh"  # or "local", "telnet"
+  connection:
+    host: "10.0.1.100"
+    user: "deploy"
+    auth_method: "key"
+    ssh_key: "~/.ssh/deploy_key"
+
+targets:
+  - instances:
+      - name: "[container]-node-1"
+        params:
+          memory: "256MB"
+          cpu: "1"
+```
+
+### Standard Deployment Scripts
+
+Each container's `generated/deployments/` folder MUST contain:
+
+1. **deploy-from-published.sh** - Deploys from published remote
+   - Queries database for publish_id
+   - Downloads via rclone
+   - Imports and deploys
+
+2. **published-v.X.yml** - Published artifact deployment config
+   - Uses publish_id from publish.sh output
+   - For production deployments
+
+3. **local-*.yml** - Local testing configs
+   - Uses local artifact path (for development only)
+   - NOT for production
+
+4. **production-*.yml** - Production configs
+   - Always uses published artifacts
+   - SSH-based remote deployment
 
 ## Sample Configuration (generated/sample.conf)
 
@@ -364,8 +517,15 @@ For existing containers:
 - [ ] Create `storage-requirements.conf`
 - [ ] Create `versions.conf`
 - [ ] Update to generate outputs in `generated/`
+- [ ] Create `generated/artifact/` folder for exports
+- [ ] Create `generated/deployments/` folder for configs
+- [ ] Create `publish.sh` symlink in generated/
+- [ ] Generate `deploy-from-published.sh` in deployments/
+- [ ] Generate deployment YAML files in deployments/
 - [ ] Test quota enforcement
 - [ ] Test rotation at 80%
+- [ ] Test publish workflow
+- [ ] Test deploy from published remote
 
 ## Validation Script
 
@@ -446,11 +606,15 @@ All containers MUST:
 1. ✅ Use BTRFS storage with quotas
 2. ✅ Include storage monitoring
 3. ✅ Follow `build/` folder structure
-4. ✅ Generate outputs in `generated/`
-5. ✅ Support versioning
-6. ✅ Include rotation at 80%
-7. ✅ Document storage requirements
-8. ✅ Pass all testing requirements
+4. ✅ Generate outputs in `generated/artifact/`
+5. ✅ Generate deployment configs in `generated/deployments/`
+6. ✅ Support versioning
+7. ✅ Include rotation at 80%
+8. ✅ Document storage requirements
+9. ✅ Pass all testing requirements
+10. ✅ Include `publish.sh` symlink in generated/
+11. ✅ Include `deploy-from-published.sh` in deployments/
+12. ✅ Use published artifacts for all production deployments
 
 ## References
 

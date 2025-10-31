@@ -1,0 +1,69 @@
+# ============================================
+# Quarkus Runtime Container Build Configuration
+# ============================================
+# PRESET: routesphere (300 TPS SMS Processing)
+
+# ============================================
+# APPLICATION IDENTITY
+# ============================================
+APP_NAME="routesphere"
+CONTAINER_VERSION="1"
+CONTAINER_NAME_PREFIX="${APP_NAME}"
+
+# ============================================
+# APPLICATION JAR LOCATION
+# ============================================
+# IMPORTANT: Update this path after building your JAR
+APP_JAR_PATH="/home/mustafa/telcobright-projects/routesphere/target/routesphere-1.0.0.jar"
+
+# ============================================
+# RESOURCE LIMITS (High - for 300 TPS processing)
+# ============================================
+MEMORY_LIMIT="4GB"
+CPU_LIMIT="4"
+
+# ============================================
+# STORAGE CONFIGURATION
+# ============================================
+STORAGE_LOCATION_ID="btrfs_local_main"
+STORAGE_QUOTA_SIZE="20G"
+STORAGE_QUOTA_ENABLED="false"
+STORAGE_COMPRESSION="true"
+STORAGE_MONITOR_ENABLED="false"
+
+# ============================================
+# NETWORK CONFIGURATION
+# ============================================
+NETWORK_BRIDGE="lxdbr0"
+APP_PORT="8082"
+PROMTAIL_PORT="9080"
+
+# ============================================
+# JAVA CONFIGURATION (Optimized for high throughput)
+# ============================================
+JAVA_VERSION="21"
+JVM_OPTS="-Xms1g -Xmx3g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:ParallelGCThreads=4"
+
+# ============================================
+# LOGGING CONFIGURATION
+# ============================================
+PROMTAIL_VERSION="2.9.4"
+LOKI_HOST="10.10.199.200"  # grafana-loki-v1
+LOKI_PORT="3100"
+LOG_LEVEL="INFO"
+LOG_FILE_PATH="/var/log/${APP_NAME}"
+LOG_FORMAT="json"
+
+# ============================================
+# OPTIONAL SERVICES
+# ============================================
+CONSUL_ENABLED="false"
+CONSUL_HOST="localhost"
+CONSUL_PORT="8500"
+
+# ============================================
+# BUILD OPTIONS
+# ============================================
+BASE_IMAGE="images:debian/12"
+EXPORT_CONTAINER="true"
+CREATE_SNAPSHOT="false"

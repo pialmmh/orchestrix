@@ -1,0 +1,79 @@
+# ============================================
+# Quarkus Runtime Container Build Configuration
+# ============================================
+# PRESET: infinite-scheduler (Minimal Job Scheduler)
+
+# ============================================
+# APPLICATION IDENTITY
+# ============================================
+APP_NAME="infinite-scheduler"
+CONTAINER_VERSION="1"
+CONTAINER_NAME_PREFIX="${APP_NAME}"
+
+# ============================================
+# APPLICATION JAR LOCATION
+# ============================================
+# IMPORTANT: Update this path after building your JAR
+APP_JAR_PATH="/home/mustafa/telcobright-projects/routesphere/infinite-scheduler/target/infinite-scheduler-1.0.0.jar"
+
+# ============================================
+# RESOURCE LIMITS (Minimal - for lightweight scheduler)
+# ============================================
+MEMORY_LIMIT="1GB"
+CPU_LIMIT="2"
+
+# ============================================
+# STORAGE CONFIGURATION
+# ============================================
+STORAGE_LOCATION_ID="btrfs_local_main"
+STORAGE_QUOTA_SIZE="5G"
+STORAGE_QUOTA_ENABLED="false"
+STORAGE_COMPRESSION="true"
+STORAGE_MONITOR_ENABLED="false"
+
+# ============================================
+# NETWORK CONFIGURATION
+# ============================================
+NETWORK_BRIDGE="lxdbr0"
+APP_PORT="8081"
+PROMTAIL_PORT="9080"
+
+# ============================================
+# JAVA CONFIGURATION (Optimized for minimal scheduler)
+# ============================================
+JAVA_VERSION="21"
+JVM_OPTS="-Xms256m -Xmx768m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+
+# ============================================
+# LOGGING CONFIGURATION
+# ============================================
+PROMTAIL_VERSION="2.9.4"
+LOKI_HOST="10.10.199.200"  # grafana-loki-v1
+LOKI_PORT="3100"
+LOG_LEVEL="INFO"
+LOG_FILE_PATH="/var/log/${APP_NAME}"
+LOG_FORMAT="json"
+
+# ============================================
+# OPTIONAL SERVICES
+# ============================================
+CONSUL_ENABLED="false"
+CONSUL_HOST="localhost"
+CONSUL_PORT="8500"
+
+# ============================================
+# LOG ROTATION
+# ============================================
+LOG_ROTATE_ENABLED="true"
+LOG_ROTATE_MAX_SIZE="1G"
+LOG_ROTATE_MAX_AGE="7"
+LOG_ROTATE_MAX_FILES="10"
+LOG_ROTATE_COMPRESS="true"
+LOG_ROTATE_SCHEDULE="daily"
+
+# ============================================
+# BUILD OPTIONS
+# ============================================
+BASE_IMAGE="local:quarkus-base-v1"
+EXPORT_CONTAINER="true"
+CREATE_SNAPSHOT="false"
