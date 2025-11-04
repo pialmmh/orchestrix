@@ -33,7 +33,7 @@ python3 scaffold-container.py redis-cache --type service --trigger-build
 ### Step 2: What the Script Does
 1. **Creates Directory Structure**:
    ```
-   images/lxc/[container-name]/
+   images/containers/lxc/[container-name]/
    ├── build[ContainerName].sh
    ├── launch[ContainerName].sh
    ├── build[ContainerName]Config.cnf
@@ -94,14 +94,14 @@ After completion, provide:
 ```
 ✅ Container scaffolded successfully!
 
-📁 Structure created at: /home/mustafa/telcobright-projects/orchestrix/images/lxc/[container-name]/
+📁 Structure created at: /home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/[container-name]/
 
 🔧 Jenkins job created: [container-name]-builder
 📎 Jenkins URL: http://172.82.66.90:8080/job/[container-name]-builder
 
 To build the container:
 1. Via Jenkins UI: Click "Build Now" in Jenkins
-2. Locally: cd images/lxc/[container-name] && sudo ./build[Name].sh
+2. Locally: cd images/containers/lxc/[container-name] && sudo ./build[Name].sh
 
 Quick start after build:
 sudo ./startDefault.sh

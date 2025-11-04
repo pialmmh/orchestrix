@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loki Logs - Quarkus Hello</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #4ec9b0;
+        }
+
+        .log-entry {
+            padding: 8px 12px;
+            border-bottom: 1px solid #333;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .log-entry:hover {
+            background: #252525;
+        }
+
+        .timestamp {
+            color: #858585;
+            margin-right: 10px;
+        }
+
+        .level {
+            margin-right: 10px;
+            font-weight: bold;
+            display: inline-block;
+            width: 50px;
+        }
+
+        .level-INFO { color: #4ec9b0; }
+        .level-WARN { color: #dcdcaa; }
+        .level-ERROR { color: #f48771; }
+        .level-DEBUG { color: #858585; }
+
+        .message {
+            color: #d4d4d4;
+        }
+
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .pagination button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: monospace;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #1177bb;
+        }
+
+        .pagination button:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            display: inline-block;
+            margin: 0 20px;
+            color: #858585;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #858585;
+        }
+
+        .error {
+            color: #f48771;
+            padding: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Quarkus Hello - Application Logs</h1>
+
+        <div id="logs"></div>
+
+        <div class="pagination">
+            <button id="prevBtn" onclick="previousPage()">◀ Previous</button>
+            <span class="page-info" id="pageInfo">Page 1</span>
+            <button id="nextBtn" onclick="nextPage()">Next ▶</button>
+        </div>
+    </div>
+
+    <script>
+        const LOKI_URL = 'http://10.10.199.200:3100';
+        const LOGS_PER_PAGE = 20;
+        let currentPage = 1;
+        let allLogs = [];
+
+        async function fetchLogs() {
+            try {
+                document.getElementById('logs').innerHTML = '<div class="loading">Loading logs...</div>';
+
+                // Query for last 1000 logs to enable pagination
+                const query = encodeURIComponent('{job="quarkus-hello"}');
+                const url = `${LOKI_URL}/loki/api/v1/query_range?query=${query}&limit=1000`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.status === 'success' && data.data.result.length > 0) {
+                    // Parse all log entries
+                    allLogs = [];
+                    const values = data.data.result[0].values;
+
+                    values.forEach(entry => {
+                        try {
+                            const logJson = JSON.parse(entry[1]);
+                            allLogs.push({
+                                timestamp: logJson.timestamp || entry[0],
+                                level: logJson.level || 'INFO',
+                                message: logJson.message || entry[1]
+                            });
+                        } catch (e) {
+                            // If not JSON, use raw message
+                            allLogs.push({
+                                timestamp: entry[0],
+                                level: 'INFO',
+                                message: entry[1]
+                            });
+                        }
+                    });
+
+                    // Reverse to show latest first
+                    allLogs.reverse();
+
+                    // Reset to page 1
+                    currentPage = 1;
+                    renderPage();
+                } else {
+                    document.getElementById('logs').innerHTML = '<div class="error">No logs found</div>';
+                }
+            } catch (error) {
+                document.getElementById('logs').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        function renderPage() {
+            const start = (currentPage - 1) * LOGS_PER_PAGE;
+            const end = start + LOGS_PER_PAGE;
+            const pageLogs = allLogs.slice(start, end);
+
+            let html = '';
+            pageLogs.forEach(log => {
+                const time = new Date(log.timestamp).toLocaleString();
+                html += `
+                    <div class="log-entry">
+                        <span class="timestamp">${time}</span>
+                        <span class="level level-${log.level}">${log.level}</span>
+                        <span class="message">${escapeHtml(log.message)}</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('logs').innerHTML = html || '<div class="error">No logs on this page</div>';
+
+            // Update pagination
+            const totalPages = Math.ceil(allLogs.length / LOGS_PER_PAGE);
+            document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages} (${allLogs.length} logs)`;
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+        }
+
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderPage();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(allLogs.length / LOGS_PER_PAGE);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderPage();
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initial load
+        fetchLogs();
+
+        // Auto-refresh every 30 seconds
+        setInterval(fetchLogs, 30000);
+    </script>
+</body>
+</html>

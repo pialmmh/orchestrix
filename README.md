@@ -35,7 +35,9 @@ orchestrix/
 │   │   ├── services/        # API services
 │   │   └── pages/           # UI components
 │   └── debug-store/         # WebSocket debug server
-└── images/lxc/              # LXC container configs
+└── images/containers/       # Container configurations
+    ├── lxc/                 # LXC container configs
+    └── docker/              # Docker compose stacks
 ```
 
 ### Technology Stack

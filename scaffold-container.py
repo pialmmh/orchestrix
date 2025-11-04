@@ -21,7 +21,7 @@ class ContainerScaffolder:
         self.jenkins_url = self.config['jenkins']['server']['url']
         self.jenkins_user = self.config['jenkins']['auth']['username']
         self.jenkins_token = self.config['jenkins']['auth']['api_token']
-        self.base_path = Path('/home/mustafa/telcobright-projects/orchestrix/images/lxc')
+        self.base_path = Path('/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc')
         
     def load_config(self, config_file):
         """Load Jenkins configuration"""

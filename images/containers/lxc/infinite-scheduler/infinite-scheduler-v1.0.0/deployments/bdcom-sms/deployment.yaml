@@ -1,0 +1,67 @@
+# Deployment Configuration for infinite-scheduler
+# BDCOM SMS Application VM
+
+deployment:
+  name: bdcom-sms
+  version: 1.0.0
+  environment: production
+
+server:
+  host: 10.255.246.173
+  port: 15605
+  user: bdcom
+  password: M6nthDNrxcYfPQLu
+  os: Ubuntu 22.04.5 LTS
+  specs:
+    vcpu: 8
+    ram: 16GB
+    ssd: 500GB
+
+application:
+  name: infinite-scheduler
+  jar_file: infinite-scheduler-1.0.0.jar
+  install_path: /opt/infinite-scheduler
+
+directories:
+  app: /opt/infinite-scheduler/app
+  config: /opt/infinite-scheduler/config
+  logs: /opt/infinite-scheduler/logs
+  bin: /opt/infinite-scheduler/bin
+
+jvm:
+  min_heap: 512m
+  max_heap: 2048m
+  gc: G1GC
+  max_gc_pause: 200ms
+  debug_port: 5005
+
+ports:
+  application: 7070
+  debug: 5005
+
+database:
+  host: 10.10.199.165
+  port: 3306
+  name: btcl_sms
+  user: root
+  password: Takay1takaane
+
+kafka:
+  bootstrap_servers: 10.10.199.83:9092
+  # Single-node Kafka running on same VM
+  topics:
+    sms_scheduled: btcl.sms.scheduled
+    sms_sent: btcl.sms.sent
+    sms_failed: btcl.sms.failed
+
+systemd:
+  service_name: infinite-scheduler.service
+  description: "Infinite Scheduler - High-Performance Job Scheduler"
+  user: root
+  restart: always
+  restart_sec: 10
+
+notes: |
+  BDCOM SMS Application VM - Production Deployment
+  Single-node Kafka and MySQL on same VM
+  Higher memory allocation (2GB heap) due to larger VM specs

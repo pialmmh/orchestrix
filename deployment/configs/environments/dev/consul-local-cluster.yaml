@@ -1,0 +1,107 @@
+# Consul Local Cluster Deployment
+# Deploys 3 Consul nodes on local machine for testing
+
+deployment:
+  name: "consul-local-cluster"
+  version: "1.0"
+  type: "multi-instance"
+  environment: "dev"
+  description: "3-node Consul cluster on localhost"
+
+artifact:
+  type: "container"
+  name: "consul"
+  version: "v1"
+  source: "local"  # Can be database|local|registry
+  artifact_id: "CONSUL_V1"  # Will be registered in DB
+  path: "/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/consul/consul-v.1/generated/artifact/consul-v1-1759816902.tar.gz"
+
+targets:
+  - server:
+      host: "localhost"
+      user: "mustafa"
+      ssh_key: "~/.ssh/id_rsa"
+    instances:
+      - name: "consul-node-1"
+        params:
+          container_type: "lxc"
+          port: 8500
+          memory: "256M"
+          cpu: "1"
+          node_id: "consul-node-1"
+          datacenter: "dc1"
+          bootstrap_expect: 3
+          env_vars:
+            SERVER_MODE: "true"
+            BIND_ADDR: "0.0.0.0"
+            LOG_LEVEL: "INFO"
+            HTTP_PORT: "8500"
+            DNS_PORT: "8600"
+            SERVER_RPC_PORT: "8300"
+            SERF_LAN_PORT: "8301"
+            SERF_WAN_PORT: "8302"
+
+      - name: "consul-node-2"
+        params:
+          container_type: "lxc"
+          port: 8510
+          memory: "256M"
+          cpu: "1"
+          node_id: "consul-node-2"
+          datacenter: "dc1"
+          bootstrap_expect: 3
+          retry_join: '["${consul-node-1.ip}:8301"]'
+          env_vars:
+            SERVER_MODE: "true"
+            BIND_ADDR: "0.0.0.0"
+            LOG_LEVEL: "INFO"
+            HTTP_PORT: "8510"
+            DNS_PORT: "8610"
+            SERVER_RPC_PORT: "8310"
+            SERF_LAN_PORT: "8311"
+            SERF_WAN_PORT: "8312"
+
+      - name: "consul-node-3"
+        params:
+          container_type: "lxc"
+          port: 8520
+          memory: "256M"
+          cpu: "1"
+          node_id: "consul-node-3"
+          datacenter: "dc1"
+          bootstrap_expect: 3
+          retry_join: '["${consul-node-1.ip}:8301", "${consul-node-2.ip}:8311"]'
+          env_vars:
+            SERVER_MODE: "true"
+            BIND_ADDR: "0.0.0.0"
+            LOG_LEVEL: "INFO"
+            HTTP_PORT: "8520"
+            DNS_PORT: "8620"
+            SERVER_RPC_PORT: "8320"
+            SERF_LAN_PORT: "8321"
+            SERF_WAN_PORT: "8322"
+
+monitoring:
+  health_check_endpoints:
+    - "http://localhost:8500/v1/status/leader"
+    - "http://localhost:8510/v1/status/leader"
+    - "http://localhost:8520/v1/status/leader"
+  startup_timeout: 60
+  check_interval: 10
+  cluster_check:
+    type: "consul_members"
+    expected_nodes: 3
+
+rollback:
+  enabled: true
+  keep_versions: 3
+  strategy: "all-or-nothing"
+  cleanup_on_failure: true
+
+post_deployment:
+  scripts:
+    - "lxc exec consul-node-1 -- consul members"
+    - "lxc exec consul-node-1 -- consul operator raft list-peers"
+  verify_commands:
+    - command: "curl -s http://localhost:8500/v1/status/leader | grep -q '\"'"
+      description: "Check leader election"

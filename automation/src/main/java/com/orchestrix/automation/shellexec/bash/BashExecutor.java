@@ -21,8 +21,8 @@ public class BashExecutor {
 
     private static final Logger logger = LoggerFactory.getLogger(BashExecutor.class);
 
-    private boolean dryRun = false;mustafa@mustafa-pc:~/telcobright-projects/orchestrix/images/lxc/auto-increment-service$ cd /home/mustafa/telcobright-projects/orchestrix/images/lxc/unique-id-generator/build
-    mustafa@mustafa-pc:~/telcobright-projects/orchestrix/images/lxc/unique-id-generator/build$ sudo ./build.sh
+    private boolean dryRun = false;mustafa@mustafa-pc:~/telcobright-projects/orchestrix/images/containers/lxc/auto-increment-service$ cd /home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/unique-id-generator/build
+    mustafa@mustafa-pc:~/telcobright-projects/orchestrix/images/containers/lxc/unique-id-generator/build$ sudo ./build.sh
 [sudo] password for mustafa:
             ==========================================
     Unique ID Generator Container Builder
@@ -35,7 +35,7 @@ public class BashExecutor {
         ✓ LXC found
 ✓ Java found: openjdk version "21.0.8" 2025-07-15
             ✗ Java compiler (javac) is not installed
-    mustafa@mustafa-pc:~/telcobright-projects/orchestrix/images/lxc/unique-id-generator/build$
+    mustafa@mustafa-pc:~/telcobright-projects/orchestrix/images/containers/lxc/unique-id-generator/build$
     private boolean streamOutput = false;
     private File workingDirectory;
     private final List<String> executionHistory = new ArrayList<>();

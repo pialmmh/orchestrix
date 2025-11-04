@@ -1,0 +1,63 @@
+# Consul 3-Node Cluster - Local Testing
+# Full cluster on single machine with different ports
+
+deployment:
+  name: "consul-local-cluster"
+  type: "multi-instance"
+  environment: "local"
+
+artifact:
+  name: "consul"
+  version: "v1"
+  path: "../artifact/consul-v1-1759816902.tar.gz"
+
+targets:
+  - server:
+      host: "localhost"
+    instances:
+      - name: "consul-node-1"
+        params:
+          node_id: "consul-node-1"
+          memory: "256M"
+          cpu: "1"
+          bootstrap_expect: 3
+          env_vars:
+            SERVER_MODE: "true"
+            HTTP_PORT: "8500"
+            DNS_PORT: "8600"
+            SERVER_RPC_PORT: "8300"
+            SERF_LAN_PORT: "8301"
+            SERF_WAN_PORT: "8302"
+            LOG_LEVEL: "INFO"
+
+      - name: "consul-node-2"
+        params:
+          node_id: "consul-node-2"
+          memory: "256M"
+          cpu: "1"
+          bootstrap_expect: 3
+          retry_join: "${consul-node-1.ip}:8301"
+          env_vars:
+            SERVER_MODE: "true"
+            HTTP_PORT: "8510"
+            DNS_PORT: "8610"
+            SERVER_RPC_PORT: "8310"
+            SERF_LAN_PORT: "8311"
+            SERF_WAN_PORT: "8312"
+            LOG_LEVEL: "INFO"
+
+      - name: "consul-node-3"
+        params:
+          node_id: "consul-node-3"
+          memory: "256M"
+          cpu: "1"
+          bootstrap_expect: 3
+          retry_join: "${consul-node-1.ip}:8301,${consul-node-2.ip}:8311"
+          env_vars:
+            SERVER_MODE: "true"
+            HTTP_PORT: "8520"
+            DNS_PORT: "8620"
+            SERVER_RPC_PORT: "8320"
+            SERF_LAN_PORT: "8321"
+            SERF_WAN_PORT: "8322"
+            LOG_LEVEL: "INFO"

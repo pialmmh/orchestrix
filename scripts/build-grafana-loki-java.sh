@@ -7,7 +7,7 @@ set -e
 ORCHESTRIX_HOME="/home/mustafa/telcobright-projects/orchestrix"
 cd "$ORCHESTRIX_HOME"
 
-CONFIG_FILE="${1:-images/lxc/grafana-loki/build/build.conf}"
+CONFIG_FILE="${1:-images/containers/lxc/grafana-loki/build/build.conf}"
 
 echo "========================================="
 echo "Building Grafana-Loki using Java Automation"

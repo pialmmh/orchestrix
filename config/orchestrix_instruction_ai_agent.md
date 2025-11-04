@@ -34,7 +34,7 @@ When creating or modifying Java-based components:
 
 ### 2. Container Standards
 All LXC containers must:
-- Follow the scaffolding guide in `images/lxc/LXC_CONTAINER_SCAFFOLDING_GUIDE.md`
+- Follow the scaffolding guide in `images/containers/lxc/LXC_CONTAINER_SCAFFOLDING_GUIDE.md`
 - Use versioned directories (e.g., `container-name-v.1.0.0/`)
 - Implement Java automation with inline scripts for visibility
 - Support configuration from any filesystem location
@@ -92,7 +92,7 @@ When Java components are missing:
 
 - **Global Config**: `/orchestrix/config/`
 - **Automation**: `/orchestrix/automation/src/main/java/com/telcobright/orchestrix/automation/`
-- **Container Images**: `/orchestrix/images/lxc/[container-name]/`
+- **Container Images**: `/orchestrix/images/containers/lxc/[container-name]/`
 - **Build Outputs**: `[container-name]-v.X.Y.Z/generated/`
 
 ## Environment Variables

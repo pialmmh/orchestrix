@@ -1,0 +1,75 @@
+# Consul Cluster Deployment via SSH
+# Pulls artifact from Google Drive and deploys on remote server
+
+deployment:
+  name: "consul-remote-cluster"
+  type: "multi-instance"
+  environment: "production"
+
+# Artifact published to Google Drive
+artifact:
+  name: "consul"
+  version: "v1"
+  artifact_id: "CONSUL_V1"
+  source: "published"
+
+  # Published locations (in priority order)
+  publish_locations:
+    - type: "googledrive"
+      url: "https://drive.google.com/uc?id=1ABC123DEF456&export=download"
+
+    - type: "http"
+      url: "https://artifacts.mycompany.com/consul/consul-v1.tar.gz"
+
+  checksum: "sha256:abc123def456789..."
+  size: "64MB"
+
+# Terminal configuration for remote deployment
+terminal:
+  type: "ssh"
+  connection:
+    host: "10.0.1.100"
+    port: 22
+    user: "deploy"
+    auth_method: "key"  # key or password
+    ssh_key: "~/.ssh/deploy_key"
+
+# Deployment targets
+targets:
+  - instances:
+      - name: "consul-node-1"
+        params:
+          memory: "1GB"
+          cpu: "2"
+          node_id: "consul-node-1"
+          env_vars:
+            HTTP_PORT: "8500"
+            SERF_LAN_PORT: "8301"
+            SERVER_RPC_PORT: "8300"
+
+      - name: "consul-node-2"
+        params:
+          memory: "1GB"
+          cpu: "2"
+          node_id: "consul-node-2"
+          env_vars:
+            HTTP_PORT: "8510"
+            SERF_LAN_PORT: "8311"
+            SERVER_RPC_PORT: "8310"
+
+      - name: "consul-node-3"
+        params:
+          memory: "1GB"
+          cpu: "2"
+          node_id: "consul-node-3"
+          env_vars:
+            HTTP_PORT: "8520"
+            SERF_LAN_PORT: "8321"
+            SERVER_RPC_PORT: "8320"
+
+# Post-deployment verification
+verification:
+  commands:
+    - "lxc exec consul-node-1 -- consul members"
+    - "lxc exec consul-node-1 -- consul operator raft list-peers"
+  expected_nodes: 3

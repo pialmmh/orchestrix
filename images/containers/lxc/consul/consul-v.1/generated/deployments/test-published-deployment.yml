@@ -1,0 +1,68 @@
+# Test Published-Only Deployment
+# This deployment uses the published artifact from database
+
+deployment:
+  name: "consul-test-published"
+  type: "multi-instance"
+  environment: "test"
+
+# PUBLISHED ARTIFACT - fetched from database
+artifact:
+  source: "published"  # MANDATORY - only published artifacts allowed
+  publish_id: "PUB_CONSUL_V1_20251008_001"  # From publish.sh output
+
+  # These fields are auto-fetched from database:
+  # - artifact_name: consul
+  # - version: v1
+  # - publish_url: https://drive.google.com/...
+  # - publish_type: googledrive
+  # - checksum: sha256:3e11cf532eebc5111e2e172e67f7d20fc6459612f7322e3f0695fbe0f6777277
+  # - available: true
+
+# LOCAL terminal for testing (would be SSH in production)
+terminal:
+  type: "local"
+
+# 3-node Consul cluster on same machine
+targets:
+  - instances:
+      - name: "consul-node-1"
+        params:
+          memory: "256MB"
+          cpu: "1"
+          env_vars:
+            NODE_ID: "consul-node-1"
+            HTTP_PORT: "8500"
+            SERF_LAN_PORT: "8301"
+            SERVER_RPC_PORT: "8300"
+            BOOTSTRAP_EXPECT: "3"
+
+      - name: "consul-node-2"
+        params:
+          memory: "256MB"
+          cpu: "1"
+          env_vars:
+            NODE_ID: "consul-node-2"
+            HTTP_PORT: "8510"
+            SERF_LAN_PORT: "8311"
+            SERVER_RPC_PORT: "8310"
+            BOOTSTRAP_EXPECT: "3"
+
+      - name: "consul-node-3"
+        params:
+          memory: "256MB"
+          cpu: "1"
+          env_vars:
+            NODE_ID: "consul-node-3"
+            HTTP_PORT: "8520"
+            SERF_LAN_PORT: "8321"
+            SERVER_RPC_PORT: "8320"
+            BOOTSTRAP_EXPECT: "3"
+
+# Post-deployment verification
+verification:
+  commands:
+    - "lxc list | grep consul"
+    - "lxc exec consul-node-1 -- consul members"
+    - "lxc exec consul-node-1 -- consul operator raft list-peers"
+  expected_nodes: 3

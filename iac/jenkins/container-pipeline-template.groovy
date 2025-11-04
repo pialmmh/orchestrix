@@ -17,7 +17,7 @@ pipeline {
     }
     
     environment {
-        CONTAINER_DIR = "${WORKSPACE}/images/lxc/${params.CONTAINER_NAME}"
+        CONTAINER_DIR = "${WORKSPACE}/images/containers/lxc/${params.CONTAINER_NAME}"
         BUILD_TIMESTAMP = sh(script: "date +%Y%m%d-%H%M%S", returnStdout: true).trim()
         BASE_IMAGE_NAME = "${params.CONTAINER_NAME}-base"
     }
@@ -259,8 +259,8 @@ EOF
     post {
         success {
             echo "✅ Container build successful!"
-            archiveArtifacts artifacts: "images/lxc/${params.CONTAINER_NAME}/*.tar.gz", allowEmptyArchive: true
-            archiveArtifacts artifacts: "images/lxc/${params.CONTAINER_NAME}/BUILD_INFO.md", allowEmptyArchive: true
+            archiveArtifacts artifacts: "images/containers/lxc/${params.CONTAINER_NAME}/*.tar.gz", allowEmptyArchive: true
+            archiveArtifacts artifacts: "images/containers/lxc/${params.CONTAINER_NAME}/BUILD_INFO.md", allowEmptyArchive: true
         }
         
         failure {

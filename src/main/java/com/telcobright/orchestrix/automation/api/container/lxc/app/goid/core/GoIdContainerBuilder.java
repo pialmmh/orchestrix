@@ -341,7 +341,7 @@ public class GoIdContainerBuilder {
         device.executeCommand("sudo lxc stop " + containerName);
 
         // Determine versioned generated folder path
-        String basePath = config.getProperty("BASE_PATH", "/home/mustafa/telcobright-projects/orchestrix/images/lxc/go-id");
+        String basePath = config.getProperty("BASE_PATH", "/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/go-id");
         String version = config.getProperty("CONTAINER_VERSION", "1");
         String versionedDir = basePath + "/go-id-v." + version;
         String generatedDir = versionedDir + "/generated";
@@ -427,9 +427,9 @@ public class GoIdContainerBuilder {
         logger.info("Generating publish automation scripts...");
 
         // Compute rclone target directory to mirror local structure
-        // Local: .../orchestrix/images/lxc/go-id/go-id-v.1/generated/artifact
-        // GDrive: gdrive:images/lxc/go-id/go-id-v.1/generated/artifact
-        String rcloneTargetDir = "images/lxc/go-id/go-id-v." + version + "/generated/artifact";
+        // Local: .../orchestrix/images/containers/lxc/go-id/go-id-v.1/generated/artifact
+        // GDrive: gdrive:images/containers/lxc/go-id/go-id-v.1/generated/artifact
+        String rcloneTargetDir = "images/containers/lxc/go-id/go-id-v." + version + "/generated/artifact";
 
         // Generate publish config file
         String publishConfigPath = publishDir + "/publish-config.conf";

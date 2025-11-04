@@ -1,0 +1,98 @@
+# Cluster Deployment Template
+# For deploying across multiple servers in a cluster configuration
+
+deployment:
+  name: "${SERVICE_NAME}"
+  version: "1.0"
+  type: "cluster"
+  environment: "${ENV}"
+  description: "Distributed cluster deployment"
+
+artifact:
+  type: "${ARTIFACT_TYPE}"  # binary|container
+  name: "${ARTIFACT_NAME}"
+  version: "${ARTIFACT_VERSION}"
+  source: "database"
+  artifact_id: "${DB_ARTIFACT_ID}"
+
+cluster:
+  name: "${CLUSTER_NAME}"
+  discovery_method: "static"  # static|consul|etcd
+  min_nodes: 3
+  quorum: 2
+
+targets:
+  # Master node
+  - server:
+      host: "${MASTER_HOST}"
+      user: "${DEPLOY_USER}"
+      ssh_key: "${SSH_KEY_PATH}"
+      role: "master"
+    instances:
+      - name: "${SERVICE_NAME}-master"
+        params:
+          port: ${PORT}
+          memory: "${MASTER_MEMORY}"
+          cpu: "${MASTER_CPU}"
+          node_id: "master-1"
+          env_vars:
+            NODE_ROLE: "master"
+            CLUSTER_NAME: "${CLUSTER_NAME}"
+            BOOTSTRAP_EXPECT: 3
+
+  # Worker nodes
+  - server:
+      host: "${WORKER1_HOST}"
+      user: "${DEPLOY_USER}"
+      ssh_key: "${SSH_KEY_PATH}"
+      role: "worker"
+    instances:
+      - name: "${SERVICE_NAME}-worker-1"
+        params:
+          port: ${PORT}
+          memory: "${WORKER_MEMORY}"
+          cpu: "${WORKER_CPU}"
+          node_id: "worker-1"
+          env_vars:
+            NODE_ROLE: "worker"
+            CLUSTER_NAME: "${CLUSTER_NAME}"
+            JOIN_ADDRESS: "${MASTER_HOST}:${PORT}"
+
+  - server:
+      host: "${WORKER2_HOST}"
+      user: "${DEPLOY_USER}"
+      ssh_key: "${SSH_KEY_PATH}"
+      role: "worker"
+    instances:
+      - name: "${SERVICE_NAME}-worker-2"
+        params:
+          port: ${PORT}
+          memory: "${WORKER_MEMORY}"
+          cpu: "${WORKER_CPU}"
+          node_id: "worker-2"
+          env_vars:
+            NODE_ROLE: "worker"
+            CLUSTER_NAME: "${CLUSTER_NAME}"
+            JOIN_ADDRESS: "${MASTER_HOST}:${PORT}"
+
+load_balancer:
+  type: "haproxy"  # haproxy|nginx|none
+  config:
+    algorithm: "round-robin"
+    health_check: "/health"
+    backends:
+      - "${MASTER_HOST}:${PORT}"
+      - "${WORKER1_HOST}:${PORT}"
+      - "${WORKER2_HOST}:${PORT}"
+
+monitoring:
+  cluster_health_endpoint: "http://${MASTER_HOST}:${PORT}/cluster/health"
+  node_health_check: "/health"
+  startup_timeout: 120
+  cluster_formation_timeout: 180
+
+rollback:
+  enabled: true
+  keep_versions: 3
+  strategy: "rolling"  # rolling|blue-green|all-at-once
+  rollback_order: "reverse"  # reverse deployment order

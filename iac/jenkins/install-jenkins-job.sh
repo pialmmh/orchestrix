@@ -165,7 +165,7 @@ pipeline {
     agent { label 'orchestrix-agent' }
     
     environment {
-        BUILD_DIR = '/home/mustafa/telcobright-projects/orchestrix/images/lxc/clarity'
+        BUILD_DIR = '/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/clarity'
         CONTAINER_NAME = 'clarity'
     }
     

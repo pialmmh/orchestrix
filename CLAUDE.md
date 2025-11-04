@@ -6,7 +6,7 @@ Orchestrix is an LXC container orchestration system for development and testing 
 ## When Asked to "Scaffold" a Container
 
 Immediately refer to and follow:
-1. `/home/mustafa/telcobright-projects/orchestrix/images/lxc/CONTAINER_SCAFFOLD_TEMPLATE.md`
+1. `/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/CONTAINER_SCAFFOLD_TEMPLATE.md`
 2. `/home/mustafa/telcobright-projects/orchestrix/AI_AGENT_INSTRUCTIONS.md`
 
 ## Key Project Standards
@@ -26,7 +26,7 @@ Immediately refer to and follow:
 
 ### Directory Structure
 ```
-/home/mustafa/telcobright-projects/orchestrix/images/lxc/[container-name]/
+/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/[container-name]/
 ├── startDefault.sh
 ├── build[Name].sh
 ├── launch[Name].sh
@@ -45,7 +45,7 @@ LogLevel ERROR
 ```
 
 ## Example Reference Implementation
-See `/home/mustafa/telcobright-projects/orchestrix/images/lxc/dev-env/` for a complete implementation following all standards.
+See `/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/dev-env/` for a complete implementation following all standards.
 
 ## Quick Scaffold Process
 
@@ -95,7 +95,7 @@ See `/home/mustafa/telcobright-projects/orchestrix/images/lxc/dev-env/` for a co
 
 ## Need More Context?
 Check these files:
-- Template: `images/lxc/CONTAINER_SCAFFOLD_TEMPLATE.md`
+- Template: `images/containers/lxc/CONTAINER_SCAFFOLD_TEMPLATE.md`
 - Instructions: `AI_AGENT_INSTRUCTIONS.md`
-- Reference: `images/lxc/dev-env/` directory
+- Reference: `images/containers/lxc/dev-env/` directory
 - when I ask you to "read browser error", you should look for a file "browser_error.txt", I will paste the latest error from browser before asking you to read.

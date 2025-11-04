@@ -40,8 +40,8 @@ public class FrrRouterDeployment {
 
     public FrrRouterDeployment(String orchestrixPath) {
         this.orchestrixPath = orchestrixPath;
-        this.frrRouterPath = orchestrixPath + "/images/lxc/frr-router";
-        this.artifactPath = orchestrixPath + "/images/lxc/frr-router-v.1.0.0/generated/artifact";
+        this.frrRouterPath = orchestrixPath + "/images/containers/lxc/frr-router";
+        this.artifactPath = orchestrixPath + "/images/containers/lxc/frr-router-v.1.0.0/generated/artifact";
     }
 
     /**

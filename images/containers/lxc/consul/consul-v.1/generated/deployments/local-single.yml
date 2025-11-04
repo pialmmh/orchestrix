@@ -1,0 +1,28 @@
+# Consul Single Node - Local Development
+# Quick single-node Consul for development
+
+deployment:
+  name: "consul-dev"
+  type: "single"
+  environment: "local"
+
+artifact:
+  name: "consul"
+  version: "v1"
+  path: "../artifact/consul-v1-1759816902.tar.gz"
+
+targets:
+  - instances:
+      - name: "consul-dev"
+        params:
+          node_id: "consul-dev"
+          port: 8500
+          memory: "256M"
+          cpu: "1"
+          env_vars:
+            SERVER_MODE: "true"
+            BOOTSTRAP_EXPECT: 1
+            HTTP_PORT: "8500"
+            DNS_PORT: "8600"
+            SERF_LAN_PORT: "8301"
+            LOG_LEVEL: "INFO"

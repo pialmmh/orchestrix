@@ -5,7 +5,7 @@
 set -e
 
 ORCHESTRIX_HOME="/home/mustafa/telcobright-projects/orchestrix"
-QUARKUS_DIR="${ORCHESTRIX_HOME}/images/lxc/quarkus-runner"
+QUARKUS_DIR="${ORCHESTRIX_HOME}/images/containers/lxc/quarkus-runner"
 
 function show_usage() {
     cat << EOF

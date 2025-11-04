@@ -1,0 +1,78 @@
+# Consul Production Cluster - Multi-Server
+# Deploy across 3 different servers
+
+deployment:
+  name: "consul-prod-cluster"
+  type: "cluster"
+  environment: "production"
+
+artifact:
+  name: "consul"
+  version: "v1"
+  path: "../artifact/consul-v1-1759816902.tar.gz"
+
+targets:
+  - server:
+      host: "10.0.1.10"
+      user: "deploy"
+      ssh_key: "~/.ssh/prod_key"
+    instances:
+      - name: "consul-prod-1"
+        params:
+          node_id: "consul-prod-1"
+          memory: "2G"
+          cpu: "2"
+          bootstrap_expect: 3
+          env_vars:
+            SERVER_MODE: "true"
+            DATACENTER: "dc1"
+            HTTP_PORT: "8500"
+            BIND_ADDR: "10.0.1.10"
+            LOG_LEVEL: "WARN"
+
+  - server:
+      host: "10.0.1.11"
+      user: "deploy"
+      ssh_key: "~/.ssh/prod_key"
+    instances:
+      - name: "consul-prod-2"
+        params:
+          node_id: "consul-prod-2"
+          memory: "2G"
+          cpu: "2"
+          bootstrap_expect: 3
+          retry_join: "10.0.1.10"
+          env_vars:
+            SERVER_MODE: "true"
+            DATACENTER: "dc1"
+            HTTP_PORT: "8500"
+            BIND_ADDR: "10.0.1.11"
+            LOG_LEVEL: "WARN"
+
+  - server:
+      host: "10.0.1.12"
+      user: "deploy"
+      ssh_key: "~/.ssh/prod_key"
+    instances:
+      - name: "consul-prod-3"
+        params:
+          node_id: "consul-prod-3"
+          memory: "2G"
+          cpu: "2"
+          bootstrap_expect: 3
+          retry_join: "10.0.1.10,10.0.1.11"
+          env_vars:
+            SERVER_MODE: "true"
+            DATACENTER: "dc1"
+            HTTP_PORT: "8500"
+            BIND_ADDR: "10.0.1.12"
+            LOG_LEVEL: "WARN"
+
+monitoring:
+  health_check_url: "http://{host}:8500/v1/status/leader"
+  alerts_enabled: true
+
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # 2 AM daily
+  retention_days: 30

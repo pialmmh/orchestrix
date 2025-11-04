@@ -139,5 +139,5 @@ runner.testContainerWithStorage();
 ## Related Documentation
 
 - [Storage Architecture Guidelines](./STORAGE_ARCHITECTURE_GUIDELINES.md)
-- [Container Scaffolding Standard](../../../../../images/lxc/CONTAINER_SCAFFOLDING_STANDARD.md)
-- [LXC Container Guidelines](../../../../../images/lxc/LXC_CONTAINER_GUIDELINES.md)
+- [Container Scaffolding Standard](../../../../../images/containers/lxc/CONTAINER_SCAFFOLDING_STANDARD.md)
+- [LXC Container Guidelines](../../../../../images/containers/lxc/LXC_CONTAINER_GUIDELINES.md)

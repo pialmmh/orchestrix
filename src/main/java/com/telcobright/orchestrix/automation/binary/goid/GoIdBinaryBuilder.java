@@ -23,6 +23,7 @@ import java.io.FileWriter;
 public class GoIdBinaryBuilder extends BinaryBuilder {
 
     private int servicePort;
+    private String goCommand = "go";  // Will be set to actual path in validatePrerequisites
 
     /**
      * Create Go-ID binary builder
@@ -37,18 +38,51 @@ public class GoIdBinaryBuilder extends BinaryBuilder {
 
     @Override
     protected void validatePrerequisites() throws Exception {
-        // Check Go installation
-        if (!commandExists("go")) {
+        // Check Go installation - try standard paths first
+        String goPath = findGo();
+        if (goPath == null) {
             throw new Exception("Go not installed. Install: https://go.dev/dl/");
         }
 
-        String goVersion = getCommandVersion("go", "version");
+        // Store the Go command for later use
+        this.goCommand = goPath;
+
+        String goVersion = execute(goCommand + " version");
         logger.info("✓ Go found: " + goVersion);
 
         // Check minimum Go version (1.21+)
         if (!goVersion.contains("go1.21") && !goVersion.contains("go1.22") && !goVersion.contains("go1.23")) {
             logger.warning("⚠ Go 1.21+ recommended. Found: " + goVersion);
         }
+    }
+
+    private String findGo() throws Exception {
+        // Try common Go installation paths
+        String[] paths = {
+            "/usr/local/go/bin/go",
+            "/usr/bin/go",
+            "/opt/go/bin/go",
+            System.getenv("HOME") + "/go/bin/go"
+        };
+
+        for (String path : paths) {
+            try {
+                String result = execute("[ -f " + path + " ] && echo 'exists'");
+                if ("exists".equals(result.trim())) {
+                    return path;
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // Try which command as fallback
+        try {
+            String result = execute("which go");
+            if (result != null && !result.trim().isEmpty()) {
+                return "go";
+            }
+        } catch (Exception ignored) {}
+
+        return null;
     }
 
     @Override
@@ -98,20 +132,20 @@ public class GoIdBinaryBuilder extends BinaryBuilder {
         String buildDir = config.getBuildDirectory();
 
         // Initialize Go module
-        execute("cd " + buildDir + " && go mod init go-id-service 2>/dev/null || true");
+        execute("cd " + buildDir + " && " + goCommand + " mod init go-id-service 2>/dev/null || true");
 
         // Install dependencies
         logger.info("  - Installing github.com/sony/sonyflake...");
-        execute("cd " + buildDir + " && go get github.com/sony/sonyflake@latest");
+        execute("cd " + buildDir + " && " + goCommand + " get github.com/sony/sonyflake@latest");
 
         logger.info("  - Installing github.com/gorilla/mux...");
-        execute("cd " + buildDir + " && go get github.com/gorilla/mux@latest");
+        execute("cd " + buildDir + " && " + goCommand + " get github.com/gorilla/mux@latest");
 
         logger.info("  - Installing github.com/hashicorp/consul/api...");
-        execute("cd " + buildDir + " && go get github.com/hashicorp/consul/api@latest");
+        execute("cd " + buildDir + " && " + goCommand + " get github.com/hashicorp/consul/api@latest");
 
         // Tidy modules
-        execute("cd " + buildDir + " && go mod tidy");
+        execute("cd " + buildDir + " && " + goCommand + " mod tidy");
 
         logger.info("✓ Dependencies installed");
     }
@@ -125,10 +159,11 @@ public class GoIdBinaryBuilder extends BinaryBuilder {
 
         // Build command with static linking
         String buildCmd = String.format(
-            "cd %s && CGO_ENABLED=0 GOOS=%s GOARCH=%s go build -ldflags='-w -s' -o %s main.go",
+            "cd %s && CGO_ENABLED=0 GOOS=%s GOARCH=%s %s build -ldflags='-w -s' -o %s main.go",
             buildDir,
             config.getTargetOS(),
             config.getTargetArch(),
+            goCommand,
             outputBinary
         );
 
@@ -178,7 +213,7 @@ public class GoIdBinaryBuilder extends BinaryBuilder {
             // Test 2: Health endpoint
             logger.info("  Test 2: Health endpoint...");
             String healthResponse = execute("curl -s http://localhost:" + testPort + "/health");
-            if (!healthResponse.contains("\"status\":\"ok\"")) {
+            if (!healthResponse.contains("\"status\":\"healthy\"")) {
                 throw new Exception("Health check failed: " + healthResponse);
             }
             result.addTestPassed("Health endpoint");
@@ -187,7 +222,7 @@ public class GoIdBinaryBuilder extends BinaryBuilder {
             // Test 3: Shard info endpoint
             logger.info("  Test 3: Shard info endpoint...");
             String shardInfo = execute("curl -s http://localhost:" + testPort + "/shard-info");
-            if (!shardInfo.contains("\"shard_id\":1")) {
+            if (!shardInfo.contains("\"shardId\":1") && !shardInfo.contains("\"shard_id\":1")) {
                 throw new Exception("Shard info failed: " + shardInfo);
             }
             result.addTestPassed("Shard info endpoint");
@@ -195,8 +230,8 @@ public class GoIdBinaryBuilder extends BinaryBuilder {
 
             // Test 4: ID generation
             logger.info("  Test 4: ID generation...");
-            String idResponse = execute("curl -s http://localhost:" + testPort + "/api/next-id/test-entity");
-            if (!idResponse.contains("\"id\":")) {
+            String idResponse = execute("curl -s 'http://localhost:" + testPort + "/api/next-id/test-entity?dataType=snowflake'");
+            if (!idResponse.contains("\"value\":")) {
                 throw new Exception("ID generation failed: " + idResponse);
             }
             result.addTestPassed("ID generation");
@@ -204,15 +239,24 @@ public class GoIdBinaryBuilder extends BinaryBuilder {
 
             // Test 5: Batch generation
             logger.info("  Test 5: Batch ID generation...");
-            String batchResponse = execute("curl -s 'http://localhost:" + testPort + "/api/next-batch/test-entity?batchSize=5'");
-            if (!batchResponse.contains("\"ids\":")) {
+            String batchResponse = execute("curl -s 'http://localhost:" + testPort + "/api/next-batch/test-entity?dataType=snowflake&batchSize=5'");
+            if (!batchResponse.contains("\"values\":") && !batchResponse.contains("\"ids\":")) {
                 throw new Exception("Batch generation failed: " + batchResponse);
             }
             result.addTestPassed("Batch ID generation");
             logger.info("    ✓ Batch generation works");
 
+            // Test 6: Delete entity
+            logger.info("  Test 6: Delete entity...");
+            String deleteResponse = execute("curl -s -X DELETE http://localhost:" + testPort + "/api/entity/test-entity");
+            if (!deleteResponse.contains("deleted successfully")) {
+                throw new Exception("Delete entity failed: " + deleteResponse);
+            }
+            result.addTestPassed("Delete entity");
+            logger.info("    ✓ Delete entity works");
+
             logger.info("");
-            logger.info("✓ All tests passed (" + result.getTestsPassed().size() + "/5)");
+            logger.info("✓ All tests passed (" + result.getTestsPassed().size() + "/6)");
 
         } catch (Exception e) {
             result.addTestFailed(e.getMessage());

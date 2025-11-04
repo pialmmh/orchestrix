@@ -1,0 +1,63 @@
+# Deployment Configuration for infinite-scheduler
+# BTCL Production Server
+
+deployment:
+  name: btcl-prod
+  version: 1.0.0
+  environment: production
+
+server:
+  host: 114.130.145.71
+  port: 50004
+  user: Administrator
+  # Password: Takay1#$ane%%
+  # Note: Password will be provided via command line for security
+
+application:
+  name: infinite-scheduler
+  jar_file: infinite-scheduler-1.0.0.jar
+  install_path: /opt/infinite-scheduler
+
+directories:
+  app: /opt/infinite-scheduler/app
+  config: /opt/infinite-scheduler/config
+  logs: /opt/infinite-scheduler/logs
+  bin: /opt/infinite-scheduler/bin
+
+jvm:
+  min_heap: 512m
+  max_heap: 1024m
+  gc: G1GC
+  max_gc_pause: 200ms
+  debug_port: 5005
+
+ports:
+  application: 7070
+  debug: 5005
+
+database:
+  host: 127.0.0.1
+  port: 3306
+  name: btcl_sms
+  user: root
+  password: 123456
+
+kafka:
+  bootstrap_servers: localhost:9092
+  # Update when Kafka is running
+  topics:
+    sms_scheduled: btcl.sms.scheduled
+    sms_sent: btcl.sms.sent
+    sms_failed: btcl.sms.failed
+
+systemd:
+  service_name: infinite-scheduler.service
+  description: "Infinite Scheduler - High-Performance Job Scheduler"
+  user: root
+  restart: always
+  restart_sec: 10
+
+notes: |
+  This is a direct JAR deployment (non-LXC).
+  Requires Java 21 to be installed on the target server.
+  MySQL must be accessible at 127.0.0.1:3306 with 'scheduler' database created.

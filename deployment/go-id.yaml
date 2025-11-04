@@ -1,0 +1,16 @@
+# Go-ID Single Instance Deployment
+
+deployment:
+  name: "go-id-service"
+  type: "single"
+
+artifact:
+  name: "go-id"
+  version: "v1"
+  path: "/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/go-id/go-id-v.1/generated/artifact/go-id-v1.tar.gz"
+
+targets:
+  - instances:
+      - name: "go-id-main"
+        params:
+          port: 7080

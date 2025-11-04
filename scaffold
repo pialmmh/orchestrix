@@ -19,12 +19,12 @@ fi
 
 CONTAINER_NAME="$1"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CONTAINER_DIR="$SCRIPT_DIR/images/lxc/$CONTAINER_NAME"
+CONTAINER_DIR="$SCRIPT_DIR/images/containers/lxc/$CONTAINER_NAME"
 BUILDER_DIR="$SCRIPT_DIR/builder"
 BUILDER_JAR="$BUILDER_DIR/target/container-builder-1.0.0.jar"
 
 # STEP 1: Read the scaffold template FIRST
-SCAFFOLD_TEMPLATE="$SCRIPT_DIR/images/lxc/CONTAINER_SCAFFOLD_TEMPLATE.md"
+SCAFFOLD_TEMPLATE="$SCRIPT_DIR/images/containers/lxc/CONTAINER_SCAFFOLD_TEMPLATE.md"
 if [ ! -f "$SCAFFOLD_TEMPLATE" ]; then
     echo -e "${RED}Error: Scaffold template not found at:${NC}"
     echo "  $SCAFFOLD_TEMPLATE"
@@ -302,8 +302,8 @@ BUILD_SCRIPT="$CONTAINER_DIR/build/build.sh"
 if [ ! -f "$BUILD_SCRIPT" ]; then
     echo -e "${YELLOW}Creating build script...${NC}"
     
-    if [ -f "$SCRIPT_DIR/images/lxc/template-build.sh" ]; then
-        cp "$SCRIPT_DIR/images/lxc/template-build.sh" "$BUILD_SCRIPT"
+    if [ -f "$SCRIPT_DIR/images/containers/lxc/template-build.sh" ]; then
+        cp "$SCRIPT_DIR/images/containers/lxc/template-build.sh" "$BUILD_SCRIPT"
     else
         # Create from scratch if template doesn't exist
         cat > "$BUILD_SCRIPT" << 'BUILDEOF'

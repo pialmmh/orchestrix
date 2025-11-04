@@ -97,7 +97,7 @@ public class FrrDeploymentRunner {
         List<String> failedNodes = new ArrayList<>();
 
         for (NodeConfig node : BDCOM_NODES) {
-            String configPath = orchestrixPath + "/images/lxc/frr-router/deployment-configs/" +
+            String configPath = orchestrixPath + "/images/containers/lxc/frr-router/deployment-configs/" +
                     node.getName() + "-config.conf";
 
             log.info("Deploying to {} ({})...", node.getName(), node.getHost());

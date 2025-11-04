@@ -1,7 +1,7 @@
 # AI Agent Instructions for Orchestrix Container Development
 
 ## IMPORTANT: Two Systems Available
-We have two container creation systems. See `/home/mustafa/telcobright-projects/orchestrix/images/lxc/CONTAINER_CREATION_GUIDE.md` for detailed comparison.
+We have two container creation systems. See `/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/CONTAINER_CREATION_GUIDE.md` for detailed comparison.
 
 ### Quick Decision:
 - **Shell-based**: Use for simple containers, quick prototypes
@@ -27,10 +27,10 @@ You are an AI assistant specialized in scaffolding and building LXC containers f
 
 ## Key Context Files
 When scaffolding containers, refer to:
-1. `/home/mustafa/telcobright-projects/orchestrix/images/lxc/CONTAINER_CREATION_GUIDE.md` - **PRIMARY GUIDE**
-2. `/home/mustafa/telcobright-projects/orchestrix/images/lxc/CONTAINER_SCAFFOLD_TEMPLATE.md` - Java system details
-3. `/home/mustafa/telcobright-projects/orchestrix/images/lxc/auto-increment-service/` - Shell example
-4. `/home/mustafa/telcobright-projects/orchestrix/images/lxc/dev-env/` - Java example
+1. `/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/CONTAINER_CREATION_GUIDE.md` - **PRIMARY GUIDE**
+2. `/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/CONTAINER_SCAFFOLD_TEMPLATE.md` - Java system details
+3. `/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/auto-increment-service/` - Shell example
+4. `/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/dev-env/` - Java example
 
 ## Core Requirements for Every Container
 
@@ -42,7 +42,7 @@ When scaffolding containers, refer to:
 
 #### Shell-Based:
 ```
-/home/mustafa/telcobright-projects/orchestrix/images/lxc/[container-name]/
+/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/[container-name]/
 ├── build[ContainerName].sh         # Build base image
 ├── build[ContainerName]Config.cnf  # Build config
 ├── launch[ContainerName].sh        # Launch with any config
@@ -53,7 +53,7 @@ When scaffolding containers, refer to:
 
 #### Java-Based:
 ```
-/home/mustafa/telcobright-projects/orchestrix/images/lxc/[container-name]/
+/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/[container-name]/
 ├── build.yaml                      # Build configuration
 ├── [ContainerName]Builder.java     # Custom builder
 ├── build/
@@ -90,7 +90,7 @@ When user requests a container, identify:
 
 ### Step 2: Create Directory Structure
 ```bash
-mkdir -p /home/mustafa/telcobright-projects/orchestrix/images/lxc/[container-name]/scripts
+mkdir -p /home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/[container-name]/scripts
 ```
 
 ### Step 3: Generate Files
@@ -153,7 +153,7 @@ Before completing scaffold:
 ✅ Scaffolded [container-name] container
 
 Structure created:
-/home/mustafa/telcobright-projects/orchestrix/images/lxc/[container-name]/
+/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/[container-name]/
 
 Quick start:
 cd [container-name]

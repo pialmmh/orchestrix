@@ -235,7 +235,7 @@ deploy_unique_id_generator() {
     # First check if image exists
     if [ ! -f "/tmp/unique-id-generator-base.tar.gz" ]; then
         echo "Image not found. Building it first..."
-        "$PROJECT_ROOT/images/lxc/unique-id-generator/buildUniqueIdGenerator.sh"
+        "$PROJECT_ROOT/images/containers/lxc/unique-id-generator/buildUniqueIdGenerator.sh"
     fi
 
     CONFIG_FILE="$PROJECT_ROOT/src/test/resources/testrunner/unique-id-local-deployment.properties"

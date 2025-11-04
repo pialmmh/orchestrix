@@ -1,0 +1,50 @@
+# Auto-generated deployment config with published artifact
+# Generated: 2025-10-09 17:00:16
+# Artifact maintains same directory structure as images/lxc/
+
+deployment:
+  name: "consul-published"
+  type: "multi-instance"
+  environment: "production"
+
+# PUBLISHED ARTIFACT - fetched from database
+artifact:
+  source: "published"  # MANDATORY
+  publish_id: "PUB_CONSUL_V1_20251009_170016"
+
+  # These fields are auto-fetched from database:
+  # - artifact_name: consul
+  # - version: v1
+  # - checksum: sha256:3e11cf532eebc5111e2e172e67f7d20fc6459612f7322e3f0695fbe0f6777277
+  # - publish_locations: (from artifact_publish_locations table)
+  # - remote_path: pialmmhtb:orchestrix/images/lxc/consul/consul-v.1/generated/artifact/
+
+terminal:
+  type: "ssh"
+  connection:
+    host: "REPLACE_WITH_TARGET_HOST"
+    port: 22
+    user: "deploy"
+    auth_method: "key"
+    ssh_key: "~/.ssh/deploy_key"
+
+targets:
+  - instances:
+      - name: "consul-node-1"
+        params:
+          memory: "256MB"
+          cpu: "1"
+
+      - name: "consul-node-2"
+        params:
+          memory: "256MB"
+          cpu: "1"
+
+      - name: "consul-node-3"
+        params:
+          memory: "256MB"
+          cpu: "1"
+
+verification:
+  commands:
+    - "lxc list | grep consul"

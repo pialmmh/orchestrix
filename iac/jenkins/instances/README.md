@@ -43,7 +43,7 @@ docker-compose up -d
 
 ### LXC agent start:
 ```bash
-cd /home/mustafa/telcobright-projects/orchestrix/images/lxc/dev-env/run
+cd /home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/dev-env/run
 sudo ./launch.sh ../../jenkins/instances/massivegrid01/dev-env-01.conf
 ```
 

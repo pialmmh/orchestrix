@@ -232,7 +232,7 @@ public class UniqueIdGeneratorBuilder extends BaseImageBuilder {
         containerExec("mkdir -p /var/lib/unique-id-generator");
 
         // Copy service files
-        String scriptsDir = "/home/mustafa/telcobright-projects/orchestrix/images/lxc/unique-id-generator/scripts";
+        String scriptsDir = "/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/unique-id-generator/scripts";
         copyToContainer(scriptsDir + "/server.js", "/opt/unique-id-generator/server.js");
         copyToContainer(scriptsDir + "/package.json", "/opt/unique-id-generator/package.json");
 

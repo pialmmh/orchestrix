@@ -1,0 +1,79 @@
+# Grafana-Loki Staging Deployment Configuration
+# Version: v1.0
+# Environment: Staging/Testing
+
+deployment:
+  name: grafana-loki-staging
+  version: v1.0
+  environment: staging
+  created: 2025-11-01
+
+target:
+  host: 192.168.1.100
+  port: 22
+  os: "Ubuntu 22.04.5 LTS"
+
+ssh:
+  username: developer
+  password: dev-password
+  useKey: false
+
+container:
+  name: grafana-loki-staging
+  version: 1.0.0
+  baseImage: images:debian/12
+
+  resources:
+    memory: 1GB
+    cpu: 1
+    swap: 512MB
+
+storage:
+  provider: btrfs
+  type: loop-device
+  loopImage: /opt/btrfs-logger-staging.img
+  loopSize: 20G
+  mountPath: /home/developer/btrfs-staging
+  quota: 10G
+
+  monitoring:
+    enabled: true
+    rotationThreshold: 80
+    forceCleanup: 90
+
+services:
+  grafana:
+    version: "10.2.3"
+    port: 3000
+  loki:
+    version: "2.9.4"
+    port: 3100
+    retention: 72h  # 3 days
+  promtail:
+    version: "2.9.4"
+    port: 9080
+
+network:
+  bridge: lxdbr0
+  mode: dhcp
+
+strategy:
+  type: fresh-install
+  autoRollback: true
+  validateAfterDeploy: true
+
+validation:
+  services:
+    - grafana-server
+    - loki
+    - promtail
+  ports:
+    - 3000
+    - 3100
+    - 9080
+
+logging:
+  rotation:
+    enabled: true
+    period: 72h
+    maxLogSize: 50MB

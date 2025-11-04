@@ -71,7 +71,7 @@ private void createContainer() {
 
 ## Files Modified
 
-1. `/images/lxc/unique-id-generator/src/main/java/.../UniqueIdGeneratorBuilder.java`
+1. `/images/containers/lxc/unique-id-generator/src/main/java/.../UniqueIdGeneratorBuilder.java`
    - Removed ~300 lines of embedded bash scripts
    - Replaced with clean LxcDevice API calls
 
@@ -81,12 +81,12 @@ private void createContainer() {
 
 ## Testing
 
-Created test script: `/images/lxc/unique-id-generator/test-refactored-build.sh`
+Created test script: `/images/containers/lxc/unique-id-generator/test-refactored-build.sh`
 
 To test the refactored builder:
 ```bash
 cd /home/mustafa/telcobright-projects/orchestrix
-./images/lxc/unique-id-generator/test-refactored-build.sh
+./images/containers/lxc/unique-id-generator/test-refactored-build.sh
 ```
 
 ## Next Steps

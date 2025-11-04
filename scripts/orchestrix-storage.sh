@@ -64,7 +64,7 @@ function build_container() {
 
     case "$container" in
         grafana-loki)
-            config_file="images/lxc/grafana-loki/build/build.conf"
+            config_file="images/containers/lxc/grafana-loki/build/build.conf"
             ;;
         *)
             echo "Unknown container: $container"

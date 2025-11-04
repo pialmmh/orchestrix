@@ -1,0 +1,62 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /var/lib/promtail/positions.yaml
+
+clients:
+  - url: http://LOKI_HOST:LOKI_PORT/loki/api/v1/push
+
+scrape_configs:
+  - job_name: quarkus-hello
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: quarkus-hello
+          service: quarkus-hello
+          environment: production
+          __path__: /var/log/quarkus-hello/*.log
+
+    pipeline_stages:
+      # Parse JSON logs
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            logger: loggerName
+            thread: threadName
+            message: message
+            app: app
+            component: component
+            environment: environment
+            host: host
+            trace_id: trace_id
+            queue_name: queue_name
+            event: event
+            backend: backend
+            processing_time_ms: processing_time_ms
+            error: error
+
+      # Extract labels for Loki indexing (CRITICAL for fast queries)
+      - labels:
+          level:
+          app:
+          component:
+          trace_id:
+          queue_name:
+          event:
+          backend:
+
+      # Set timestamp
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+          fallback_formats:
+            - "2006-01-02T15:04:05.999999999Z07:00"
+            - "2006-01-02 15:04:05,999"
+
+      # Output formatting
+      - output:
+          source: message

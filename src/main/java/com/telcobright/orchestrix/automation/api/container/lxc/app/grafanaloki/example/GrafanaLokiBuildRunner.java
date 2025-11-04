@@ -50,7 +50,7 @@ public class GrafanaLokiBuildRunner {
 
         if (!file.exists()) {
             // Use default config
-            file = new File("/home/mustafa/telcobright-projects/orchestrix/images/lxc/grafana-loki/build/build.conf");
+            file = new File("/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/grafana-loki/build/build.conf");
         }
 
         // Parse the shell-style config file
@@ -369,7 +369,7 @@ public class GrafanaLokiBuildRunner {
     public static void main(String[] args) {
         try {
             String configFile = args.length > 0 ? args[0] :
-                "/home/mustafa/telcobright-projects/orchestrix/images/lxc/grafana-loki/build/build.conf";
+                "/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/grafana-loki/build/build.conf";
 
             GrafanaLokiBuildRunner builder = new GrafanaLokiBuildRunner(configFile);
             builder.build();

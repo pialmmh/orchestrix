@@ -1,0 +1,13 @@
+[Unit]
+Description=Promtail Log Shipper for Quarkus Hello
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/promtail -config.file=/etc/promtail/promtail-config.yaml
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

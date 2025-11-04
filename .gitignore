@@ -78,3 +78,9 @@ test-results/
 build/
 dist/
 out/orchestrix-ui/debug-store/
+
+# Large standalone binaries (download separately)
+images/standalone-binaries/**/consul
+images/standalone-binaries/**/*.tar.gz
+images/standalone-binaries/**/*.zip
+*.bin

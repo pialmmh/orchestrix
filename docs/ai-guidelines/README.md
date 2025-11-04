@@ -107,7 +107,7 @@ claude-code
 5. Error handling patterns
 
 **Example Reference:**
-- See `/images/lxc/go-id/` for complete implementation
+- See `/images/containers/lxc/go-id/` for complete implementation
 - `GoIdBuildRunner.java` - SSH session management
 - `GoIdContainerBuilder.java` - Container automation
 

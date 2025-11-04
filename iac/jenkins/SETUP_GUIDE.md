@@ -184,7 +184,7 @@ orchestrix/lxc-images/clarity/
 ### Build Fails
 - Check sudo permissions: `sudo lxc list`
 - Verify rclone is configured: `rclone listremotes`
-- Check the build script works manually: `sudo /home/mustafa/telcobright-projects/orchestrix/images/lxc/clarity/buildClarity.sh`
+- Check the build script works manually: `sudo /home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/clarity/buildClarity.sh`
 
 ### Upload Fails
 - Test rclone manually: `rclone ls pialmmhtb:orchestrix/`
@@ -207,7 +207,7 @@ orchestrix/lxc-images/clarity/
 
 ### Test the container build locally:
 ```bash
-cd /home/mustafa/telcobright-projects/orchestrix/images/lxc/clarity
+cd /home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/clarity
 sudo ./buildClarity.sh --overwrite
 ```
 

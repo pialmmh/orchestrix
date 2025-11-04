@@ -59,7 +59,7 @@ echo ""
 
 # 3. Check build script
 echo -e "${BLUE}[3/6] Checking Build Scripts${NC}"
-BUILD_DIR="/home/mustafa/telcobright-projects/orchestrix/images/lxc/clarity"
+BUILD_DIR="/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/clarity"
 run_test "Build directory exists" "[ -d ${BUILD_DIR} ]"
 run_test "buildClarity.sh exists" "[ -f ${BUILD_DIR}/buildClarity.sh ]"
 run_test "buildClarity.sh is executable" "[ -x ${BUILD_DIR}/buildClarity.sh ]"

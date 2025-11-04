@@ -1,0 +1,1 @@
+/home/mustafa/telcobright-projects/orchestrix/automation/scripts/publish.sh

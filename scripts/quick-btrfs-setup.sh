@@ -93,7 +93,7 @@ echo "Test quota:"
 echo "  btrfs qgroup show ${MOUNT_POINT}"
 echo ""
 echo "Now you can build containers with:"
-echo "  cd /home/mustafa/telcobright-projects/orchestrix/images/lxc/grafana-loki"
+echo "  cd /home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/grafana-loki"
 echo "  sudo ./build/build.sh"
 echo "========================================="
 

@@ -51,7 +51,7 @@ Jenkins configurations are stored in `jenkins/` with separate folders for server
 ## Separation of Concerns
 
 This IaC directory is intentionally separated from:
-- **Container Configurations**: Located in `/images/lxc/`
+- **Container Configurations**: Located in `/images/containers/lxc/`
 - **Network Configurations**: Located in `/network/`
 - **Application Code**: Located in `/automation/`
 

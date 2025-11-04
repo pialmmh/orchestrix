@@ -787,7 +787,7 @@ public class QuarkusBaseContainerBuilder {
     public static void main(String[] args) {
         try {
             String configFile = args.length > 0 ? args[0] :
-                "/home/mustafa/telcobright-projects/orchestrix/images/lxc/quarkus-runner/build/build.conf";
+                "/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/quarkus-runner/build/build.conf";
 
             QuarkusBaseContainerBuilder builder = new QuarkusBaseContainerBuilder(configFile);
             builder.build();

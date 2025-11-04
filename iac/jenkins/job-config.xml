@@ -14,7 +14,7 @@
     }
     
     environment {
-        BUILD_DIR = '/home/mustafa/telcobright-projects/orchestrix/images/lxc/clarity'
+        BUILD_DIR = '/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/clarity'
     }
     
     stages {

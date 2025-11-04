@@ -735,8 +735,8 @@ To add new automations:
 
 - [README.md](README.md) - Main project documentation
 - [LXC Prerequisites Automation](automation/LXC_PREREQUISITES_AUTOMATION.md)
-- [Container Scaffolding Standard](images/lxc/CONTAINER_SCAFFOLDING_STANDARD.md)
-- [Local Testing Guide](images/lxc/LOCAL_TESTING_GUIDE.md)
+- [Container Scaffolding Standard](images/containers/lxc/CONTAINER_SCAFFOLDING_STANDARD.md)
+- [Local Testing Guide](images/containers/lxc/LOCAL_TESTING_GUIDE.md)
 
 ## Support
 

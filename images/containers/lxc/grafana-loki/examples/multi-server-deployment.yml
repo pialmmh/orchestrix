@@ -1,0 +1,167 @@
+# Grafana-Loki Multi-Server Deployment Example
+# Use Case: High-availability deployment across multiple servers
+
+# ============================================
+# Deployment Metadata
+# ============================================
+deployment:
+  name: grafana-loki-ha
+  version: v1.0
+  environment: production
+  mode: multi-server
+  created: 2025-11-01
+
+# ============================================
+# Server Cluster Configuration
+# ============================================
+servers:
+  # Primary Loki instance
+  - name: loki-primary
+    role: loki
+    target:
+      host: 10.255.246.175
+      port: 22
+    ssh:
+      username: bdcom
+      password: ReBJxyd3kGDFW5Cm
+    container:
+      name: loki-primary
+      resources:
+        memory: 4GB
+        cpu: 4
+    storage:
+      quota: 50G
+
+  # Secondary Loki instance (replica)
+  - name: loki-secondary
+    role: loki
+    target:
+      host: 10.255.246.176
+      port: 22
+    ssh:
+      username: bdcom
+      password: ReBJxyd3kGDFW5Cm
+    container:
+      name: loki-secondary
+      resources:
+        memory: 4GB
+        cpu: 4
+    storage:
+      quota: 50G
+
+  # Grafana instance (centralized)
+  - name: grafana-central
+    role: grafana
+    target:
+      host: 10.255.246.177
+      port: 22
+    ssh:
+      username: bdcom
+      password: ReBJxyd3kGDFW5Cm
+    container:
+      name: grafana-central
+      resources:
+        memory: 2GB
+        cpu: 2
+    storage:
+      quota: 10G
+
+# ============================================
+# Load Balancer Configuration
+# ============================================
+loadBalancer:
+  enabled: true
+  type: nginx  # or haproxy
+  vip: 10.255.246.200
+  backend:
+    - loki-primary:3100
+    - loki-secondary:3100
+  healthCheck:
+    endpoint: /ready
+    interval: 5s
+    timeout: 2s
+
+# ============================================
+# Shared Storage (Optional)
+# ============================================
+sharedStorage:
+  enabled: false
+  # type: nfs | glusterfs | ceph
+  # mountPoint: /mnt/shared-logs
+  # server: 10.255.246.180
+
+# ============================================
+# Service Configuration
+# ============================================
+services:
+  loki:
+    version: "2.9.4"
+    port: 3100
+    retention: 168h
+    replication:
+      enabled: true
+      factor: 2
+
+  grafana:
+    version: "10.2.3"
+    port: 3000
+    datasources:
+      - name: loki-primary
+        url: http://10.255.246.175:3100
+      - name: loki-secondary
+        url: http://10.255.246.176:3100
+
+  promtail:
+    version: "2.9.4"
+    port: 9080
+    clients:
+      - url: http://10.255.246.200:3100/loki/api/v1/push
+
+# ============================================
+# Deployment Strategy
+# ============================================
+strategy:
+  type: rolling-update
+  sequence:
+    - loki-primary
+    - loki-secondary
+    - grafana-central
+  autoRollback: true
+  validateEachStep: true
+
+# ============================================
+# Monitoring & Alerting
+# ============================================
+monitoring:
+  prometheus:
+    enabled: true
+    scrapeInterval: 15s
+    targets:
+      - loki-primary:3100
+      - loki-secondary:3100
+      - grafana-central:3000
+
+  alerting:
+    enabled: true
+    rules:
+      - name: loki-down
+        condition: up{job="loki"} == 0
+        duration: 1m
+        severity: critical
+      - name: high-log-volume
+        condition: rate(loki_ingester_bytes_received_total[5m]) > 1e9
+        duration: 5m
+        severity: warning
+
+# ============================================
+# Notes
+# ============================================
+# This configuration demonstrates:
+# - Multi-server deployment pattern
+# - Load balancing for Loki instances
+# - Centralized Grafana for visualization
+# - High availability setup
+# - Health monitoring and alerting
+#
+# To deploy:
+#   ./grafana-loki-v.1/generated/deploy.sh examples/multi-server-deployment.yml

@@ -1,0 +1,181 @@
+# Grafana-Loki Production Deployment Configuration
+# Version: v1.0
+# Target: Ubuntu 22.04.5 LTS
+# Generated: 2025-11-01
+
+# ============================================
+# Deployment Metadata
+# ============================================
+deployment:
+  name: grafana-loki-production
+  version: v1.0
+  environment: production
+  created: 2025-11-01
+
+# ============================================
+# Target Server Configuration
+# ============================================
+target:
+  host: 10.255.246.175
+  port: 22
+  os: "Ubuntu 22.04.5 LTS"
+  arch: 64bit
+
+# ============================================
+# SSH Authentication
+# ============================================
+ssh:
+  username: bdcom
+  password: ReBJxyd3kGDFW5Cm
+  useKey: false
+  # keyPath: ~/.ssh/production-key
+
+# ============================================
+# Container Configuration
+# ============================================
+container:
+  name: grafana-loki-prod
+  version: 1.0.0
+  baseImage: images:debian/12
+
+  # Resource limits
+  resources:
+    memory: 2GB
+    cpu: 2
+    swap: 1GB
+
+# ============================================
+# BTRFS Storage (Mandatory)
+# ============================================
+storage:
+  provider: btrfs
+
+  # Loop device (file-based BTRFS)
+  type: loop-device
+  loopImage: /opt/btrfs-logger.img
+  loopSize: 50G
+
+  # Mount configuration
+  mountPath: /home/telcobright/btrfs
+  mountOptions: compress=lzo,autodefrag
+
+  # Container quota
+  quota: 30G
+
+  # Monitoring thresholds
+  monitoring:
+    enabled: true
+    rotationThreshold: 80
+    forceCleanup: 90
+    checkInterval: 300
+
+# ============================================
+# Service Versions
+# ============================================
+services:
+  grafana:
+    version: "10.2.3"
+    port: 3000
+    enabled: true
+
+  loki:
+    version: "2.9.4"
+    port: 3100
+    enabled: true
+    retention: 168h  # 7 days
+
+  promtail:
+    version: "2.9.4"
+    port: 9080
+    enabled: true
+
+# ============================================
+# Network Configuration
+# ============================================
+network:
+  bridge: lxdbr0
+  mode: dhcp
+  # staticIP: 10.10.199.50/24
+
+  # Port mappings (host:container)
+  ports:
+    - "3000:3000"   # Grafana
+    - "3100:3100"   # Loki
+    - "9080:9080"   # Promtail
+
+# ============================================
+# Deployment Strategy
+# ============================================
+strategy:
+  type: fresh-install
+  autoRollback: true
+  validateAfterDeploy: true
+  skipValidation: false
+
+  timeouts:
+    build: 600
+    launch: 120
+    validation: 60
+
+# ============================================
+# Validation Checks
+# ============================================
+validation:
+  services:
+    - grafana-server
+    - loki
+    - promtail
+
+  ports:
+    - 3000
+    - 3100
+    - 9080
+
+  healthChecks:
+    - endpoint: http://localhost:3000/api/health
+      service: grafana
+      timeout: 10
+    - endpoint: http://localhost:3100/ready
+      service: loki
+      timeout: 10
+
+# ============================================
+# Log Rotation & Retention
+# ============================================
+logging:
+  rotation:
+    enabled: true
+    period: 168h        # 7 days
+    deleteDelay: 2h
+    maxLogSize: 100MB
+    compactor: true
+
+# ============================================
+# Security Configuration
+# ============================================
+security:
+  changeDefaultPassword: true
+  enableHttps: false
+  # sslCert: /path/to/cert.pem
+  # sslKey: /path/to/key.pem
+
+# ============================================
+# Backup Configuration
+# ============================================
+backup:
+  enabled: true
+  snapshots:
+    frequency: daily
+    retention: 7
+    location: /var/backups/grafana-loki
+
+# ============================================
+# Notifications (Optional)
+# ============================================
+notifications:
+  enabled: false
+  # slack:
+  #   webhook: https://hooks.slack.com/...
+  # email:
+  #   smtp: smtp.example.com
+  #   to: admin@example.com

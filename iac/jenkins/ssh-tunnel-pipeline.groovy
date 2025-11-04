@@ -10,7 +10,7 @@ pipeline {
     }
     
     environment {
-        BUILD_DIR = '/home/mustafa/telcobright-projects/orchestrix/images/lxc/ssh-tunnel'
+        BUILD_DIR = '/home/mustafa/telcobright-projects/orchestrix/images/containers/lxc/ssh-tunnel'
         CONTAINER_NAME = 'ssh-tunnel'
     }
     

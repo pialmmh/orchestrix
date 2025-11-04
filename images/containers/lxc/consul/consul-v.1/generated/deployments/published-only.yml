@@ -1,0 +1,53 @@
+# Consul Deployment - Published Artifact Only
+# This is the ONLY way to deploy - from published artifacts
+
+deployment:
+  name: "consul-production"
+  type: "multi-instance"
+  environment: "production"
+
+# MANDATORY: Artifact must be published
+artifact:
+  source: "published"  # ONLY valid value - no local paths allowed
+  publish_id: "PUB_CONSUL_V1_20241008_001"  # From publish.sh output
+
+  # These fields are fetched from database using publish_id:
+  # - name: consul
+  # - version: v1
+  # - publish_url: https://drive.google.com/...
+  # - checksum: sha256:abc123...
+  # - publish_type: googledrive
+
+  # NO local paths allowed:
+  # path: "../artifact/consul.tar.gz"  ❌ REJECTED
+
+terminal:
+  type: "ssh"
+  connection:
+    host: "10.0.1.100"
+    port: 22
+    user: "deploy"
+    auth_method: "key"
+    ssh_key: "~/.ssh/deploy_key"
+
+targets:
+  - instances:
+      - name: "consul-node-1"
+        params:
+          memory: "1GB"
+          cpu: "2"
+
+      - name: "consul-node-2"
+        params:
+          memory: "1GB"
+          cpu: "2"
+
+      - name: "consul-node-3"
+        params:
+          memory: "1GB"
+          cpu: "2"
+
+verification:
+  commands:
+    - "lxc list | grep consul"
+    - "lxc exec consul-node-1 -- consul members"

@@ -1,0 +1,19 @@
+[Unit]
+Description=Quarkus Hello World REST Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/quarkus-hello
+ExecStart=/usr/bin/java -jar /opt/quarkus-hello/quarkus-hello-1.0.0-runner.jar
+Restart=on-failure
+RestartSec=10s
+Environment="JAVA_OPTS=-Xmx512m -Xms256m"
+
+# Create log directory
+ExecStartPre=/bin/mkdir -p /var/log/quarkus-hello
+ExecStartPre=/bin/chown root:root /var/log/quarkus-hello
+
+[Install]
+WantedBy=multi-user.target
