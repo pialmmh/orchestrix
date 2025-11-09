@@ -1,0 +1,32 @@
+# FRR BGP Cluster Configuration File
+# Format: Bash associative arrays for easy parsing
+
+# Node 1 Configuration
+NODE_MGMT_IP[node1]=123.200.0.50
+NODE_OVERLAY_IP[node1]=10.9.9.1
+NODE_AS_NUMBER[node1]=65196
+NODE_LXD_NETWORK[node1]=10.10.199.0/24
+NODE_HOSTNAME[node1]=node1-bgp
+NODE_SSH_PORT[node1]=8210
+NODE_SSH_USER[node1]=tbsms
+NODE_SSH_PASS[node1]=TB@l38800
+
+# Node 2 Configuration
+NODE_MGMT_IP[node2]=123.200.0.117
+NODE_OVERLAY_IP[node2]=10.9.9.2
+NODE_AS_NUMBER[node2]=65195
+NODE_LXD_NETWORK[node2]=10.10.198.0/24
+NODE_HOSTNAME[node2]=node2-bgp
+NODE_SSH_PORT[node2]=8210
+NODE_SSH_USER[node2]=tbsms
+NODE_SSH_PASS[node2]=TB@l38800
+
+# Node 3 Configuration
+NODE_MGMT_IP[node3]=123.200.0.51
+NODE_OVERLAY_IP[node3]=10.9.9.3
+NODE_AS_NUMBER[node3]=65194
+NODE_LXD_NETWORK[node3]=10.10.197.0/24
+NODE_HOSTNAME[node3]=node3-bgp
+NODE_SSH_PORT[node3]=8210
+NODE_SSH_USER[node3]=tbsms
+NODE_SSH_PASS[node3]=TB@l38800
