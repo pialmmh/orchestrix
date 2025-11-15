@@ -10,6 +10,16 @@ password.txt
 id_rsa
 id_ed25519
 
+# Generated output files (contain private keys and secrets)
+output/client*.conf
+output/*.ovpn
+output/*-generated.conf
+
+# Keep examples and documentation
+!output/*.example
+!output/README.md
+!output/.gitkeep
+
 # Temporary deployment files
 *.tmp
 *.log
