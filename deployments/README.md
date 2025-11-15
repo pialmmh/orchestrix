@@ -7,6 +7,7 @@ Per-tenant deployment configurations for WireGuard overlay and FRR BGP routing.
 ```
 deployments/
 ├── netlab/                    # Test tenant
+│   ├── common.conf           # Shared params (SSH, network, etc.)
 │   ├── frr/                  # FRR BGP configs
 │   │   ├── node1-config.conf
 │   │   ├── node2-config.conf
@@ -18,6 +19,7 @@ deployments/
 │   └── README.md
 │
 ├── telco-client-001/         # Example production tenant
+│   ├── common.conf           # Shared params for this tenant
 │   ├── frr/
 │   │   └── [node configs...]
 │   └── wireguard/
@@ -30,8 +32,10 @@ deployments/
 
 ### Per-Tenant Structure
 Each tenant/client gets their own directory with:
+- **`common.conf`** - Shared parameters (SSH, network, deployment options)
 - **`frr/`** - FRR BGP routing configurations
 - **`wireguard/`** - WireGuard overlay network configurations
+- **`README.md`** - Tenant-specific documentation (optional)
 
 ### Naming Convention
 - **Tenant directories**: `tenant-name` or `client-name`
@@ -39,6 +43,39 @@ Each tenant/client gets their own directory with:
 - Use consistent naming across frr/ and wireguard/ subdirectories
 
 ## Configuration Files
+
+### Common Config (`common.conf`)
+Shared parameters used across all automations for a tenant:
+
+```bash
+# Tenant info
+TENANT_NAME="netlab"
+ENVIRONMENT="test"
+
+# SSH parameters (used by all deployments)
+SSH_USER="telcobright"
+SSH_PASSWORD="a"
+SSH_PORT="22"
+
+# Node definitions
+NODE1_IP="10.20.0.30"
+NODE2_IP="10.20.0.31"
+NODE3_IP="10.20.0.32"
+
+# Network ranges
+OVERLAY_NETWORK="10.9.9.0/24"
+CONTAINER_SUPERNET="10.10.0.0/16"
+
+# Deployment options
+VERBOSE="true"
+DRY_RUN="false"
+```
+
+**Benefits:**
+- ✅ DRY principle - define once, use everywhere
+- ✅ Centralized tenant configuration
+- ✅ Easy to update SSH credentials for all nodes
+- ✅ Consistent network parameters across automations
 
 ### FRR Configs (`frr/node*-config.conf`)
 Shell variable format for FRR router deployment:
@@ -72,21 +109,33 @@ AllowedIPs = 10.9.9.2/32, 10.10.198.0/24
 Reference configs from deployment scripts:
 
 ```bash
-# Deploy FRR to node
+# Source common config first
+source deployments/netlab/common.conf
+
+# Deploy FRR to node (uses SSH_USER, SSH_PASSWORD from common.conf)
 ./deploy-frr.sh \
-  --host 10.20.0.30 \
+  --host $NODE1_IP \
   --config deployments/netlab/frr/node1-config.conf
 
 # Deploy WireGuard overlay
 ./deploy-wg.sh \
   --config deployments/netlab/wireguard/node1.conf \
-  --target 10.20.0.30
+  --target $NODE1_IP
 ```
 
 ### Java Automation
 ```java
-String configPath = "deployments/netlab/frr/node1-config.conf";
-FrrConfig config = FrrConfig.parseConfig(configPath);
+// Load common config
+String tenantDir = "deployments/netlab";
+Map<String, String> commonConfig = loadShellConfig(tenantDir + "/common.conf");
+
+// Use common params
+String sshUser = commonConfig.get("SSH_USER");
+String node1Ip = commonConfig.get("NODE1_IP");
+
+// Load automation-specific config
+String frrConfigPath = tenantDir + "/frr/node1-config.conf";
+FrrConfig config = FrrConfig.parseConfig(frrConfigPath);
 ```
 
 ## Adding New Tenant
@@ -96,7 +145,14 @@ FrrConfig config = FrrConfig.parseConfig(configPath);
    mkdir -p deployments/new-client/{frr,wireguard}
    ```
 
-2. **Copy template configs:**
+2. **Copy common config template:**
+   ```bash
+   cp deployments/netlab/common.conf deployments/new-client/
+   # Edit and customize for new client
+   nano deployments/new-client/common.conf
+   ```
+
+3. **Copy automation configs:**
    ```bash
    cp deployments/netlab/frr/node1-config.conf deployments/new-client/frr/
    cp deployments/netlab/wireguard/node1.conf deployments/new-client/wireguard/
