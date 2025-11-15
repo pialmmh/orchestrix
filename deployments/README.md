@@ -54,7 +54,12 @@ ENVIRONMENT="test"
 
 # SSH parameters (used by all deployments)
 SSH_USER="telcobright"
-SSH_PASSWORD="a"
+
+# SSH authentication (choose one method):
+SSH_PASSWORD="a"                                    # Method 1: Direct password
+# SSH_PASSWORD_FILE="/path/to/password.txt"        # Method 2: Password file
+# SSH_KEY_FILE="/path/to/ssh-key"                  # Method 3: SSH key file
+
 SSH_PORT="22"
 
 # Node definitions
@@ -76,6 +81,27 @@ DRY_RUN="false"
 - ✅ Centralized tenant configuration
 - ✅ Easy to update SSH credentials for all nodes
 - ✅ Consistent network parameters across automations
+- ✅ Flexible authentication (direct password, password file, or SSH key)
+- ✅ Secure credential storage (password files can be excluded from version control)
+
+**SSH Authentication Methods:**
+
+1. **Direct Password** (test environments):
+   ```bash
+   SSH_PASSWORD="a"
+   ```
+
+2. **Password File** (better security):
+   ```bash
+   SSH_PASSWORD_FILE="/secure/path/to/password.txt"
+   # Add to .gitignore: *.password.txt
+   ```
+
+3. **SSH Key File** (production recommended):
+   ```bash
+   SSH_KEY_FILE="/secure/path/to/ssh-key"
+   # Use with: ssh -i "$SSH_KEY_FILE" "$SSH_USER@$NODE1_IP"
+   ```
 
 ### FRR Configs (`frr/node*-config.conf`)
 Shell variable format for FRR router deployment:
@@ -112,9 +138,24 @@ Reference configs from deployment scripts:
 # Source common config first
 source deployments/netlab/common.conf
 
-# Deploy FRR to node (uses SSH_USER, SSH_PASSWORD from common.conf)
+# Load password from file if SSH_PASSWORD_FILE is set
+if [ -n "$SSH_PASSWORD_FILE" ] && [ -f "$SSH_PASSWORD_FILE" ]; then
+  SSH_PASSWORD=$(cat "$SSH_PASSWORD_FILE")
+fi
+
+# Deploy FRR to node
+# Method 1: Using direct password (SSH_PASSWORD)
 ./deploy-frr.sh \
   --host $NODE1_IP \
+  --user $SSH_USER \
+  --password "$SSH_PASSWORD" \
+  --config deployments/netlab/frr/node1-config.conf
+
+# Method 2: Using SSH key file (SSH_KEY_FILE)
+./deploy-frr.sh \
+  --host $NODE1_IP \
+  --user $SSH_USER \
+  --key-file "$SSH_KEY_FILE" \
   --config deployments/netlab/frr/node1-config.conf
 
 # Deploy WireGuard overlay
@@ -132,6 +173,26 @@ Map<String, String> commonConfig = loadShellConfig(tenantDir + "/common.conf");
 // Use common params
 String sshUser = commonConfig.get("SSH_USER");
 String node1Ip = commonConfig.get("NODE1_IP");
+
+// Handle SSH authentication methods
+String sshPassword = commonConfig.get("SSH_PASSWORD");
+String sshPasswordFile = commonConfig.get("SSH_PASSWORD_FILE");
+String sshKeyFile = commonConfig.get("SSH_KEY_FILE");
+
+// Load password from file if specified
+if (sshPasswordFile != null && !sshPasswordFile.isEmpty()) {
+    sshPassword = Files.readString(Path.of(sshPasswordFile)).trim();
+}
+
+// Create SSH connection
+SSHConnection ssh;
+if (sshKeyFile != null && !sshKeyFile.isEmpty()) {
+    // Use SSH key authentication
+    ssh = new SSHConnection(node1Ip, sshUser, sshKeyFile);
+} else {
+    // Use password authentication
+    ssh = new SSHConnection(node1Ip, sshUser, sshPassword);
+}
 
 // Load automation-specific config
 String frrConfigPath = tenantDir + "/frr/node1-config.conf";
