@@ -46,12 +46,18 @@ deployments/
 
 ### Per-Tenant Structure
 Each tenant/client gets their own directory with:
-- **`common.conf`** - Shared parameters (SSH, network, deployment options)
+- **`common.conf`** - Automation-agnostic shared parameters (SSH, nodes, networks)
 - **`.secrets/`** - SSH passwords and private keys (gitignored)
-- **`frr/`** - FRR BGP routing configurations (input)
-- **`wireguard/`** - WireGuard overlay network configurations (input)
+- **`<automation>/`** - Automation-specific configs (frr/, wireguard/, kafka/, mysql/, etc.)
 - **`output/`** - Generated configs and automation outputs (gitignored)
 - **`README.md`** - Tenant-specific documentation (optional)
+
+**Example automation directories:**
+- `frr/` - FRR BGP routing configurations
+- `wireguard/` - WireGuard overlay network configurations
+- `kafka/` - Kafka cluster configurations (future)
+- `mysql/` - MySQL database configurations (future)
+- `lxd/` - LXD/LXC container configurations (future)
 
 ### Naming Convention
 - **Tenant directories**: `tenant-name` or `client-name`
@@ -61,7 +67,7 @@ Each tenant/client gets their own directory with:
 ## Configuration Files
 
 ### Common Config (`common.conf`)
-Shared parameters used across all automations for a tenant:
+**Automation-agnostic** shared parameters used across ALL automations (FRR, WireGuard, Kafka, MySQL, etc.):
 
 ```bash
 # Tenant info
@@ -70,38 +76,42 @@ ENVIRONMENT="test"
 
 # SSH parameters (used by all deployments)
 SSH_USER="telcobright"
-
-# SSH authentication (choose one method):
-SSH_PASSWORD_FILE="/path/to/password.txt"          # Method 1: Password file
-# SSH_KEY_FILE="/path/to/ssh-key"                  # Method 2: SSH key file
-
-# IMPORTANT: Never commit passwords directly!
-# Add to .gitignore: *.password.txt
-
+SSH_PASSWORD_FILE="deployments/netlab/.secrets/ssh-password.txt"
 SSH_PORT="22"
 
 # Node definitions
 NODE1_IP="10.20.0.30"
 NODE2_IP="10.20.0.31"
 NODE3_IP="10.20.0.32"
+NODE1_HOSTNAME="netlab01"
+NODE2_HOSTNAME="netlab02"
+NODE3_HOSTNAME="netlab03"
 
-# Network ranges
+# Network ranges (generic - used by all apps)
 OVERLAY_NETWORK="10.9.9.0/24"
 CONTAINER_SUPERNET="10.10.0.0/16"
+MANAGEMENT_NETWORK="10.20.0.0/24"
+
+# LXD/LXC defaults
+LXD_BRIDGE="lxdbr0"
+DEFAULT_MEMORY_LIMIT="512MB"
+DEFAULT_CPU_LIMIT="1.0"
 
 # Deployment options
 VERBOSE="true"
 DRY_RUN="false"
 ```
 
+**Important:** `common.conf` contains NO automation-specific configuration (BGP, Kafka topics, etc.). Automation-specific configs go in their respective directories (`frr/`, `wireguard/`, `kafka/`, etc.).
+
 **Benefits:**
 - ✅ DRY principle - define once, use everywhere
 - ✅ Centralized tenant configuration
+- ✅ Works for ANY automation (FRR, Kafka, MySQL, etc.)
+- ✅ Automation-agnostic - no coupling to specific services
 - ✅ Easy to update SSH credentials for all nodes
-- ✅ Consistent network parameters across automations
+- ✅ Consistent network parameters across all deployments
 - ✅ Secure authentication (password file or SSH key)
-- ✅ No hardcoded passwords in version control
-- ✅ Password files can be gitignored
 
 **SSH Authentication Methods:**
 
@@ -148,15 +158,21 @@ deployments/netlab/.secrets/
 See `.secrets/README.md` for detailed security instructions.
 
 ### FRR Configs (`frr/node*-config.conf`)
-Shell variable format for FRR router deployment:
+**FRR-specific** parameters for BGP routing (automation-specific, NOT in common.conf):
 
 ```bash
+# Container settings
 CONTAINER_NAME="frr-router-netlab01"
 BASE_IMAGE="frr-router-base-v.1.0.0"
+
+# BGP-specific configuration (FRR automation only)
 BGP_ASN="65199"
 BGP_NEIGHBORS="10.9.9.2:65198,10.9.9.3:65197"
 BGP_NETWORKS="10.10.199.0/24"
+BGP_TIMERS="10 30"
 ```
+
+These configs are loaded AFTER `common.conf` and contain only FRR/BGP-specific parameters.
 
 ### WireGuard Configs (`wireguard/node*.conf`)
 Standard WireGuard INI format:
