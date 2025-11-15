@@ -1,0 +1,49 @@
+# WireGuard VPN Server Configuration - Link3
+server:
+  name: link3-wg-server
+  description: WireGuard VPN server for developer access to container networks
+
+  # SSH connection details
+  ssh:
+    host: 123.200.0.51
+    port: 8210
+    user: tbsms
+    password: TB@l38800
+
+  # WireGuard configuration
+  wireguard:
+    interface: wg0
+    listen_port: 51820
+    server_ip: 10.100.0.1/24
+
+    # Routes to push to clients
+    allowed_networks:
+      - 10.10.0.0/16  # All container subnets across both BDCOM and Link3
+
+    # Do NOT push default gateway
+    push_default_gateway: false
+
+    # Client IP pool
+    client_pool:
+      network: 10.100.0.0/24
+      range_start: 10.100.0.10
+      range_end: 10.100.0.254
+
+  # Pre-configured clients (optional)
+  clients:
+    - name: dev1
+      description: Developer 1
+      ip: 10.100.0.10/32
+
+    - name: dev2
+      description: Developer 2
+      ip: 10.100.0.11/32
+
+    - name: dev3
+      description: Developer 3
+      ip: 10.100.0.12/32
+
+  # Firewall rules (iptables)
+  firewall:
+    enable_forwarding: true
+    masquerade: false  # No NAT needed - direct routing via BGP

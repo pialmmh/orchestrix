@@ -1,0 +1,72 @@
+# Link3 FRR BGP Cluster Configuration
+cluster:
+  name: link3
+  description: Link3 datacenter BGP mesh for container networking
+
+  # Network configuration
+  network:
+    container_subnet_base: 10.10.0.0/16
+    vpn_subnet: 10.100.0.0/24
+
+  # BGP mesh configuration
+  bgp:
+    mesh_type: full  # full mesh - all nodes peer with each other
+
+  # Node definitions
+  nodes:
+    - name: node1
+      hostname: SMSAppDBmaster
+      ssh:
+        host: 123.200.0.50
+        port: 8210
+        user: tbsms
+        password: TB@l38800
+      network:
+        external_ip: 123.200.0.50
+        lxc_bridge: lxdbr0
+        lxc_subnet: 10.10.196.0/24
+        lxc_bridge_ip: 10.10.196.1
+      bgp:
+        asn: 65196
+        router_id: 123.200.0.50
+        announced_networks:
+          - 10.10.196.0/24
+
+    - name: node2
+      hostname: spark
+      ssh:
+        host: 123.200.0.117
+        port: 8210
+        user: tbsms
+        password: TB@l38800
+      network:
+        external_ip: 123.200.0.117
+        lxc_bridge: lxdbr0
+        lxc_subnet: 10.10.195.0/24
+        lxc_bridge_ip: 10.10.195.1
+      bgp:
+        asn: 65195
+        router_id: 123.200.0.117
+        announced_networks:
+          - 10.10.195.0/24
+
+    - name: node3
+      hostname: SMSApplication
+      ssh:
+        host: 123.200.0.51
+        port: 8210
+        user: tbsms
+        password: TB@l38800
+      network:
+        external_ip: 123.200.0.51
+        lxc_bridge: lxdbr0
+        lxc_subnet: 10.10.194.0/24
+        lxc_bridge_ip: 10.10.194.1
+      bgp:
+        asn: 65194
+        router_id: 123.200.0.51
+        announced_networks:
+          - 10.10.194.0/24
+      wireguard:
+        enabled: true
+        server: true
