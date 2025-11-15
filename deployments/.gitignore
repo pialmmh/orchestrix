@@ -1,0 +1,18 @@
+# Password files - NEVER commit passwords to version control
+*.password.txt
+*-password.txt
+password.txt
+
+# Private SSH keys
+*.key
+*.pem
+*-ssh-key
+id_rsa
+id_ed25519
+
+# Temporary deployment files
+*.tmp
+*.log
+
+# Environment-specific overrides
+*.local.conf

@@ -56,9 +56,11 @@ ENVIRONMENT="test"
 SSH_USER="telcobright"
 
 # SSH authentication (choose one method):
-SSH_PASSWORD="a"                                    # Method 1: Direct password
-# SSH_PASSWORD_FILE="/path/to/password.txt"        # Method 2: Password file
-# SSH_KEY_FILE="/path/to/ssh-key"                  # Method 3: SSH key file
+SSH_PASSWORD_FILE="/path/to/password.txt"          # Method 1: Password file
+# SSH_KEY_FILE="/path/to/ssh-key"                  # Method 2: SSH key file
+
+# IMPORTANT: Never commit passwords directly!
+# Add to .gitignore: *.password.txt
 
 SSH_PORT="22"
 
@@ -81,26 +83,35 @@ DRY_RUN="false"
 - ✅ Centralized tenant configuration
 - ✅ Easy to update SSH credentials for all nodes
 - ✅ Consistent network parameters across automations
-- ✅ Flexible authentication (direct password, password file, or SSH key)
-- ✅ Secure credential storage (password files can be excluded from version control)
+- ✅ Secure authentication (password file or SSH key)
+- ✅ No hardcoded passwords in version control
+- ✅ Password files can be gitignored
 
 **SSH Authentication Methods:**
 
-1. **Direct Password** (test environments):
-   ```bash
-   SSH_PASSWORD="a"
-   ```
+⚠️ **NEVER commit passwords directly in config files!**
 
-2. **Password File** (better security):
+1. **Password File** (for temporary/test use):
    ```bash
    SSH_PASSWORD_FILE="/secure/path/to/password.txt"
-   # Add to .gitignore: *.password.txt
+
+   # Create password file:
+   echo "your_password" > /secure/path/password.txt
+   chmod 600 /secure/path/password.txt
+
+   # Add to .gitignore:
+   echo "*.password.txt" >> .gitignore
    ```
 
-3. **SSH Key File** (production recommended):
+2. **SSH Key File** (recommended for production):
    ```bash
    SSH_KEY_FILE="/secure/path/to/ssh-key"
-   # Use with: ssh -i "$SSH_KEY_FILE" "$SSH_USER@$NODE1_IP"
+
+   # Generate SSH key:
+   ssh-keygen -t ed25519 -f /secure/path/ssh-key -N ""
+
+   # Copy to remote:
+   ssh-copy-id -i /secure/path/ssh-key.pub user@host
    ```
 
 ### FRR Configs (`frr/node*-config.conf`)
@@ -138,25 +149,25 @@ Reference configs from deployment scripts:
 # Source common config first
 source deployments/netlab/common.conf
 
-# Load password from file if SSH_PASSWORD_FILE is set
+# Method 1: Using password file
 if [ -n "$SSH_PASSWORD_FILE" ] && [ -f "$SSH_PASSWORD_FILE" ]; then
   SSH_PASSWORD=$(cat "$SSH_PASSWORD_FILE")
+
+  ./deploy-frr.sh \
+    --host $NODE1_IP \
+    --user $SSH_USER \
+    --password "$SSH_PASSWORD" \
+    --config deployments/netlab/frr/node1-config.conf
 fi
 
-# Deploy FRR to node
-# Method 1: Using direct password (SSH_PASSWORD)
-./deploy-frr.sh \
-  --host $NODE1_IP \
-  --user $SSH_USER \
-  --password "$SSH_PASSWORD" \
-  --config deployments/netlab/frr/node1-config.conf
-
-# Method 2: Using SSH key file (SSH_KEY_FILE)
-./deploy-frr.sh \
-  --host $NODE1_IP \
-  --user $SSH_USER \
-  --key-file "$SSH_KEY_FILE" \
-  --config deployments/netlab/frr/node1-config.conf
+# Method 2: Using SSH key file (recommended)
+if [ -n "$SSH_KEY_FILE" ] && [ -f "$SSH_KEY_FILE" ]; then
+  ./deploy-frr.sh \
+    --host $NODE1_IP \
+    --user $SSH_USER \
+    --key-file "$SSH_KEY_FILE" \
+    --config deployments/netlab/frr/node1-config.conf
+fi
 
 # Deploy WireGuard overlay
 ./deploy-wg.sh \
