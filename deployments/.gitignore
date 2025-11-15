@@ -10,6 +10,17 @@ password.txt
 id_rsa
 id_ed25519
 
+# Secrets directory - contains passwords and private keys
+.secrets/*.txt
+.secrets/*.key
+.secrets/*-password*
+.secrets/ssh-key
+.secrets/id_*
+# Keep documentation and setup scripts
+!.secrets/README.md
+!.secrets/setup-example.sh
+!.secrets/.gitkeep
+
 # Generated output files (contain private keys and secrets)
 output/client*.conf
 output/*.ovpn

@@ -8,6 +8,11 @@ Per-tenant deployment configurations for WireGuard overlay and FRR BGP routing.
 deployments/
 ├── netlab/                    # Test tenant
 │   ├── common.conf           # Shared params (SSH, network, etc.)
+│   ├── .secrets/             # Passwords & keys (gitignored)
+│   │   ├── ssh-password.txt  # SSH password
+│   │   ├── ssh-key           # SSH private key
+│   │   ├── setup-example.sh  # Setup helper script
+│   │   └── README.md         # Secrets documentation
 │   ├── frr/                  # FRR BGP configs
 │   │   ├── node1-config.conf
 │   │   ├── node2-config.conf
@@ -26,6 +31,7 @@ deployments/
 │
 ├── telco-client-001/         # Example production tenant
 │   ├── common.conf           # Shared params for this tenant
+│   ├── .secrets/             # Passwords & keys (gitignored)
 │   ├── frr/
 │   │   └── [node configs...]
 │   ├── wireguard/
@@ -41,6 +47,7 @@ deployments/
 ### Per-Tenant Structure
 Each tenant/client gets their own directory with:
 - **`common.conf`** - Shared parameters (SSH, network, deployment options)
+- **`.secrets/`** - SSH passwords and private keys (gitignored)
 - **`frr/`** - FRR BGP routing configurations (input)
 - **`wireguard/`** - WireGuard overlay network configurations (input)
 - **`output/`** - Generated configs and automation outputs (gitignored)
@@ -100,28 +107,45 @@ DRY_RUN="false"
 
 ⚠️ **NEVER commit passwords directly in config files!**
 
-1. **Password File** (for temporary/test use):
+Secrets are stored in the **`.secrets/`** directory within each tenant folder:
+
+```
+deployments/netlab/.secrets/
+├── ssh-password.txt      # SSH password (gitignored)
+├── ssh-key              # SSH private key (gitignored)
+├── ssh-key.pub          # SSH public key (gitignored)
+├── setup-example.sh     # Quick setup script
+└── README.md            # Detailed documentation
+```
+
+**Quick Setup:**
+
+1. **Using Password File** (for temporary/test use):
    ```bash
-   SSH_PASSWORD_FILE="/secure/path/to/password.txt"
+   cd deployments/netlab/.secrets
+   ./setup-example.sh
+   # Choose option 1, enter password
 
-   # Create password file:
-   echo "your_password" > /secure/path/password.txt
-   chmod 600 /secure/path/password.txt
-
-   # Add to .gitignore:
-   echo "*.password.txt" >> .gitignore
+   # Or manually:
+   echo "a" > ssh-password.txt
+   chmod 600 ssh-password.txt
    ```
 
-2. **SSH Key File** (recommended for production):
+2. **Using SSH Key** (recommended for production):
    ```bash
-   SSH_KEY_FILE="/secure/path/to/ssh-key"
+   cd deployments/netlab/.secrets
+   ./setup-example.sh
+   # Choose option 2, follow instructions
 
-   # Generate SSH key:
-   ssh-keygen -t ed25519 -f /secure/path/ssh-key -N ""
-
-   # Copy to remote:
-   ssh-copy-id -i /secure/path/ssh-key.pub user@host
+   # Or manually:
+   ssh-keygen -t ed25519 -f ssh-key -N "" -C "netlab-automation"
+   ssh-copy-id -i ssh-key.pub telcobright@10.20.0.30
+   ssh-copy-id -i ssh-key.pub telcobright@10.20.0.31
+   ssh-copy-id -i ssh-key.pub telcobright@10.20.0.32
+   chmod 600 ssh-key
    ```
+
+See `.secrets/README.md` for detailed security instructions.
 
 ### FRR Configs (`frr/node*-config.conf`)
 Shell variable format for FRR router deployment:
@@ -243,7 +267,7 @@ FrrConfig config = FrrConfig.parseConfig(frrConfigPath);
 
 1. **Create tenant directory:**
    ```bash
-   mkdir -p deployments/new-client/{frr,wireguard,output}
+   mkdir -p deployments/new-client/{.secrets,frr,wireguard,output}
    ```
 
 2. **Copy common config template:**
@@ -253,26 +277,38 @@ FrrConfig config = FrrConfig.parseConfig(frrConfigPath);
    nano deployments/new-client/common.conf
    ```
 
-3. **Copy automation configs:**
+3. **Set up secrets directory:**
+   ```bash
+   cp deployments/netlab/.secrets/README.md deployments/new-client/.secrets/
+   cp deployments/netlab/.secrets/setup-example.sh deployments/new-client/.secrets/
+   chmod +x deployments/new-client/.secrets/setup-example.sh
+   touch deployments/new-client/.secrets/.gitkeep
+
+   # Run setup to create credentials
+   cd deployments/new-client/.secrets
+   ./setup-example.sh
+   ```
+
+4. **Copy automation configs:**
    ```bash
    cp deployments/netlab/frr/node1-config.conf deployments/new-client/frr/
    cp deployments/netlab/wireguard/node1.conf deployments/new-client/wireguard/
    ```
 
-4. **Set up output directory:**
+5. **Set up output directory:**
    ```bash
    cp deployments/netlab/output/README.md deployments/new-client/output/
    cp deployments/netlab/output/client.conf.example deployments/new-client/output/
    touch deployments/new-client/output/.gitkeep
    ```
 
-5. **Customize for tenant:**
+6. **Customize for tenant:**
    - Update IPs, ASNs, network ranges in configs
    - Adjust container names
    - Modify peer configurations
-   - Update SSH credentials in common.conf
+   - Verify SSH credentials paths in common.conf
 
-6. **Document in tenant README:**
+7. **Document in tenant README:**
    ```bash
    echo "# New Client Deployment" > deployments/new-client/README.md
    ```
