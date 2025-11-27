@@ -37,3 +37,12 @@ output/*-generated.conf
 
 # Environment-specific overrides
 *.local.conf
+
+# Deployment config files (contain SSH credentials)
+# Use *.example.conf for templates without credentials
+*/overlay-config.conf
+*/kafka/cluster-config.conf
+*/common.conf
+# Keep example templates
+!*/*.example.conf
+!*/kafka/*.example.conf

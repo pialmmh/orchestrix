@@ -84,3 +84,4 @@ images/standalone-binaries/**/consul
 images/standalone-binaries/**/*.tar.gz
 images/standalone-binaries/**/*.zip
 *.bin
+scripts/connect-ks-vpn.sh
