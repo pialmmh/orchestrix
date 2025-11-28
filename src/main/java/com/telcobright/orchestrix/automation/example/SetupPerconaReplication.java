@@ -1,5 +1,6 @@
 package com.telcobright.orchestrix.automation.example;
 
+import com.telcobright.orchestrix.automation.config.PerconaConfig;
 import com.telcobright.orchestrix.automation.core.device.impl.RemoteSshDevice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,17 +12,21 @@ import org.slf4j.LoggerFactory;
  * - Master running on 10.10.199.10
  * - Slave running on 10.10.198.10
  * - Both have GTID mode enabled
+ * - SSH credentials configured in cluster-config.conf
  */
 public class SetupPerconaReplication {
     private static final Logger log = LoggerFactory.getLogger(SetupPerconaReplication.class);
 
-    private static final String MASTER_MGMT_IP = "172.27.27.132";
-    private static final String SLAVE_MGMT_IP = "172.27.27.136";
-    private static final String MASTER_MYSQL_IP = "10.10.199.10";
-    private static final String SLAVE_MYSQL_IP = "10.10.198.10";
-    private static final String MYSQL_ROOT_PASSWORD = "KsMySQLRoot!2025";
-    private static final String SSH_USER = "csas";
-    private static final String SSH_PASSWORD = "KsCSAS!@9";
+    private static PerconaConfig config;
+    private static String MASTER_MGMT_IP;
+    private static String SLAVE_MGMT_IP;
+    private static String MASTER_MYSQL_IP;
+    private static String SLAVE_MYSQL_IP;
+    private static String MYSQL_ROOT_PASSWORD;
+    private static String MASTER_SSH_USER;
+    private static String MASTER_SSH_PASSWORD;
+    private static String SLAVE_SSH_USER;
+    private static String SLAVE_SSH_PASSWORD;
 
     public static void main(String[] args) {
         log.info("╔════════════════════════════════════════════════════════════════╗");
@@ -29,6 +34,24 @@ public class SetupPerconaReplication {
         log.info("╚════════════════════════════════════════════════════════════════╝");
 
         try {
+            // Load configuration from cluster-config.conf
+            config = new PerconaConfig("deployments/ks_network/percona");
+
+            MASTER_MGMT_IP = config.getMaster().getMgmtIp();
+            MASTER_MYSQL_IP = config.getMaster().getMysqlIp();
+            MASTER_SSH_USER = config.getMaster().getSshUser();
+            MASTER_SSH_PASSWORD = config.getMaster().getSshPassword();
+
+            SLAVE_MGMT_IP = config.getSlaves().get(0).getMgmtIp();
+            SLAVE_MYSQL_IP = config.getSlaves().get(0).getMysqlIp();
+            SLAVE_SSH_USER = config.getSlaves().get(0).getSshUser();
+            SLAVE_SSH_PASSWORD = config.getSlaves().get(0).getSshPassword();
+
+            MYSQL_ROOT_PASSWORD = config.getRootPassword();
+
+            log.info("Loaded configuration from cluster-config.conf");
+            log.info("Master: {} ({})", MASTER_MGMT_IP, MASTER_MYSQL_IP);
+            log.info("Slave: {} ({})", SLAVE_MGMT_IP, SLAVE_MYSQL_IP);
             // Step 1: Fix slave root user permissions (allow from any host)
             log.info("\n═══ Step 1: Fix slave MySQL root permissions ═══");
             fixSlaveRootPermissions();
@@ -55,9 +78,9 @@ public class SetupPerconaReplication {
     }
 
     private static void fixSlaveRootPermissions() throws Exception {
-        RemoteSshDevice device = new RemoteSshDevice(SLAVE_MGMT_IP, 22, SSH_USER);
+        RemoteSshDevice device = new RemoteSshDevice(SLAVE_MGMT_IP, 22, SLAVE_SSH_USER);
         try {
-            device.connect(SSH_PASSWORD);
+            device.connect(SLAVE_SSH_PASSWORD);
             log.info("Connected to slave node");
 
             // Connect via socket (localhost) - use localhost/socket explicitly
@@ -111,9 +134,9 @@ public class SetupPerconaReplication {
     }
 
     private static void createReplicationUser() throws Exception {
-        RemoteSshDevice device = new RemoteSshDevice(MASTER_MGMT_IP, 22, SSH_USER);
+        RemoteSshDevice device = new RemoteSshDevice(MASTER_MGMT_IP, 22, MASTER_SSH_USER);
         try {
-            device.connect(SSH_PASSWORD);
+            device.connect(MASTER_SSH_PASSWORD);
             log.info("Connected to master node");
 
             // Create replication user and network-based root access
@@ -147,9 +170,9 @@ public class SetupPerconaReplication {
     }
 
     private static void configureSlaveReplication() throws Exception {
-        RemoteSshDevice device = new RemoteSshDevice(SLAVE_MGMT_IP, 22, SSH_USER);
+        RemoteSshDevice device = new RemoteSshDevice(SLAVE_MGMT_IP, 22, SLAVE_SSH_USER);
         try {
-            device.connect(SSH_PASSWORD);
+            device.connect(SLAVE_SSH_PASSWORD);
             log.info("Connected to slave node");
 
             // Stop any existing replication
@@ -196,9 +219,9 @@ public class SetupPerconaReplication {
         // Wait for replication to start
         Thread.sleep(2000);
 
-        RemoteSshDevice device = new RemoteSshDevice(SLAVE_MGMT_IP, 22, SSH_USER);
+        RemoteSshDevice device = new RemoteSshDevice(SLAVE_MGMT_IP, 22, SLAVE_SSH_USER);
         try {
-            device.connect(SSH_PASSWORD);
+            device.connect(SLAVE_SSH_PASSWORD);
             log.info("Checking slave replication status...");
 
             String statusCmd = String.format(
