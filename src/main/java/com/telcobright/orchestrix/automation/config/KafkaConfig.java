@@ -85,6 +85,10 @@ public class KafkaConfig extends CommonConfig {
         return getProperty("CLUSTER_NAME");
     }
 
+    public String getClusterId() {
+        return getProperty("CLUSTER_ID");
+    }
+
     public int getNodeCount() {
         return Integer.parseInt(getProperty("NODE_COUNT", "3"));
     }
@@ -155,7 +159,8 @@ public class KafkaConfig extends CommonConfig {
         node.setMgmtIp(getProperty("NODE" + nodeNumber + "_MGMT_IP"));
         node.setSshUser(getProperty("NODE" + nodeNumber + "_SSH_USER"));
         node.setSshPassword(getProperty("NODE" + nodeNumber + "_SSH_PASS"));
-        node.setSshPort(getSshPort());
+        node.setSshPort(Integer.parseInt(getProperty("NODE" + nodeNumber + "_SSH_PORT",
+                String.valueOf(getSshPort()))));
         node.setSubnet(getProperty("NODE" + nodeNumber + "_SUBNET"));
         node.setBridgeGw(getProperty("NODE" + nodeNumber + "_BRIDGE_GW"));
         node.setKafkaIp(getProperty("NODE" + nodeNumber + "_KAFKA_IP"));

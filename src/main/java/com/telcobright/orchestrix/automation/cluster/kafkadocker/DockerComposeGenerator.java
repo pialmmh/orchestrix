@@ -63,6 +63,7 @@ public class DockerComposeGenerator {
 
         // KRaft mode configuration
         yaml.append("      KAFKA_NODE_ID: ").append(node.getKafkaId()).append("\n");
+        yaml.append("      KAFKA_CLUSTER_ID: \"").append(config.getClusterId()).append("\"\n");
         yaml.append("      KAFKA_PROCESS_ROLES: \"broker,controller\"\n");
 
         // Listeners

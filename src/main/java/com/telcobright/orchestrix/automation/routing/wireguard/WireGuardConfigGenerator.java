@@ -37,6 +37,7 @@ public class WireGuardConfigGenerator {
     public record MeshPeer(
         String hostname,
         String managementIp,
+        String wgEndpoint,      // WireGuard endpoint IP (may differ from managementIp for NAT scenarios)
         String overlayIp,
         String publicKey,
         String containerSubnet,
@@ -150,7 +151,7 @@ public class WireGuardConfigGenerator {
 
             config.append("[Peer]\n");
             config.append("PublicKey = ").append(peer.publicKey()).append("\n");
-            config.append("Endpoint = ").append(peer.managementIp()).append(":")
+            config.append("Endpoint = ").append(peer.wgEndpoint()).append(":")
                   .append(NetworkingGuidelineHelper.getOverlayListenPort()).append("\n");
 
             // CRITICAL: Use /32 for peer overlay IP, not /24!
@@ -241,8 +242,8 @@ public class WireGuardConfigGenerator {
 
         // Generate mesh peer lists (each node's perspective)
         List<MeshPeer> node1Peers = List.of(
-            new MeshPeer("node2", "10.255.246.174", "10.9.9.2", node2Keys.publicKey(), "10.10.198.0/24", false),
-            new MeshPeer("node3", "10.255.246.175", "10.9.9.3", node3Keys.publicKey(), "10.10.197.0/24", true)
+            new MeshPeer("node2", "10.255.246.174", "10.255.246.174", "10.9.9.2", node2Keys.publicKey(), "10.10.198.0/24", false),
+            new MeshPeer("node3", "10.255.246.175", "10.255.246.175", "10.9.9.3", node3Keys.publicKey(), "10.10.197.0/24", true)
         );
 
         // Generate VPN client

@@ -130,9 +130,11 @@ public class KafkaClusterDeployment {
             );
             ssh.connect(node.getSshPassword());
 
-            connections.put(node.getMgmtIp(), ssh);
-            networkAutomations.put(node.getMgmtIp(), new NetworkConfigAutomation(ssh));
-            dockerAutomations.put(node.getMgmtIp(), new DockerDeploymentAutomation(ssh));
+            // Use Kafka IP as key (unique per node) - mgmtIp may be shared when nodes use NAT
+            String nodeKey = node.getKafkaIp();
+            connections.put(nodeKey, ssh);
+            networkAutomations.put(nodeKey, new NetworkConfigAutomation(ssh));
+            dockerAutomations.put(nodeKey, new DockerDeploymentAutomation(ssh));
 
             log.info("  ✓ Connected to Node {}", node.getNodeId());
         }
@@ -152,8 +154,9 @@ public class KafkaClusterDeployment {
         List<KafkaNodeConfig> nodes = config.getNodes();
 
         for (KafkaNodeConfig node : nodes) {
-            DockerDeploymentAutomation docker = dockerAutomations.get(node.getMgmtIp());
-            NetworkConfigAutomation network = networkAutomations.get(node.getMgmtIp());
+            String nodeKey = node.getKafkaIp();
+            DockerDeploymentAutomation docker = dockerAutomations.get(nodeKey);
+            NetworkConfigAutomation network = networkAutomations.get(nodeKey);
 
             // Verify Docker
             String dockerVersion = docker.verifyDocker();
@@ -186,7 +189,8 @@ public class KafkaClusterDeployment {
         List<KafkaNodeConfig> nodes = config.getNodes();
 
         for (KafkaNodeConfig node : nodes) {
-            NetworkConfigAutomation network = networkAutomations.get(node.getMgmtIp());
+            String nodeKey = node.getKafkaIp();
+            NetworkConfigAutomation network = networkAutomations.get(nodeKey);
 
             // Add secondary IP to bridge
             network.addSecondaryIp(node.getBridgeName(), node.getKafkaIp() + "/24");
@@ -224,7 +228,8 @@ public class KafkaClusterDeployment {
         for (KafkaNodeConfig node : nodes) {
             log.info("Deploying to Node {} ({})...", node.getNodeId(), node.getKafkaIp());
 
-            DockerDeploymentAutomation docker = dockerAutomations.get(node.getMgmtIp());
+            String nodeKey = node.getKafkaIp();
+            DockerDeploymentAutomation docker = dockerAutomations.get(nodeKey);
 
             // Create directories
             String workDir = String.format("~/%s-%d",
@@ -265,7 +270,8 @@ public class KafkaClusterDeployment {
 
         // Wait for all containers to be running
         for (KafkaNodeConfig node : nodes) {
-            DockerDeploymentAutomation docker = dockerAutomations.get(node.getMgmtIp());
+            String nodeKey = node.getKafkaIp();
+            DockerDeploymentAutomation docker = dockerAutomations.get(nodeKey);
 
             boolean running = docker.waitForContainer("kafka-node", 30);
             if (running) {

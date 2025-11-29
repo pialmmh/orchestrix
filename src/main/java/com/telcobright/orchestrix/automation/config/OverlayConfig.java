@@ -76,6 +76,11 @@ public class OverlayConfig extends CommonConfig {
         NodeConfig node = new NodeConfig();
         node.setNodeId(nodeNumber);
         node.setMgmtIp(getProperty("NODE" + nodeNumber + "_MGMT_IP"));
+        node.setLocalIp(getProperty("NODE" + nodeNumber + "_LOCAL_IP",
+            getProperty("NODE" + nodeNumber + "_MGMT_IP"))); // Default to mgmt IP if not specified
+        node.setWgEndpoint(getProperty("NODE" + nodeNumber + "_WG_ENDPOINT",
+            getProperty("NODE" + nodeNumber + "_LOCAL_IP",
+                getProperty("NODE" + nodeNumber + "_MGMT_IP")))); // Default to local IP, then mgmt IP
         node.setSshUser(getProperty("NODE" + nodeNumber + "_SSH_USER"));
         node.setSshPassword(getProperty("NODE" + nodeNumber + "_SSH_PASS"));
         node.setSshPort(Integer.parseInt(getProperty("NODE" + nodeNumber + "_SSH_PORT",
@@ -132,6 +137,8 @@ public class OverlayConfig extends CommonConfig {
     public static class NodeConfig {
         private int nodeId;
         private String mgmtIp;
+        private String localIp;  // LAN IP for nodes behind same NAT
+        private String wgEndpoint;  // WireGuard endpoint IP for peer connections
         private String sshUser;
         private String sshPassword;
         private int sshPort;
@@ -146,6 +153,12 @@ public class OverlayConfig extends CommonConfig {
 
         public String getMgmtIp() { return mgmtIp; }
         public void setMgmtIp(String mgmtIp) { this.mgmtIp = mgmtIp; }
+
+        public String getLocalIp() { return localIp; }
+        public void setLocalIp(String localIp) { this.localIp = localIp; }
+
+        public String getWgEndpoint() { return wgEndpoint; }
+        public void setWgEndpoint(String wgEndpoint) { this.wgEndpoint = wgEndpoint; }
 
         public String getSshUser() { return sshUser; }
         public void setSshUser(String sshUser) { this.sshUser = sshUser; }

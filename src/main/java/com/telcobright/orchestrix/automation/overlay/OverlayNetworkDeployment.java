@@ -3,6 +3,7 @@ package com.telcobright.orchestrix.automation.overlay;
 import com.telcobright.orchestrix.automation.config.OverlayConfig;
 import com.telcobright.orchestrix.automation.config.OverlayConfig.NodeConfig;
 import com.telcobright.orchestrix.automation.core.device.impl.RemoteSshDevice;
+import com.telcobright.orchestrix.automation.network.LxdBridgeAutomation;
 import com.telcobright.orchestrix.automation.routing.NetworkingGuidelineHelper;
 import com.telcobright.orchestrix.automation.routing.NetworkingGuidelineHelper.NodeNetworkConfig;
 import com.telcobright.orchestrix.automation.routing.wireguard.WireGuardConfigGenerator;
@@ -164,7 +165,7 @@ public class OverlayNetworkDeployment {
 
     private void configureLxdBridges() throws Exception {
         log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        log.info("🌉 Configuring LXD Bridges");
+        log.info("🌉 Configuring LXD Bridges (with persistent IPs)");
         log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
         for (NodeConfig node : config.getNodes()) {
@@ -174,18 +175,22 @@ public class OverlayNetworkDeployment {
             log.info("Configuring lxdbr0 on Node {}...", node.getNodeId());
             log.info("  Subnet: {}", netConfig.containerSubnet());
 
-            // Initialize LXD
-            ssh.executeCommand("sudo lxd init --auto 2>/dev/null || echo 'LXD already initialized'");
+            // Use LxdBridgeAutomation for persistent IP configuration
+            LxdBridgeAutomation bridgeAutomation = new LxdBridgeAutomation(ssh);
 
-            // Configure bridge subnet
-            String gatewayIp = netConfig.containerSubnet().replace(".0/24", ".1/24");
-            ssh.executeCommand("sudo lxc network set lxdbr0 ipv4.address=" + gatewayIp + " 2>/dev/null || true");
-            ssh.executeCommand("sudo lxc network set lxdbr0 ipv4.nat=true 2>/dev/null || true");
+            // Configure bridge with gateway IP (creates systemd persistence service)
+            String gatewayIp = bridgeAutomation.configureBridge(netConfig.containerSubnet());
+            log.info("  ✓ lxdbr0 configured with persistent gateway: {}", gatewayIp);
 
-            log.info("  ✓ lxdbr0 configured: {}", netConfig.containerSubnet());
+            // Verify bridge is ready
+            if (bridgeAutomation.verifyBridgeReady()) {
+                log.info("  ✓ Bridge verification passed");
+            } else {
+                log.warn("  ⚠ Bridge verification issue - may need attention");
+            }
         }
 
-        log.info("✓ LXD bridges configured");
+        log.info("✓ LXD bridges configured with persistent IPs");
         log.info("");
     }
 
@@ -218,9 +223,15 @@ public class OverlayNetworkDeployment {
                     NodeNetworkConfig peerConfig = networkConfigs.get(peerNode.getNodeId());
                     KeyPair peerKeys = nodeKeys.get(peerNode.getNodeId());
 
+                    // Use WireGuard endpoint IP for peer connectivity (may differ from mgmt IP in NAT scenarios)
+                    String wgEndpoint = peerNode.getWgEndpoint();
+                    log.debug("  Node {} -> Node {}: WG endpoint {}",
+                        node.getNodeId(), peerNode.getNodeId(), wgEndpoint);
+
                     peers.add(new MeshPeer(
                         peerNode.getHostname(),
                         peerNode.getMgmtIp(),
+                        wgEndpoint,
                         peerConfig.overlayIp(),
                         peerKeys.publicKey(),
                         peerConfig.containerSubnet(),
@@ -368,16 +379,16 @@ public class OverlayNetworkDeployment {
             log.info("Node {} ({}):", node.getNodeId(), node.getHostname());
 
             // Check WireGuard peers
-            String wgShow = ssh.executeCommand("sudo wg show wg-overlay | grep -c '^peer:' || echo 0");
-            int peerCount = Integer.parseInt(wgShow.trim());
+            String wgShow = ssh.executeCommand("sudo wg show wg-overlay | grep -c '^peer:' 2>/dev/null || echo 0");
+            int peerCount = parseCount(wgShow);
             log.info("  WireGuard peers: {}/{}", peerCount, expectedPeers);
             if (peerCount < expectedPeers) allGood = false;
 
-            // Check BGP neighbors
+            // Check BGP neighbors (count lines with overlay IPs that end with numbers = established)
             String bgpNeighbors = ssh.executeCommand(
-                "sudo vtysh -c 'show ip bgp summary' 2>/dev/null | grep -c Estab || echo 0"
+                "sudo vtysh -c 'show ip bgp summary' 2>/dev/null | grep '10\\.9\\.' | grep -cE '[0-9]+\\s+[0-9]+\\s*$' 2>/dev/null || echo 0"
             );
-            int bgpCount = Integer.parseInt(bgpNeighbors.trim());
+            int bgpCount = parseCount(bgpNeighbors);
             log.info("  BGP neighbors established: {}/{}", bgpCount, expectedPeers);
             if (bgpCount < expectedPeers) allGood = false;
 
@@ -389,6 +400,25 @@ public class OverlayNetworkDeployment {
         }
 
         return allGood;
+    }
+
+    /**
+     * Safely parse count from command output, handling multiline strings and errors.
+     */
+    private int parseCount(String output) {
+        if (output == null || output.trim().isEmpty()) {
+            return 0;
+        }
+
+        // Take only the first line and trim whitespace
+        String firstLine = output.split("\n")[0].trim();
+
+        try {
+            return Integer.parseInt(firstLine);
+        } catch (NumberFormatException e) {
+            log.warn("Failed to parse count from output: '{}', returning 0", firstLine);
+            return 0;
+        }
     }
 
     private void printSuccessSummary() {

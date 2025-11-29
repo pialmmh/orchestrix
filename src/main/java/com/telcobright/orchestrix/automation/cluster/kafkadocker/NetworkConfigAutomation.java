@@ -101,6 +101,7 @@ public class NetworkConfigAutomation {
         log.info("Creating persistent systemd service: {}", serviceName);
 
         // Create systemd service file content
+        // Wait for bridge to exist before adding IP
         String serviceContent = String.format(
             "[Unit]\\n" +
             "Description=Add secondary IP %s to %s\\n" +
@@ -109,13 +110,15 @@ public class NetworkConfigAutomation {
             "\\n" +
             "[Service]\\n" +
             "Type=oneshot\\n" +
-            "ExecStart=/sbin/ip addr add %s dev %s\\n" +
+            "ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do ip link show %s > /dev/null 2>&1 && break || sleep 1; done'\\n" +
+            "ExecStart=/bin/sh -c 'ip addr add %s dev %s 2>&1 || test $? -eq 2'\\n" +
             "ExecStop=/sbin/ip addr del %s dev %s\\n" +
             "RemainAfterExit=yes\\n" +
             "\\n" +
             "[Install]\\n" +
             "WantedBy=multi-user.target\\n",
             ipWithCidr, bridgeName,
+            bridgeName,
             ipWithCidr, bridgeName,
             ipWithCidr, bridgeName
         );
